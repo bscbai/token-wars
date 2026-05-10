@@ -1,0 +1,17 @@
+{
+  "name": "token-wars",
+  "version": "1.0.0",
+  "description": "Token Wars: 算力征途 — A cyberpunk multiplayer browser game",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.0",
+    "phaser": "^3.80.1",
+    "socket.io": "^4.7.5",
+    "uuid": "^9.0.1"
+  }
+}

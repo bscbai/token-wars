@@ -1,0 +1,25 @@
+{
+  "id": "solo_easy",
+  "name": "初级数据矿洞",
+  "width": 30,
+  "height": 30,
+  "rooms": [
+    {
+      "layout": "open_room",
+      "enemies": ["drone", "drone", "drone"]
+    },
+    {
+      "layout": "open_room",
+      "enemies": ["drone", "crawler", "drone"]
+    },
+    {
+      "layout": "open_room",
+      "enemies": ["elite_guard"]
+    },
+    {
+      "layout": "boss_arena",
+      "enemies": ["boss_cache_controller"],
+      "isBoss": true
+    }
+  ]
+}
