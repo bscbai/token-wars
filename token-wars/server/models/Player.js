@@ -51,6 +51,7 @@ class Player {
 
     // Shop
     this.purchasedPacks = {}; // { packId: purchaseCount }
+    this.lastDailyClaim = ''; // date string for daily credit claim
 
     // Combat state (transient, not persisted)
     this.shield = 0;
@@ -177,6 +178,7 @@ class Player {
       streakRewardsClaimed: this.streakRewardsClaimed,
       streakResetDate: this.streakResetDate,
       purchasedPacks: this.purchasedPacks,
+      lastDailyClaim: this.lastDailyClaim,
       createdAt: this.createdAt,
       lastLoginAt: this.lastLoginAt,
     };

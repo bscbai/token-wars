@@ -12,13 +12,35 @@ const PvPManager = require('./game/PvPManager');
 const WorldBossManager = require('./game/WorldBossManager');
 const GameEngine = require('./game/GameEngine');
 const { EVENTS } = require('../shared/protocol');
+const { MAP_WIDTH, MAP_HEIGHT, TILE } = require('../shared/constants');
 
 const PORT = process.env.PORT || 3000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// --- Default lobby map (open floor with border walls) ---
+const lobbyMap = [];
+for (let y = 0; y < MAP_HEIGHT; y++) {
+  lobbyMap[y] = [];
+  for (let x = 0; x < MAP_WIDTH; x++) {
+    if (x === 0 || x === MAP_WIDTH - 1 || y === 0 || y === MAP_HEIGHT - 1) {
+      lobbyMap[y][x] = TILE.WALL;
+    } else {
+      lobbyMap[y][x] = TILE.FLOOR;
+    }
+  }
+}
+
+function isWalkable(x, y, mapData) {
+  if (x < 0 || x >= MAP_WIDTH || y < 0 || y >= MAP_HEIGHT) return false;
+  const map = mapData || lobbyMap;
+  return map[y][x] !== TILE.WALL;
+}
 
 // Express setup
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'client')));
+app.use('/shared', express.static(path.join(__dirname, '..', 'shared')));
 const shopRouter = require('./routes/shop');
 app.use('/api/auth', authRouter);
 app.use('/api/player', playerRouter);
@@ -26,9 +48,32 @@ app.use('/api/shop', shopRouter);
 
 // HTTP + Socket.IO
 const server = http.createServer(app);
+const allowedOrigins = NODE_ENV === 'production'
+  ? ['https://game.yourdomain.com'] // TODO: replace with real domain
+  : '*';
 const io = new Server(server, {
-  cors: { origin: '*' },
+  cors: { origin: allowedOrigins },
 });
+
+// --- Socket.IO rate limiting middleware ---
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX = 200; // max events per window
+const rateLimitMap = new Map(); // socketId -> { count, resetTime }
+
+function rateLimit(socket) {
+  const now = Date.now();
+  let record = rateLimitMap.get(socket.id);
+  if (!record || now > record.resetTime) {
+    record = { count: 0, resetTime: now + RATE_LIMIT_WINDOW_MS };
+    rateLimitMap.set(socket.id, record);
+  }
+  record.count++;
+  return record.count <= RATE_LIMIT_MAX;
+}
+
+// --- Movement throttle (server-side) ---
+const MOVE_MIN_INTERVAL_MS = 80; // ~12 moves/sec max
+const lastMoveTime = new Map(); // socketId -> timestamp
 
 // Game systems
 const miningManager = new MiningManager(io, store);
@@ -46,8 +91,12 @@ const socketToPlayerId = new Map(); // socketId -> playerId
 io.on('connection', (socket) => {
   console.log(`[WS] Client connected: ${socket.id}`);
 
-  // Auth via session token
+  // --- FIX #5: Auth via session token ---
   socket.on(EVENTS.AUTH_LOGIN, ({ token }) => {
+    if (!rateLimit(socket)) {
+      socket.emit(EVENTS.AUTH_FAIL, { reason: 'Rate limited' });
+      return;
+    }
     const player = verifySession(token);
     if (!player) {
       socket.emit(EVENTS.AUTH_FAIL, { reason: 'Invalid session' });
@@ -70,33 +119,61 @@ io.on('connection', (socket) => {
     console.log(`[WS] Player authenticated: ${player.username}`);
   });
 
-  // Movement — delegated to PvE/PvP managers when in dungeon/arena
+  // --- FIX #1: Movement with wall collision + rate limit ---
   socket.on(EVENTS.INPUT_MOVE, ({ dx, dy }) => {
+    if (!rateLimit(socket)) return;
+
     const player = connectedPlayers.get(socket.id);
     if (!player || !player.alive) return;
     if (Math.abs(dx) > 1 || Math.abs(dy) > 1) return;
+
+    // Server-side movement throttle
+    const now = Date.now();
+    const last = lastMoveTime.get(socket.id) || 0;
+    if (now - last < MOVE_MIN_INTERVAL_MS) return;
+    lastMoveTime.set(socket.id, now);
+
     const newX = player.x + dx;
     const newY = player.y + dy;
-    if (newX >= 0 && newX < 30 && newY >= 0 && newY < 30) {
+
+    // Get the correct map for collision check
+    let mapData = null;
+    const dungeonId = pveManager.playerDungeons.get(player.id);
+    if (dungeonId) {
+      const dungeon = pveManager.activeDungeons.get(dungeonId);
+      if (dungeon) mapData = dungeon.mapData;
+    }
+    const arenaId = pvpManager.playerArenas.get(player.id);
+    if (arenaId) {
+      const arena = pvpManager.activeArenas.get(arenaId);
+      if (arena) mapData = arena.mapData;
+    }
+
+    // Wall collision check
+    if (isWalkable(newX, newY, mapData)) {
       player.x = newX;
       player.y = newY;
     }
   });
 
-  // Skill use — validated by CombatSystem
+  // --- FIX #2: Skill use with mutual exclusion ---
   socket.on(EVENTS.INPUT_SKILL, ({ skillId, targetX, targetY }) => {
+    if (!rateLimit(socket)) return;
+
     const player = connectedPlayers.get(socket.id);
     if (!player || !player.alive) return;
-    // Get entities from PvE manager if in dungeon
+
+    // Mutual exclusion: in dungeon OR in arena, never both
     const dungeonId = pveManager.playerDungeons.get(player.id);
     if (dungeonId) {
       const dungeon = pveManager.activeDungeons.get(dungeonId);
       if (dungeon) {
         const allEntities = new Map([...dungeon.players, ...dungeon.monsters]);
         combatSystem.useSkill(player, skillId, targetX, targetY, allEntities);
+        return;
       }
     }
-    // Get entities from PvP arena if in arena
+
     const arenaId = pvpManager.playerArenas.get(player.id);
     if (arenaId) {
       const arena = pvpManager.activeArenas.get(arenaId);
@@ -109,8 +186,11 @@ io.on('connection', (socket) => {
           }
         }
         combatSystem.useSkill(player, skillId, targetX, targetY, allPlayers);
+        return;
       }
     }
+
+    // Not in any combat context — ignore silently (lobby has no combat)
   });
 
   // Ping/pong
@@ -134,6 +214,9 @@ io.on('connection', (socket) => {
       console.log(`[WS] Player disconnected: ${player.username}`);
       connectedPlayers.delete(socket.id);
     }
+    // Cleanup rate limit data
+    rateLimitMap.delete(socket.id);
+    lastMoveTime.delete(socket.id);
   });
 });
 
@@ -156,5 +239,5 @@ process.on('SIGTERM', () => {
 
 // Start
 server.listen(PORT, () => {
-  console.log(`[Token Wars] Server running on http://localhost:${PORT}`);
+  console.log(`[Token Wars] Server running on http://localhost:${PORT} (${NODE_ENV})`);
 });

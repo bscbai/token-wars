@@ -1,5 +1,5 @@
 import net from '../systems/NetworkManager.js';
-import { RARITY_CONFIG, SKILLS } from '../../../shared/constants.js';
+import { RARITY_CONFIG, SKILLS } from '../shared.js';
 
 export class InventoryScene extends Phaser.Scene {
   constructor() {
@@ -162,8 +162,15 @@ export class InventoryScene extends Phaser.Scene {
           const token = gameObject.getData('token');
           const tokenIndex = gameObject.getData('tokenIndex');
           if (token) {
-            console.log(`Equip token ${tokenIndex} to slot ${slot.index}`);
-            // TODO: send to server
+            net.emit('inventory:equip', { tokenIndex, slotIndex: slot.index });
+            // Optimistic update: move token to slot visually
+            const rarityColor = RARITY_CONFIG[token.rarity]?.color || 0x888888;
+            slot.cell.setFillStyle(rarityColor, 0.2);
+            const label = RARITY_CONFIG[token.rarity]?.label || '?';
+            this.add.text(slot.x, slot.y, label, {
+              fontSize: '14px', fontFamily: 'Courier New',
+              color: `#${rarityColor.toString(16).padStart(6, '0')}`,
+            }).setOrigin(0.5);
           }
           break;
         }

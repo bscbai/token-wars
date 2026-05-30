@@ -1,5 +1,5 @@
 import net from '../systems/NetworkManager.js';
-import { MINING, RARITY_CONFIG } from '../../../shared/constants.js';
+import { MINING, RARITY_CONFIG } from '../shared.js';
 
 export class MiningScene extends Phaser.Scene {
   constructor() {

@@ -14,4 +14,25 @@ router.get('/profile', (req, res) => {
   res.json({ player: player.serialize() });
 });
 
+// POST /api/player/claim-daily
+router.post('/claim-daily', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'No session token' });
+
+  const player = verifySession(token);
+  if (!player) return res.status(401).json({ error: 'Invalid session' });
+
+  // Check if already claimed today
+  const today = new Date().toDateString();
+  if (player.lastDailyClaim === today) {
+    return res.status(400).json({ error: '今日已领取' });
+  }
+
+  const amount = 50;
+  player.credits += amount;
+  player.lastDailyClaim = today;
+
+  res.json({ amount, player: player.serialize() });
+});
+
 module.exports = router;

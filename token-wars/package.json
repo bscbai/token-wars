@@ -13,5 +13,8 @@
     "phaser": "^3.80.1",
     "socket.io": "^4.7.5",
     "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
   }
 }

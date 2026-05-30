@@ -98,18 +98,31 @@ export class LobbyScene extends Phaser.Scene {
     this.add.text(cx + 120, y + 20, `DEF: ${p.def}`, { fontSize: '14px', color: '#4488ff', fontFamily: 'Courier New' });
 
     // Tokens
-    this.add.text(cx - 230, y + 75, `稳定Token: ${p.stableTokens.length}  |  不稳定Token: ${p.unstableTokens}  |  积分: ${p.credits}`, {
+    this.tokenText = this.add.text(cx - 230, y + 75, `稳定Token: ${p.stableTokens.length}  |  不稳定Token: ${p.unstableTokens}  |  积分: ${p.credits}`, {
       fontSize: '13px', color: '#aaaaaa', fontFamily: 'Courier New',
     });
 
     // PvP rating
-    this.add.text(cx + 120, y + 45, `PvP: ${p.pvpRating}`, {
+    this.pvpText = this.add.text(cx + 120, y + 45, `PvP: ${p.pvpRating}`, {
       fontSize: '13px', color: '#ff8800', fontFamily: 'Courier New',
     });
   }
 
   refreshPlayerInfo() {
-    // Simple refresh — recreate would be cleaner but this works for MVP
-    // In production, update individual text objects
+    const p = this.playerData;
+    this.nameText.setText(`${p.username}  Lv.${p.level}`);
+
+    const hpPct = Math.max(p.hp / p.maxHp, 0);
+    this.hpBar.width = 200 * hpPct;
+    this.hpText.setText(`${p.hp}/${p.maxHp}`);
+    if (hpPct > 0.5) this.hpBar.setFillStyle(0x00ff44);
+    else if (hpPct > 0.25) this.hpBar.setFillStyle(0xffaa00);
+    else this.hpBar.setFillStyle(0xff4444);
+
+    const xpPct = Math.min(p.xp / (p.xpToNext || 1), 1);
+    this.xpBar.width = 200 * xpPct;
+
+    this.tokenText.setText(`稳定Token: ${p.stableTokens.length}  |  不稳定Token: ${p.unstableTokens}  |  积分: ${p.credits}`);
+    this.pvpText.setText(`PvP: ${p.pvpRating}`);
   }
 }

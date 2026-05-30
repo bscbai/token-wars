@@ -132,14 +132,10 @@ export class LoginScene extends Phaser.Scene {
       this.net.setSession(data.sessionToken, data.player.id);
       this.net.emit('auth:login', { token: data.sessionToken });
 
-      // Also navigate directly (socket auth:success will also trigger this)
+      // Navigate via socket auth:success callback (registered in create())
+      // No duplicate navigation here — the auth:success listener handles it
       this.statusText.setColor('#00ff88');
-      this.statusText.setText('登录成功!');
-
-      // Small delay to let socket auth complete, then navigate
-      this.time.delayedCall(300, () => {
-        this.scene.start('LobbyScene', { player: data.player });
-      });
+      this.statusText.setText('登录成功! 正在进入...');
     } catch (err) {
       this.statusText.setColor('#ff4444');
       this.statusText.setText('连接服务器失败');

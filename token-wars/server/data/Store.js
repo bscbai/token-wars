@@ -29,12 +29,10 @@ class Store {
   }
 
   save() {
-    try {
-      const data = Array.from(this.players.values()).map(p => p.toSave());
-      fs.writeFileSync(PLAYERS_FILE, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (err) {
-      console.error('[Store] Failed to save players:', err.message);
-    }
+    const data = Array.from(this.players.values()).map(p => p.toSave());
+    fs.writeFile(PLAYERS_FILE, JSON.stringify(data, null, 2), 'utf-8', (err) => {
+      if (err) console.error('[Store] Failed to save players:', err.message);
+    });
   }
 
   startAutoSave(intervalMs = 60000) {

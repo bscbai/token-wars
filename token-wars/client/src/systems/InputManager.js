@@ -17,11 +17,11 @@ export class InputManager {
     this.keys.down = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
     this.keys.right = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
 
-    // Skill keys
+    // Skill keys — Q/E/R/F (W is used for movement, no conflict)
     this.keys.q = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
-    this.keys.w_skill = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W); // shared with W
     this.keys.e = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.keys.r = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+    this.keys.f = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
 
     // Number keys (alternative skill)
     this.keys.one = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
@@ -56,16 +56,17 @@ export class InputManager {
   }
 
   getSkillInput() {
+    // Skill 0: Q or 1  |  Skill 1: E or 2  |  Skill 2: R or 3  |  Skill 3: F or 4
     if (Phaser.Input.Keyboard.JustDown(this.keys.q) || Phaser.Input.Keyboard.JustDown(this.keys.one)) {
       return { skillIndex: 0, target: this.lastClickPos };
     }
-    if (Phaser.Input.Keyboard.JustDown(this.keys.two)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.e) || Phaser.Input.Keyboard.JustDown(this.keys.two)) {
       return { skillIndex: 1, target: this.lastClickPos };
     }
-    if (Phaser.Input.Keyboard.JustDown(this.keys.e) || Phaser.Input.Keyboard.JustDown(this.keys.three)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.r) || Phaser.Input.Keyboard.JustDown(this.keys.three)) {
       return { skillIndex: 2, target: this.lastClickPos };
     }
-    if (Phaser.Input.Keyboard.JustDown(this.keys.r) || Phaser.Input.Keyboard.JustDown(this.keys.four)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.f) || Phaser.Input.Keyboard.JustDown(this.keys.four)) {
       return { skillIndex: 3, target: this.lastClickPos };
     }
     return null;

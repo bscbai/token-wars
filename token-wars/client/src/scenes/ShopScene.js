@@ -21,16 +21,34 @@ export class ShopScene extends Phaser.Scene {
       fontSize: '18px', fontFamily: 'Courier New', color: '#ffff00',
     }).setOrigin(0.5);
 
-    // Daily bonus button
-    const dailyBtn = this.add.text(cx + 300, 65, '[ 领取每日50积分 ]', {
+    // Daily bonus button — claims via server
+    const dailyBtn = this.add.text(cx + 300, 65, '[ 领取每日积分 ]', {
       fontSize: '12px', fontFamily: 'Courier New', color: '#00ff88',
     }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
-    dailyBtn.on('pointerdown', () => {
-      // For prototype: just add credits
-      this.playerData.credits += 50;
-      this.creditsText.setText(`积分: ${this.playerData.credits}`);
-      dailyBtn.setText('已领取');
-      dailyBtn.disableInteractive();
+    dailyBtn.on('pointerdown', async () => {
+      try {
+        const resp = await fetch('/api/player/claim-daily', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${net.sessionToken}`,
+          },
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          this.statusText.setText(data.error || '领取失败');
+          return;
+        }
+        this.playerData = { ...this.playerData, ...data.player };
+        this.creditsText.setText(`积分: ${this.playerData.credits}`);
+        dailyBtn.setText('已领取');
+        dailyBtn.disableInteractive();
+        this.statusText.setColor('#00ff88');
+        this.statusText.setText(`获得 ${data.amount} 积分!`);
+        this.time.delayedCall(2000, () => this.statusText.setText(''));
+      } catch (err) {
+        this.statusText.setText('网络错误');
+      }
     });
 
     // Fetch packs from server

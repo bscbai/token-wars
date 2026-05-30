@@ -1,0 +1,7 @@
+node_modules/
+server/data/players.json
+server/data/*.json
+.DS_Store
+.claude/
+.workbuddy/
+*.log

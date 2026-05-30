@@ -4,7 +4,7 @@ import { PlayerSprite } from '../entities/PlayerSprite.js';
 import { MonsterSprite } from '../entities/MonsterSprite.js';
 import { HUD } from '../ui/HUD.js';
 import { SkillBar } from '../ui/SkillBar.js';
-import { MAP_WIDTH, MAP_HEIGHT, TILE, SKILLS } from '../../../shared/constants.js';
+import { MAP_WIDTH, MAP_HEIGHT, TILE, SKILLS } from '../shared.js';
 
 export class CombatScene extends Phaser.Scene {
   constructor() {

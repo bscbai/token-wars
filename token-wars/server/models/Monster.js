@@ -137,7 +137,7 @@ class Monster {
     if (this.bossPhases && this.alive) {
       const hpPercent = this.hp / this.maxHp;
       for (let i = this.bossPhases.length - 1; i >= 0; i--) {
-        if (hpPercent <= this.bossPhases[i].hpThreshold && i > this.currentPhase) {
+        if (hpPercent < this.bossPhases[i].hpThreshold && i > this.currentPhase) {
           this.currentPhase = i;
           break;
         }
