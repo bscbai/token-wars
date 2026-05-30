@@ -14,7 +14,6 @@ class NetworkManager {
 
     this.socket.on('connect', () => {
       console.log('[Net] Connected to server');
-      // Re-authenticate if we have a session
       if (this.sessionToken) {
         this.socket.emit('auth:login', { token: this.sessionToken });
       }
@@ -24,7 +23,6 @@ class NetworkManager {
       console.log('[Net] Disconnected');
     });
 
-    // Forward all events to registered listeners
     const allEvents = [
       'auth:success', 'auth:fail',
       'player:update', 'player:dead', 'player:respawn',
@@ -44,7 +42,9 @@ class NetworkManager {
       this.socket.on(event, (data) => {
         const callbacks = this.listeners.get(event);
         if (callbacks) {
-          for (const cb of callbacks) cb(data);
+          for (const cb of callbacks) {
+            try { cb(data); } catch (e) { console.error('[Net] callback error for ' + event + ':', e.message); }
+          }
         }
       });
     }
@@ -78,6 +78,5 @@ class NetworkManager {
   }
 }
 
-// Singleton
 const net = new NetworkManager();
 export default net;

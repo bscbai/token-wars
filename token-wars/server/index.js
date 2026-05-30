@@ -39,7 +39,7 @@ function isWalkable(x, y, mapData) {
 // Express setup
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'client')));
+app.use(express.static(path.join(__dirname, '..', 'client'), { etag: false, lastModified: false, setHeaders: (res) => { res.set('Cache-Control', 'no-store'); } }));
 app.use('/shared', express.static(path.join(__dirname, '..', 'shared')));
 const shopRouter = require('./routes/shop');
 app.use('/api/auth', authRouter);

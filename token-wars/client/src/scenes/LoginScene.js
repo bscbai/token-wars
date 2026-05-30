@@ -4,10 +4,14 @@ export class LoginScene extends Phaser.Scene {
   constructor() {
     super({ key: 'LoginScene' });
     this.isRegister = false;
+    this._pendingTransition = null;
   }
 
   create() {
     net.connect();
+
+    // Disable Phaser input so DOM clicks work
+    this.input.enabled = false;
 
     const cx = 480;
     const cy = 280;
@@ -56,7 +60,8 @@ export class LoginScene extends Phaser.Scene {
     this.passwordInput.minLength = 4;
     this.passwordInput.style.cssText = this.usernameInput.style.cssText;
 
-    // Action button
+    // Action button — use onclick to avoid Phaser event capture issues
+    const self = this;
     this.actionBtn = document.createElement('button');
     this.actionBtn.textContent = '登  录';
     this.actionBtn.style.cssText = `
@@ -64,22 +69,22 @@ export class LoginScene extends Phaser.Scene {
       background: #1a3a2e; color: #00ff88; border: 2px solid #00ff88; border-radius: 4px;
       cursor: pointer; font-weight: bold; margin-top: 8px;
     `;
-    this.actionBtn.addEventListener('click', () => this.submit());
-    this.actionBtn.addEventListener('mouseenter', () => { this.actionBtn.style.background = '#2a5a4e'; });
-    this.actionBtn.addEventListener('mouseleave', () => { this.actionBtn.style.background = '#1a3a2e'; });
+    this.actionBtn.onclick = function() { self.submit(); };
+    this.actionBtn.onmouseenter = function() { self.actionBtn.style.background = '#2a5a4e'; };
+    this.actionBtn.onmouseleave = function() { self.actionBtn.style.background = '#1a3a2e'; };
 
     // Toggle link
     this.toggleLink = document.createElement('a');
     this.toggleLink.textContent = '注册新账号';
     this.toggleLink.href = '#';
     this.toggleLink.style.cssText = 'color: #008866; font-size: 13px; margin-top: 4px; text-decoration: none;';
-    this.toggleLink.addEventListener('click', (e) => {
+    this.toggleLink.onclick = function(e) {
       e.preventDefault();
-      this.isRegister = !this.isRegister;
-      this.actionBtn.textContent = this.isRegister ? '注  册' : '登  录';
-      this.toggleLink.textContent = this.isRegister ? '返回登录' : '注册新账号';
-      this.statusSpan.textContent = '';
-    });
+      self.isRegister = !self.isRegister;
+      self.actionBtn.textContent = self.isRegister ? '注  册' : '登  录';
+      self.toggleLink.textContent = self.isRegister ? '返回登录' : '注册新账号';
+      self.statusSpan.textContent = '';
+    };
 
     // Status text
     this.statusSpan = document.createElement('span');
@@ -96,12 +101,12 @@ export class LoginScene extends Phaser.Scene {
     gameContainer.appendChild(this.formDiv);
 
     // Enter key submits
-    this.passwordInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this.submit();
-    });
-    this.usernameInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this.passwordInput.focus();
-    });
+    this.passwordInput.onkeydown = function(e) {
+      if (e.key === 'Enter') self.submit();
+    };
+    this.usernameInput.onkeydown = function(e) {
+      if (e.key === 'Enter') self.passwordInput.focus();
+    };
 
     // Focus username
     this.usernameInput.focus();
@@ -111,9 +116,24 @@ export class LoginScene extends Phaser.Scene {
       this.statusSpan.style.color = '#00ff88';
       this.statusSpan.textContent = '登录成功!';
       net.setSession(net.sessionToken, data.playerId);
-      this.cleanup();
-      this.scene.start('LobbyScene', { player: data.player });
+      this._pendingTransition = data.player;
     });
+
+    net.on('auth:fail', (data) => {
+      this.statusSpan.style.color = '#ff4444';
+      this.statusSpan.textContent = data.reason || '认证失败';
+      this.actionBtn.disabled = false;
+      this.actionBtn.style.opacity = '1';
+    });
+  }
+
+  update() {
+    if (this._pendingTransition) {
+      const playerData = this._pendingTransition;
+      this._pendingTransition = null;
+      this.cleanup();
+      this.scene.start('LobbyScene', { player: playerData });
+    }
   }
 
   cleanup() {
@@ -165,7 +185,6 @@ export class LoginScene extends Phaser.Scene {
         return;
       }
 
-      // Store session and authenticate via socket
       net.setSession(data.sessionToken, data.player.id);
       net.emit('auth:login', { token: data.sessionToken });
 
