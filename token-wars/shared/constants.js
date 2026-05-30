@@ -1,4 +1,5 @@
 // Token Wars: 算力征途 — Shared Constants
+/* eslint-env browser, node */
 
 const TICK_RATE = 20; // Server ticks per second
 const TICK_MS = 1000 / TICK_RATE;
@@ -231,9 +232,46 @@ function rollRarity() {
   return RARITY.COMMON;
 }
 
-module.exports = {
+// --- Protocol (Socket.IO events + REST endpoints) ---
+const EVENTS = {
+  AUTH_LOGIN: 'auth:login', AUTH_SUCCESS: 'auth:success', AUTH_FAIL: 'auth:fail',
+  PLAYER_UPDATE: 'player:update', PLAYER_DEAD: 'player:dead', PLAYER_RESPAWN: 'player:respawn',
+  INPUT_MOVE: 'input:move', STATE_SYNC: 'state:sync',
+  INPUT_SKILL: 'input:skill', COMBAT_HIT: 'combat:hit', COMBAT_DEATH: 'combat:death',
+  COMBAT_MISS: 'combat:miss', COMBAT_SHIELD: 'combat:shield',
+  PROJECTILE_SPAWN: 'projectile:spawn', PROJECTILE_HIT: 'projectile:hit', PROJECTILE_DESTROY: 'projectile:destroy',
+  MINING_UPDATE: 'mining:update', MINING_COLLECT: 'mining:collect', MINING_COLLECTED: 'mining:collected',
+  MINING_UPGRADE: 'mining:upgrade', MINING_UPGRADED: 'mining:upgraded',
+  DUNGEON_JOIN: 'dungeon:join', DUNGEON_START: 'dungeon:start', DUNGEON_ROOM_CLEAR: 'dungeon:room_clear',
+  DUNGEON_BOSS_PHASE: 'dungeon:boss_phase', DUNGEON_COMPLETE: 'dungeon:complete', DUNGEON_FAIL: 'dungeon:fail',
+  PVP_QUEUE: 'pvp:queue', PVP_DEQUEUE: 'pvp:dequeue', PVP_MATCHED: 'pvp:matched',
+  PVP_ROUND_START: 'pvp:round_start', PVP_ROUND_END: 'pvp:round_end', PVP_MATCH_END: 'pvp:match_end', PVP_LAST_STAND: 'pvp:last_stand',
+  WORLD_BOSS_ANNOUNCE: 'world_boss:announce', WORLD_BOSS_JOIN: 'world_boss:join',
+  WORLD_BOSS_UPDATE: 'world_boss:update', WORLD_BOSS_END: 'world_boss:end',
+  SHOP_BUY: 'shop:buy', SHOP_PURCHASED: 'shop:purchased',
+  INVENTORY_UPDATE: 'inventory:update', SKILL_DISK_UPDATE: 'skill_disk:update',
+  ERROR: 'error', PING: 'ping', PONG: 'pong',
+};
+
+const REST = {
+  AUTH_REGISTER: '/api/auth/register', AUTH_LOGIN: '/api/auth/login',
+  SHOP_LIST: '/api/shop/packs', SHOP_BUY: '/api/shop/buy', PLAYER_PROFILE: '/api/player/profile',
+};
+
+const _exports = {
   TICK_RATE, TICK_MS, TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, TILE,
   RARITY, RARITY_CONFIG, TOKEN_TYPE, PLAYER_DEFAULTS, DEATH_DROP_RATE,
   SKILLS, COPROCESSORS, MINING, PVP, SHOP_PACKS, LEVEL_XP, LEVEL_UNLOCKS,
   calcDamage, rollRarity,
+  EVENTS, REST,
 };
+
+// Always set browser global (for client-side modules)
+if (typeof window !== 'undefined') {
+  window.TOKEN_CONSTANTS = _exports;
+}
+
+// CommonJS export (for Node.js server)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = _exports;
+}
