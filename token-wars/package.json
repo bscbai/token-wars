@@ -1,11 +1,77 @@
 {
   "name": "token-wars",
   "version": "1.0.0",
-  "description": "Token Wars: 算力征途 — A cyberpunk multiplayer browser game",
-  "main": "server/index.js",
+  "description": "Token Wars: 算力征途 — 赛博朋克多人浏览器游戏",
+  "main": "electron/main.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "node --watch server/index.js",
+    "electron": "electron .",
+    "electron:dev": "cross-env NODE_ENV=development electron .",
+    "build": "node scripts/build-electron.js",
+    "build:win": "node scripts/build-electron.js --win",
+    "build:mac": "node scripts/build-electron.js --mac",
+    "build:linux": "node scripts/build-electron.js --linux",
+    "build:all": "node scripts/build-electron.js --all"
+  },
+  "build": {
+    "appId": "com.tokenwars.game",
+    "productName": "Token Wars",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "server/**/*",
+      "shared/**/*",
+      "client/**/*",
+      "!node_modules/.cache/**/*",
+      "!openspec/**/*",
+      "!docs/**/*",
+      "!.workbuddy/**/*",
+      "!.claude/**/*"
+    ],
+    "extraResources": [],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Token Wars"
+    },
+    "mac": {
+      "category": "public.app-category.games",
+      "icon": "build/icon.png",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "build/icon.png",
+      "category": "Game"
+    }
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -15,6 +81,9 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "electron": "^42.3.3",
+    "electron-builder": "^26.15.2",
+    "electron-packager": "^17.1.2",
     "esbuild": "^0.28.0"
   }
 }

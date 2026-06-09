@@ -5,3 +5,6 @@ server/data/*.json
 .claude/
 .workbuddy/
 *.log
+dist/
+out/token-wars游戏设计/
+AGENTS.md
