@@ -35,6 +35,10 @@ class NetworkManager {
       'world_boss:announce', 'world_boss:update', 'world_boss:end',
       'shop:purchased',
       'inventory:update', 'skill_disk:update',
+      'ai_arena:agent_list', 'ai_arena:deployed', 'ai_arena:recalled',
+      'ai_arena:queue_fail', 'ai_arena:match_result',
+      'ai_arena:replay', 'ai_arena:leaderboard',
+      'ai_arena:behavior_set',
       'error', 'pong',
     ];
 

@@ -32,6 +32,7 @@ export class LobbyScene extends Phaser.Scene {
         { label: '⛏  挂机挖矿', scene: 'MiningScene', color: '#00aaff' },
         { label: '⚔  PvE 副本', scene: 'DungeonSelectScene', color: '#ff4444' },
         { label: '🏟  PvP 竞技场', scene: 'PvPScene', color: '#ff8800' },
+        { label: '🤖 AI 竞技场', scene: 'AIArenaScene', color: '#44ffaa' },
         { label: '🛒  算力商城', scene: 'ShopScene', color: '#aa44ff' },
         { label: '🎒  背包 & 技能盘', scene: 'InventoryScene', color: '#44ffaa' },
       ];

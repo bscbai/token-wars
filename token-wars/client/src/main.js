@@ -7,6 +7,7 @@ import { CombatScene } from './scenes/CombatScene.js';
 import { PvPScene } from './scenes/PvPScene.js';
 import { ShopScene } from './scenes/ShopScene.js';
 import { InventoryScene } from './scenes/InventoryScene.js';
+import { AIArenaScene } from './scenes/AIArenaScene.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -14,7 +15,7 @@ const config = {
   height: 640,
   parent: 'game-container',
   backgroundColor: '#0a0a1a',
-  scene: [BootScene, LoginScene, LobbyScene, MiningScene, DungeonSelectScene, CombatScene, PvPScene, ShopScene, InventoryScene],
+  scene: [BootScene, LoginScene, LobbyScene, MiningScene, DungeonSelectScene, CombatScene, PvPScene, ShopScene, InventoryScene, AIArenaScene],
   physics: {
     default: 'arcade',
     arcade: { debug: false },

@@ -116,6 +116,10 @@ class AIArenaManager {
       this.sendReplay(playerId, matchId);
     });
 
+    socket.on('ai_arena:leaderboard', () => {
+      this.sendLeaderboard(playerId);
+    });
+
     // Send existing agents on connect
     this.sendAgentList(playerId);
   }
@@ -705,6 +709,14 @@ class AIArenaManager {
         agent.dailyMatches = 0;
         agent.dailyResetDate = today;
       }
+    }
+  }
+
+  sendLeaderboard(playerId) {
+    const board = this.getLeaderboard(20);
+    const socket = this.playerSockets.get(playerId);
+    if (socket) {
+      socket.emit('ai_arena:leaderboard', { entries: board });
     }
   }
 
