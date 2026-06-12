@@ -1,13 +1,14 @@
 const { TICK_RATE, TICK_MS } = require('../../shared/constants');
 
 class GameEngine {
-  constructor(io, store, combatSystem, pveManager, miningManager, worldBossManager) {
+  constructor(io, store, combatSystem, pveManager, miningManager, worldBossManager, aiArenaManager) {
     this.io = io;
     this.store = store;
     this.combat = combatSystem;
     this.pve = pveManager;
     this.mining = miningManager;
     this.worldBoss = worldBossManager;
+    this.aiArena = aiArenaManager;
     this.running = false;
     this.tickCount = 0;
   }
@@ -42,6 +43,11 @@ class GameEngine {
     // World boss tick (every 5 seconds)
     if (this.tickCount % (TICK_RATE * 5) === 0 && this.worldBoss) {
       this.worldBoss.tick(now);
+    }
+
+    // AI Arena tick (every 5 seconds)
+    if (this.tickCount % (TICK_RATE * 5) === 0 && this.aiArena) {
+      this.aiArena.tick(now);
     }
 
     // PvE dungeons have their own loops (managed by PvEManager)

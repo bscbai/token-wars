@@ -84,6 +84,7 @@
     "electron": "^42.3.3",
     "electron-builder": "^26.15.2",
     "electron-packager": "^17.1.2",
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.0",
+    "puppeteer": "^25.1.0"
   }
 }

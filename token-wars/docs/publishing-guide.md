@@ -26,6 +26,13 @@
 - 占位图标 (build/icon.png)
 - 构建脚本 (scripts/build-electron.js)
 - GitHub 仓库同步
+- 商店素材包：
+  - 主胶囊图 `dist/screenshots/steam-capsule.svg` (680×300)
+  - 战斗场景 `dist/screenshots/combat-scene.svg` (680×383)
+  - 大厅界面 `dist/screenshots/lobby-hub.svg` (680×383)
+  - 登录界面实拍 `dist/screenshots/00-live-login.png` (960×640)
+  - Puppeteer 截图脚本 `scripts/capture-screenshots.js`
+  - 素材清单 `dist/screenshots/steam-assets.html`
 
 ### 🔲 待完成
 

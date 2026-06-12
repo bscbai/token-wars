@@ -250,6 +250,15 @@ const EVENTS = {
   WORLD_BOSS_UPDATE: 'world_boss:update', WORLD_BOSS_END: 'world_boss:end',
   SHOP_BUY: 'shop:buy', SHOP_PURCHASED: 'shop:purchased',
   INVENTORY_UPDATE: 'inventory:update', SKILL_DISK_UPDATE: 'skill_disk:update',
+  AI_ARENA_DEPLOY: 'ai_arena:deploy', AI_ARENA_RECALL: 'ai_arena:recall',
+  AI_ARENA_DEPLOYED: 'ai_arena:deployed', AI_ARENA_RECALLED: 'ai_arena:recalled',
+  AI_ARENA_TRAIN: 'ai_arena:train', AI_ARENA_SET_BEHAVIOR: 'ai_arena:set_behavior',
+  AI_ARENA_BEHAVIOR_SET: 'ai_arena:behavior_set',
+  AI_ARENA_GET_AGENTS: 'ai_arena:get_agents', AI_ARENA_AGENT_LIST: 'ai_arena:agent_list',
+  AI_ARENA_QUEUE_FAIL: 'ai_arena:queue_fail',
+  AI_ARENA_MATCH_RESULT: 'ai_arena:match_result',
+  AI_ARENA_GET_REPLAY: 'ai_arena:get_replay', AI_ARENA_REPLAY: 'ai_arena:replay',
+  AI_ARENA_LEADERBOARD: 'ai_arena:leaderboard',
   ERROR: 'error', PING: 'ping', PONG: 'pong',
 };
 

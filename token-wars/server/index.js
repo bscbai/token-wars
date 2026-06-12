@@ -10,6 +10,7 @@ const CombatSystem = require('./game/CombatSystem');
 const PvEManager = require('./game/PvEManager');
 const PvPManager = require('./game/PvPManager');
 const WorldBossManager = require('./game/WorldBossManager');
+const AIArenaManager = require('./game/AIArenaManager');
 const GameEngine = require('./game/GameEngine');
 const { EVENTS } = require('../shared/protocol');
 const { MAP_WIDTH, MAP_HEIGHT, TILE } = require('../shared/constants');
@@ -81,7 +82,8 @@ const combatSystem = new CombatSystem(io, store);
 const pveManager = new PvEManager(io, store, combatSystem);
 const pvpManager = new PvPManager(io, store, combatSystem);
 const worldBossManager = new WorldBossManager(io, store, combatSystem);
-const gameEngine = new GameEngine(io, store, combatSystem, pveManager, miningManager, worldBossManager);
+const aiArenaManager = new AIArenaManager(io, store, combatSystem);
+const gameEngine = new GameEngine(io, store, combatSystem, pveManager, miningManager, worldBossManager, aiArenaManager);
 gameEngine.start();
 
 // Track connected players
@@ -114,6 +116,7 @@ io.on('connection', (socket) => {
     pveManager.registerSocket(player.id, socket);
     pvpManager.registerSocket(player.id, socket);
     worldBossManager.registerSocket(player.id, socket);
+    aiArenaManager.registerSocket(player.id, socket);
 
     socket.emit(EVENTS.AUTH_SUCCESS, { playerId: player.id, player: player.serialize() });
     console.log(`[WS] Player authenticated: ${player.username}`);
@@ -208,6 +211,7 @@ io.on('connection', (socket) => {
       pveManager.unregisterSocket(playerId);
       pvpManager.unregisterSocket(playerId);
       worldBossManager.unregisterSocket(playerId);
+      aiArenaManager.unregisterSocket(playerId);
       socketToPlayerId.delete(socket.id);
     }
     if (player) {
