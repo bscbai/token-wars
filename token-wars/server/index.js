@@ -49,11 +49,11 @@ app.use('/api/shop', shopRouter);
 
 // HTTP + Socket.IO
 const server = http.createServer(app);
-const allowedOrigins = NODE_ENV === 'production'
-  ? ['https://game.yourdomain.com'] // TODO: replace with real domain
-  : '*';
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : (NODE_ENV === 'production' ? '*' : '*');
 const io = new Server(server, {
-  cors: { origin: allowedOrigins },
+  cors: { origin: allowedOrigins, methods: ['GET', 'POST'] },
 });
 
 // --- Socket.IO rate limiting middleware ---
@@ -242,6 +242,6 @@ process.on('SIGTERM', () => {
 });
 
 // Start
-server.listen(PORT, () => {
-  console.log(`[Token Wars] Server running on http://localhost:${PORT} (${NODE_ENV})`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[Token Wars] Server running on port ${PORT} (${NODE_ENV})`);
 });
