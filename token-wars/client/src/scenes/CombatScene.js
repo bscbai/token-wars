@@ -2,6 +2,7 @@ import net from '../systems/NetworkManager.js';
 import { InputManager } from '../systems/InputManager.js';
 import { PlayerSprite } from '../entities/PlayerSprite.js';
 import { MonsterSprite } from '../entities/MonsterSprite.js';
+import { Projectile } from '../entities/Projectile.js';
 import { HUD } from '../ui/HUD.js';
 import { SkillBar } from '../ui/SkillBar.js';
 import { MAP_WIDTH, MAP_HEIGHT, TILE, SKILLS } from '../shared.js';
@@ -153,6 +154,8 @@ export class CombatScene extends Phaser.Scene {
 
   setupNetworkListeners() {
     net.on('state:sync', (data) => {
+      const localId = net.playerId || this.playerData.id;
+
       // Update monster positions
       if (data.monsters) {
         for (const mData of data.monsters) {
@@ -166,12 +169,26 @@ export class CombatScene extends Phaser.Scene {
         }
       }
 
-      // Update player positions
+      // Update all players (local + remote for PvP)
       if (data.players) {
         for (const pData of data.players) {
-          if (pData.id === (net.playerId || this.playerData.id)) {
-            // Server position overrides prediction
+          if (pData.id === localId) {
+            // Server position overrides client prediction for local player
             this.localPlayerSprite.updatePosition(pData.x, pData.y);
+          } else {
+            // Remote player — create or update sprite
+            let remoteSprite = this.playerSprites.get(pData.id);
+            if (!remoteSprite) {
+              remoteSprite = new PlayerSprite(this, pData.x, pData.y, {
+                id: pData.id,
+                username: pData.username || '?',
+                hp: pData.hp || 100,
+                maxHp: pData.maxHp || 100,
+              }, false);
+              this.playerSprites.set(pData.id, remoteSprite);
+            }
+            remoteSprite.updatePosition(pData.x, pData.y);
+            if (pData.hp != null) remoteSprite.updateHp(pData.hp, pData.maxHp);
           }
         }
       }
@@ -204,17 +221,16 @@ export class CombatScene extends Phaser.Scene {
     net.on('combat:death', (data) => {
       const monsterSprite = this.monsterSprites.get(data.entityId);
       if (monsterSprite) {
-        // Death animation
-        this.tweens.add({
-          targets: monsterSprite.sprite,
-          alpha: 0,
-          scaleX: 0,
-          scaleY: 0,
-          duration: 300,
-          onComplete: () => {
-            monsterSprite.destroy();
-            this.monsterSprites.delete(data.entityId);
-          },
+        this.playDeathAnimation(monsterSprite, () => {
+          this.monsterSprites.delete(data.entityId);
+        });
+        return;
+      }
+      // Check for player death (PvP)
+      const playerSprite = this.playerSprites.get(data.entityId);
+      if (playerSprite && data.entityId !== (net.playerId || this.playerData.id)) {
+        this.playDeathAnimation(playerSprite, () => {
+          this.playerSprites.delete(data.entityId);
         });
       }
     });
@@ -264,23 +280,21 @@ export class CombatScene extends Phaser.Scene {
     });
 
     net.on('dungeon:start', (data) => {
-      // New room
-      this.renderMap(data.mapData);
-      this.hud.setStatus(`房间 ${(data.roomIndex || 0) + 1}`);
-
-      // Clear old monster sprites
-      for (const [, sprite] of this.monsterSprites) {
-        sprite.destroy();
+      // New room — animate old monsters out first, then destroy
+      const oldMonsters = [...this.monsterSprites.values()];
+      let completed = 0;
+      const total = oldMonsters.length;
+      if (total === 0) {
+        this._spawnNewRoom(data);
+        return;
+      }
+      for (const sprite of oldMonsters) {
+        this.playDeathAnimation(sprite, () => {
+          completed++;
+          if (completed >= total) this._spawnNewRoom(data);
+        });
       }
       this.monsterSprites.clear();
-
-      // Spawn new monsters
-      if (data.monsters) {
-        for (const m of data.monsters) {
-          const sprite = new MonsterSprite(this, m);
-          this.monsterSprites.set(m.id, sprite);
-        }
-      }
     });
 
     net.on('dungeon:complete', (data) => {
@@ -292,7 +306,29 @@ export class CombatScene extends Phaser.Scene {
     });
 
     net.on('projectile:spawn', (data) => {
-      // Projectile rendering handled by Projectile entity
+      const p = new Projectile(this, data);
+      this.projectiles.set(data.id, p);
+    });
+
+    net.on('projectile:hit', (data) => {
+      const p = this.projectiles.get(data.id);
+      if (p) {
+        // Impact flash at target
+        const hitX = data.targetX * 32 + 16;
+        const hitY = data.targetY * 32 + 16;
+        const flash = this.add.circle(hitX, hitY, 6, 0xffff00, 0.8);
+        this.tweens.add({
+          targets: flash, alpha: 0, scaleX: 2, scaleY: 2, duration: 200,
+          onComplete: () => flash.destroy(),
+        });
+        p.destroy();
+        this.projectiles.delete(data.id);
+      }
+    });
+
+    net.on('projectile:destroy', (data) => {
+      const p = this.projectiles.get(data.id);
+      if (p) { p.destroy(); this.projectiles.delete(data.id); }
     });
 
     // Update skill cooldowns each frame
@@ -308,5 +344,34 @@ export class CombatScene extends Phaser.Scene {
         ]);
       },
     });
+  }
+
+  // ===== HELPERS =====
+
+  playDeathAnimation(sprite, onComplete) {
+    const target = sprite.sprite || sprite;
+    this.tweens.add({
+      targets: target,
+      alpha: 0,
+      scaleX: 0,
+      scaleY: 0,
+      duration: 300,
+      ease: 'Back.easeIn',
+      onComplete: () => {
+        sprite.destroy();
+        if (onComplete) onComplete();
+      },
+    });
+  }
+
+  _spawnNewRoom(data) {
+    this.renderMap(data.mapData);
+    this.hud.setStatus(`房间 ${(data.roomIndex || 0) + 1}`);
+    if (data.monsters) {
+      for (const m of data.monsters) {
+        const sprite = new MonsterSprite(this, m);
+        this.monsterSprites.set(m.id, sprite);
+      }
+    }
   }
 }
