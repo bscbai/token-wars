@@ -261,6 +261,12 @@ const EVENTS = {
   AI_ARENA_NAME_AGENT: 'ai_arena:name_agent', AI_ARENA_AGENT_NAMED: 'ai_arena:agent_named',
   AI_ARENA_MATCH_HISTORY: 'ai_arena:match_history',
   AI_ARENA_LEADERBOARD: 'ai_arena:leaderboard',
+  AI_ARENA_TOURNAMENT: 'ai_arena:tournament', AI_ARENA_TOURNAMENT_STATE: 'ai_arena:tournament_state',
+  AI_ARENA_TOURNAMENT_START: 'ai_arena:tournament_start',
+  AI_ARENA_TOURNAMENT_MATCH: 'ai_arena:tournament_match',
+  AI_ARENA_TOURNAMENT_ROUND: 'ai_arena:tournament_round',
+  AI_ARENA_TOURNAMENT_END: 'ai_arena:tournament_end',
+  AI_ARENA_SEASON_INFO: 'ai_arena:season_info', AI_ARENA_SEASON_UPDATE: 'ai_arena:season_update',
   ERROR: 'error', PING: 'ping', PONG: 'pong',
 };
 

@@ -404,6 +404,15 @@ export class AIArenaScene extends Phaser.Scene {
       if (data.success) this.setStatus('#00ff88', '特殊行为已更新');
       net.emit('ai_arena:get_agents', {});
     });
+
+    // Phase 3: Tournament & Season events
+    evt('season_info', (data) => this.drawSeasonPanel(data));
+    evt('season_update', (data) => this.drawSeasonPanel(data));
+    evt('tournament_state', (data) => this.drawTournamentPanel(data));
+    evt('tournament_start', (data) => { this.setStatus('#ff8800', '巅峰赛已开始!'); this.drawTournamentStartAlert(data); });
+    evt('tournament_match', (data) => this.showTournamentMatchAlert(data));
+    evt('tournament_round', (data) => this.showTournamentRoundAlert(data));
+    evt('tournament_end', (data) => this.showTournamentEnd(data));
   }
 
   // ===== REPLAY VIEWER =====
@@ -674,5 +683,80 @@ export class AIArenaScene extends Phaser.Scene {
         (this.playerData.stableTokens || []).slice(0, 16),
     });
     this.setStatus('#ffff00', '部署中...');
+  }
+
+  // ===== TOURNAMENT UI =====
+
+  drawSeasonPanel(data) {
+    const cx = 480;
+    const y = 70;
+    // Clear previous
+    if (this.seasonPanel) this.seasonPanel.destroy();
+    const panel = this.add.container(cx, y);
+    const buff = data.buff ? `${data.buff.name}: ${data.buff.description}` : '无';
+    const weekLabel = data.week === 1 ? '风暴' : data.week === 2 ? '竞赛' : data.week === 3 ? '冲突' : '回顾';
+    panel.add(this.add.text(0, 0, `S${data.week}: 赛季 ${weekLabel}  |  ${buff}`, {
+      fontSize: '11px', fontFamily: 'Courier New', color: '#ff8800',
+    }).setOrigin(0.5, 0));
+    this.seasonPanel = panel;
+  }
+
+  drawTournamentPanel(data) {
+    if (!data || data.status === 'none') return;
+    const cx = 480;
+    // Clear previous
+    if (this.tournamentPanel) this.tournamentPanel.destroy();
+    const panel = this.add.container(cx, 75);
+    const statusLabel = data.status === 'running' ? '进行中' : '已结束';
+    panel.add(this.add.text(0, 0, `巅峰赛 ${statusLabel} | 第${data.round}/${data.totalRounds}轮`, {
+      fontSize: '12px', fontFamily: 'Courier New', color: '#ff4444',
+    }).setOrigin(0.5, 0));
+    if (data.history) {
+      data.history.slice(-5).forEach((h, i) => {
+        panel.add(this.add.text(0, 20 + i * 16, `R${h.round}: ${h.match} → ${h.winner}`, {
+          fontSize: '10px', fontFamily: 'Courier New', color: '#888',
+        }).setOrigin(0.5, 0));
+      });
+    }
+    if (data.champion) {
+      panel.add(this.add.text(0, 20 + data.history.length * 16, `冠军: ${data.champion.name}!`, {
+        fontSize: '14px', fontFamily: 'Courier New', color: '#ff8800', fontStyle: 'bold',
+      }).setOrigin(0.5, 0));
+    }
+    this.tournamentPanel = panel;
+  }
+
+  drawTournamentStartAlert(data) {
+    this.setStatus('#ff8800', `巅峰赛开始! ${data.participants?.length || 0} 名大师参赛`);
+    this.time.delayedCall(5000, () => {
+      if (this.statusText.text.indexOf('巅峰赛') >= 0) this.statusText.setText('');
+    });
+  }
+
+  showTournamentMatchAlert(data) {
+    this.setStatus('#ff4444', `R${data.round}/${data.totalRounds}: ${data.agentA.name} vs ${data.agentB.name} → ${data.winner.name} (${data.score})`);
+  }
+
+  showTournamentRoundAlert(data) {
+    this.setStatus('#ff8800', `第${data.round}/${data.totalRounds}轮开始! 剩余${data.remaining}名选手`);
+  }
+
+  showTournamentEnd(data) {
+    this.setStatus('#ff8800', `巅峰赛冠军: ${data.champion?.name || '未知'}!`);
+    if (data.champion) {
+      // Full screen champion celebration (simple version)
+      const overlay = this.add.rectangle(480, 320, 960, 640, 0x000000, 0.6);
+      const title = this.add.text(480, 220, 'TOURNAMENT CHAMPION', {
+        fontSize: '28px', fontFamily: 'Courier New', color: '#ff8800', fontStyle: 'bold',
+      }).setOrigin(0.5);
+      const name = this.add.text(480, 280, data.champion.name, {
+        fontSize: '22px', fontFamily: 'Courier New', color: '#ffaa00',
+      }).setOrigin(0.5);
+      const close = this.add.text(480, 340, '[ 关闭 ]', {
+        fontSize: '14px', fontFamily: 'Courier New', color: '#fff',
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      close.on('pointerdown', () => { overlay.destroy(); title.destroy(); name.destroy(); close.destroy(); });
+      this.time.delayedCall(8000, () => { overlay.destroy(); title.destroy(); name.destroy(); close.destroy(); });
+    }
   }
 }

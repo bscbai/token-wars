@@ -40,6 +40,10 @@ class NetworkManager {
       'ai_arena:replay', 'ai_arena:leaderboard',
       'ai_arena:behavior_set', 'ai_arena:agent_named',
       'ai_arena:match_history',
+      'ai_arena:tournament_state', 'ai_arena:tournament_start',
+      'ai_arena:tournament_match', 'ai_arena:tournament_round',
+      'ai_arena:tournament_end',
+      'ai_arena:season_info', 'ai_arena:season_update',
       'error', 'pong',
     ];
 

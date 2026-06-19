@@ -9,6 +9,32 @@ const AI_MATCH_COOLDOWN_MS = 5 * 60 * 1000; // 5 min cooldown
 const AI_DAILY_MATCH_CAP = 20;
 const AI_AELO_K = 20;
 
+// Season AI Buffs (applied to all agents during specific season weeks)
+const SEASON_BUFFS = {
+  QUANTUM_AWAKEN: {
+    id: 'quantum_awaken',
+    name: '量子觉醒',
+    attackWeightBonus: 0.15,
+    description: 'AI攻击倾向 +15%',
+  },
+  SHADOW_PROTOCOL: {
+    id: 'shadow_protocol',
+    name: '暗影协议',
+    dodgeWeightBonus: 0.15,
+    description: 'AI闪避倾向 +15%',
+  },
+  ENTROPY_CRISIS: {
+    id: 'entropy_crisis',
+    name: '熵增危机',
+    counterChance: 0.20,
+    description: 'AI受伤时反击概率 +20%',
+  },
+};
+
+// Tournament constants
+const TOURNAMENT_TOP_N = 16; // Top 16 enter elimination bracket
+const TOURNAMENT_MATCH_INTERVAL_MS = 30000; // 30s between tournament match broadcasts
+
 // AI Arena maps
 const AI_MAPS = {
   DATA_MINE: {
@@ -85,6 +111,11 @@ class AIArenaManager {
     this.activeMatches = new Map(); // matchId -> match state
     this.matchHistory = []; // recent matches for replay
     this.maxHistoryLength = 1000;
+
+    // Season & tournament state
+    this.currentSeason = { buff: null, week: 1 };
+    this.tournament = null; // active tournament bracket
+    this.tournamentTimer = null; // interval for match broadcasts
   }
 
   // --- Socket Registration ---
@@ -126,6 +157,14 @@ class AIArenaManager {
 
     socket.on('ai_arena:leaderboard', () => {
       this.sendLeaderboard(playerId);
+    });
+
+    socket.on('ai_arena:tournament', () => {
+      this.sendTournamentState(playerId);
+    });
+
+    socket.on('ai_arena:season_info', () => {
+      this.sendSeasonInfo(playerId);
     });
 
     // Send existing agents on connect
@@ -750,33 +789,235 @@ class AIArenaManager {
       this.tryMatch();
     }
 
-    // Check for daily reset on agents with pending daily rewards
     const today = new Date().toDateString();
     for (const [agentId, agent] of this.agents) {
       if (agent.dailyResetDate !== today) {
-        // Save daily rewards to player's account
-        if (agent._dailyReward) {
-          const player = this.store.getPlayerById(agent.playerId);
-          if (player) {
-            player.addUnstableTokens(agent._dailyReward.unstable);
-            if (agent._dailyReward.coprocessorFragments > 0) {
-              // TODO: add co-processor fragment logic
-            }
-          }
-          agent._dailyReward = { unstable: 0, coprocessorFragments: 0 };
-        }
+        this._settleDailyReward(agent);
         agent.dailyMatches = 0;
         agent.dailyResetDate = today;
       }
+      this._applySeasonBuff(agent, now);
     }
+
+    if (this.tournament && this.tournament.status === 'running') {
+      this._tournamentTick(now);
+    }
+  }
+
+  _settleDailyReward(agent) {
+    if (agent._dailyReward) {
+      const player = this.store.getPlayerById(agent.playerId);
+      if (player) {
+        player.addUnstableTokens(agent._dailyReward.unstable);
+        if (agent._dailyReward.coprocessorFragments > 0) {
+          player.coprocessorFragments = (player.coprocessorFragments || 0) + agent._dailyReward.coprocessorFragments;
+        }
+      }
+      agent._dailyReward = { unstable: 0, coprocessorFragments: 0 };
+    }
+  }
+
+  _applySeasonBuff(agent, now) {
+    if (!this.currentSeason.buff) return;
+    const buff = this.currentSeason.buff;
+    if (buff.attackWeightBonus) agent._seasonAttackBonus = buff.attackWeightBonus;
+    if (buff.dodgeWeightBonus) agent._seasonDodgeBonus = buff.dodgeWeightBonus;
+    if (buff.counterChance) agent._seasonCounter = buff.counterChance;
+  }
+
+  // ===== SEASON SYSTEM =====
+
+  setSeasonBuff(buffId) {
+    const buff = Object.values(SEASON_BUFFS).find(b => b.id === buffId);
+    if (!buff) return false;
+    this.currentSeason.buff = buff;
+    this.broadcast('ai_arena:season_update', {
+      buff: { id: buff.id, name: buff.name, description: buff.description },
+      week: this.currentSeason.week,
+    });
+    console.log(`[AI Arena] Season buff active: ${buff.name}`);
+    return true;
+  }
+
+  advanceSeasonWeek() {
+    this.currentSeason.week++;
+    if (this.currentSeason.week === 3 && !this.tournament) {
+      this._startPeakTournament();
+    }
+    this.broadcast('ai_arena:season_update', {
+      buff: this.currentSeason.buff ? {
+        id: this.currentSeason.buff.id,
+        name: this.currentSeason.buff.name,
+        description: this.currentSeason.buff.description,
+      } : null,
+      week: this.currentSeason.week,
+    });
+  }
+
+  sendSeasonInfo(playerId) {
+    const socket = this.playerSockets.get(playerId);
+    if (socket) {
+      socket.emit('ai_arena:season_info', {
+        buff: this.currentSeason.buff ? {
+          id: this.currentSeason.buff.id,
+          name: this.currentSeason.buff.name,
+          description: this.currentSeason.buff.description,
+        } : null,
+        week: this.currentSeason.week,
+        tournament: this.tournament ? {
+          status: this.tournament.status,
+          round: this.tournament.currentRound,
+          totalRounds: this.tournament.totalRounds,
+          remaining: this.tournament.remaining,
+        } : null,
+      });
+    }
+  }
+
+  // ===== PEAK TOURNAMENT =====
+
+  _startPeakTournament() {
+    if (this.tournament) return;
+    const masters = Array.from(this.agents.values())
+      .filter(a => a.aelo >= 2000 && a.deployed)
+      .sort((a, b) => b.aelo - a.aelo)
+      .slice(0, TOURNAMENT_TOP_N);
+
+    if (masters.length < 4) {
+      console.log('[Tournament] Not enough master agents (min 4)');
+      return;
+    }
+
+    const bracket = this._buildBracket(masters);
+    this.tournament = {
+      status: 'running',
+      bracket,
+      currentRound: 1,
+      totalRounds: Math.ceil(Math.log2(bracket.seeds.length)),
+      remaining: bracket.seeds.length / 2,
+      winners: [],
+      history: [],
+      startedAt: Date.now(),
+    };
+
+    console.log(`[Tournament] Started: ${masters.length} agents, ${this.tournament.totalRounds} rounds`);
+    this.broadcast('ai_arena:tournament_start', {
+      totalRounds: this.tournament.totalRounds,
+      participants: masters.map(a => ({
+        id: a.id, name: a.name, playerName: a.playerName, aelo: a.aelo,
+      })),
+    });
+  }
+
+  _buildBracket(agents) {
+    const seeds = agents.map((a, i) => ({ agentId: a.id, name: a.name, seed: i + 1, score: 0 }));
+    const matches = [];
+    const n = seeds.length;
+    for (let i = 0; i < Math.floor(n / 2); i++) {
+      matches.push({ seedA: i, seedB: n - 1 - i, winner: null });
+    }
+    return { seeds, matches };
+  }
+
+  _tournamentTick(now) {
+    const t = this.tournament;
+    if (!t || t.status !== 'running') return;
+
+    const match = t.bracket.matches.find(m => !m.winner);
+    if (!match) {
+      if (t.bracket.matches.every(m => m.winner !== null)) {
+        this._advanceTournamentRound();
+      }
+      return;
+    }
+
+    const agentA = this.agents.get(t.bracket.seeds[match.seedA]?.agentId);
+    const agentB = this.agents.get(t.bracket.seeds[match.seedB]?.agentId);
+    if (!agentA || !agentB) { match.winner = null; return; }
+
+    const map = AI_MAPS.ARENA_DOME;
+    let winsA = 0, winsB = 0;
+    for (let r = 0; r < 3 && winsA < 2 && winsB < 2; r++) {
+      const subMatch = { id: `tour-${agentA.id}-${agentB.id}-r${r}`, agentA: agentA.id, agentB: agentB.id, map: map.id, startTime: now, tickCount: 0, log: [], winner: null };
+      agentA.inMatch = true; agentB.inMatch = true;
+      this._resetAgentForMatch(agentA); this._resetAgentForMatch(agentB);
+      agentA.x = map.spawnA.x; agentA.y = map.spawnA.y;
+      agentB.x = map.spawnB.x; agentB.y = map.spawnB.y;
+      this.simulateMatch(subMatch, agentA, agentB, map);
+      if (!agentA.alive) winsB++;
+      else if (!agentB.alive) winsA++;
+      else { const pa = agentA.hp / agentA.maxHp, pb = agentB.hp / agentB.maxHp; if (pa > pb) winsA++; else winsB++; }
+      agentA.inMatch = false; agentB.inMatch = false;
+    }
+
+    match.winner = winsA > winsB ? match.seedA : match.seedB;
+    const winner = match.winner === match.seedA ? agentA : agentB;
+    const loser = match.winner === match.seedA ? agentB : agentA;
+    t.winners.push({ agentId: winner.id, name: winner.name, round: t.currentRound });
+    t.history.push({ round: t.currentRound, match: `${agentA.name} vs ${agentB.name}`, winner: winner.name, score: `${winsA}-${winsB}` });
+
+    this.broadcast('ai_arena:tournament_match', {
+      round: t.currentRound, totalRounds: t.totalRounds,
+      agentA: { name: agentA.name, playerName: agentA.playerName },
+      agentB: { name: agentB.name, playerName: agentB.playerName },
+      winner: { name: winner.name, playerName: winner.playerName },
+      score: `${winsA}-${winsB}`,
+      remaining: t.bracket.matches.filter(m => !m.winner).length,
+    });
+  }
+
+  _advanceTournamentRound() {
+    const t = this.tournament;
+    t.currentRound++;
+    const prevWinners = t.winners.filter(w => w.round === t.currentRound - 1);
+    if (prevWinners.length <= 1) {
+      t.status = 'complete';
+      t.champion = prevWinners[0];
+      this.broadcast('ai_arena:tournament_end', {
+        champion: t.champion,
+        history: t.history,
+      });
+      console.log(`[Tournament] Champion: ${t.champion?.name}!`);
+      return;
+    }
+    const seeds = prevWinners.map((w, i) => ({ agentId: w.agentId, name: w.name, seed: i + 1, score: 0 }));
+    const matches = [];
+    for (let i = 0; i < seeds.length / 2; i++) {
+      matches.push({ seedA: i, seedB: seeds.length - 1 - i, winner: null });
+    }
+    t.bracket = { seeds, matches };
+    t.remaining = seeds.length / 2;
+    t.winners = t.winners.filter(w => w.round !== t.currentRound - 1);
+    console.log(`[Tournament] Round ${t.currentRound}: ${seeds.length} agents left`);
+    this.broadcast('ai_arena:tournament_round', { round: t.currentRound, totalRounds: t.totalRounds, remaining: seeds.length });
+  }
+
+  _resetAgentForMatch(agent) {
+    agent.hp = agent.maxHp; agent.alive = true;
+    agent.shield = 0; agent.shieldActive = false;
+    agent.buffs = []; agent.x = 0; agent.y = 0;
+    for (const skill of agent.skills) skill.lastUsed = 0;
+  }
+
+  sendTournamentState(playerId) {
+    const socket = this.playerSockets.get(playerId);
+    if (!socket) return;
+    const t = this.tournament;
+    if (!t) { socket.emit('ai_arena:tournament_state', { status: 'none' }); return; }
+    socket.emit('ai_arena:tournament_state', {
+      status: t.status, round: t.currentRound, totalRounds: t.totalRounds,
+      history: t.history, champion: t.champion,
+    });
+  }
+
+  broadcast(event, data) {
+    this.io.emit(event, data);
   }
 
   sendLeaderboard(playerId) {
     const board = this.getLeaderboard(20);
     const socket = this.playerSockets.get(playerId);
-    if (socket) {
-      socket.emit('ai_arena:leaderboard', { entries: board });
-    }
+    if (socket) socket.emit('ai_arena:leaderboard', { entries: board });
   }
 
   // --- Admin / Query Methods ---
