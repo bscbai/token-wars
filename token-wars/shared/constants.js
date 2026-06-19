@@ -258,6 +258,8 @@ const EVENTS = {
   AI_ARENA_QUEUE_FAIL: 'ai_arena:queue_fail',
   AI_ARENA_MATCH_RESULT: 'ai_arena:match_result',
   AI_ARENA_GET_REPLAY: 'ai_arena:get_replay', AI_ARENA_REPLAY: 'ai_arena:replay',
+  AI_ARENA_NAME_AGENT: 'ai_arena:name_agent', AI_ARENA_AGENT_NAMED: 'ai_arena:agent_named',
+  AI_ARENA_MATCH_HISTORY: 'ai_arena:match_history',
   AI_ARENA_LEADERBOARD: 'ai_arena:leaderboard',
   ERROR: 'error', PING: 'ping', PONG: 'pong',
 };

@@ -38,7 +38,8 @@ class NetworkManager {
       'ai_arena:agent_list', 'ai_arena:deployed', 'ai_arena:recalled',
       'ai_arena:queue_fail', 'ai_arena:match_result',
       'ai_arena:replay', 'ai_arena:leaderboard',
-      'ai_arena:behavior_set',
+      'ai_arena:behavior_set', 'ai_arena:agent_named',
+      'ai_arena:match_history',
       'error', 'pong',
     ];
 

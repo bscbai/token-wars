@@ -108,6 +108,14 @@ class AIArenaManager {
       this.setAgentBehavior(playerId, agentId, behaviorId);
     });
 
+    socket.on('ai_arena:name_agent', ({ agentId, name }) => {
+      this.nameAgent(playerId, agentId, name);
+    });
+
+    socket.on('ai_arena:match_history', ({ agentId }) => {
+      this.sendMatchHistory(playerId, agentId);
+    });
+
     socket.on('ai_arena:get_agents', () => {
       this.sendAgentList(playerId);
     });
@@ -195,6 +203,19 @@ class AIArenaManager {
         specialBehavior: agent.specialBehavior,
         success: result,
       });
+    }
+  }
+
+  nameAgent(playerId, agentId, name) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return;
+    if (name.length > 12) name = name.slice(0, 12);
+    agent.name = name;
+
+    const socket = this.playerSockets.get(playerId);
+    if (socket) {
+      socket.emit('ai_arena:agent_named', { agentId, name });
+      this.sendAgentList(playerId);
     }
   }
 
@@ -378,7 +399,7 @@ class AIArenaManager {
           const dmg = calcDamage(agent.atk, 1.5, enemy.def);
           enemy.takeDamage(dmg, agent.id);
           actionTaken = `berserker_combo(${dmg})`;
-          match.log.push({ tick, agent: agent.id, action: actionTaken, hp: agent.hp, enemyHp: enemy.hp });
+          match.log.push({ tick, agent: agent.id, action: actionTaken, hp: agent.hp, enemyHp: enemy.hp, x: agent.x, y: agent.y, enemyX: enemy.x, enemyY: enemy.y });
         }
         // Priority 3: Low HP combo (enemy < 30% && high attack)
         else if (enemy.hp / enemy.maxHp < 0.30 && attackWeight > 50) {
@@ -404,7 +425,7 @@ class AIArenaManager {
               agent.y += dy; actionTaken = 'chase_y';
             }
           }
-          match.log.push({ tick, agent: agent.id, action: actionTaken, hp: agent.hp, enemyHp: enemy.hp });
+          match.log.push({ tick, agent: agent.id, action: actionTaken, hp: agent.hp, enemyHp: enemy.hp, x: agent.x, y: agent.y, enemyX: enemy.x, enemyY: enemy.y });
         }
         // Priority 4: Melee attack (distance ≤ 2)
         else if (dist(agent, enemy) <= 2) {
@@ -412,7 +433,7 @@ class AIArenaManager {
           const dmg = calcDamage(agent.atk, 1.0, enemy.def);
           enemy.takeDamage(dmg, agent.id);
           actionTaken = `attack(${dmg})`;
-          match.log.push({ tick, agent: agent.id, action: actionTaken, hp: agent.hp, enemyHp: enemy.hp });
+          match.log.push({ tick, agent: agent.id, action: actionTaken, hp: agent.hp, enemyHp: enemy.hp, x: agent.x, y: agent.y, enemyX: enemy.x, enemyY: enemy.y });
         }
         // Priority 5: Close gap (high mobility)
         else if (dist(agent, enemy) > 2 && mobilityWeight > 50) {
@@ -539,6 +560,15 @@ class AIArenaManager {
       agentBName: agentB.name,
       agentAAelo: agentA.aelo,
       agentBAelo: agentB.aelo,
+      mapData: {
+        id: map.id,
+        name: map.name,
+        width: map.width,
+        height: map.height,
+        obstacles: map.obstacles,
+        spawnA: map.spawnA,
+        spawnB: map.spawnB,
+      },
       saved: Date.now(),
     });
     if (this.matchHistory.length > this.maxHistoryLength) {
@@ -669,6 +699,10 @@ class AIArenaManager {
       return;
     }
 
+    // Determine which agent this player controls
+    const agentA = this.agents.get(match.agentA);
+    const playerAgentId = (agentA && agentA.playerId === playerId) ? match.agentA : match.agentB;
+
     const socket = this.playerSockets.get(playerId);
     if (socket) {
       socket.emit('ai_arena:replay', {
@@ -676,10 +710,35 @@ class AIArenaManager {
         agentAName: match.agentAName,
         agentBName: match.agentBName,
         winnerId: match.winner,
-        map: match.map,
+        playerAgentId,
+        map: match.mapData,
         totalTicks: match.totalTicks,
         log: match.log,
       });
+    }
+  }
+
+  sendMatchHistory(playerId, agentId) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return;
+
+    const history = this.matchHistory
+      .filter(m => m.agentA === agentId || m.agentB === agentId)
+      .slice(-20)
+      .reverse()
+      .map(m => ({
+        id: m.id,
+        opponent: m.agentA === agentId ? m.agentBName : m.agentAName,
+        map: m.mapData?.name || 'unknown',
+        result: m.winner === 'draw' ? 'draw' : (m.winner === agentId ? 'win' : 'loss'),
+        winnerId: m.winner,
+        totalTicks: m.totalTicks,
+        saved: m.saved,
+      }));
+
+    const socket = this.playerSockets.get(playerId);
+    if (socket) {
+      socket.emit('ai_arena:match_history', { agentId, history });
     }
   }
 
