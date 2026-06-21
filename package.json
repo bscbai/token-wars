@@ -1,0 +1,38 @@
+{
+  "name": "token-wars",
+  "version": "0.3.0",
+  "description": "Token Wars: 算力征途 - Cyberpunk Multiplayer Browser Game",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"node server/index.js\" \"node scripts/dev-server.js\"",
+    "start": "node server/index.js",
+    "build": "node scripts/build-client.js",
+    "export-steam": "node scripts/export-steam-assets.js",
+    "export-extra": "node scripts/generate-missing-assets.js",
+    "generate-icons": "node scripts/generate-icons.js",
+    "check-assets": "node scripts/check-assets.js",
+    "package": "node scripts/package-desktop.js",
+    "pre-deploy": "npm run check-assets && npm run export-steam && npm run export-extra && npm run generate-icons"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "socket.io": "^4.8.0",
+    "socket.io-client": "^4.8.0",
+    "phaser": "^3.85.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "electron": "^33.0.0",
+    "electron-packager": "^17.1.2",
+    "puppeteer": "^23.0.0",
+    "live-server": "^1.2.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bscbai/token-wars.git"
+  },
+  "keywords": ["game", "cyberpunk", "multiplayer", "blockchain-theme"],
+  "license": "MIT"
+}
