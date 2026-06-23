@@ -376,7 +376,7 @@ class AIArenaManager {
     this.simulateMatch(match, agentA, agentB, map);
 
     // Resolve
-    this.resolveMatch(match, agentA, agentB);
+    this.resolveMatch(match, agentA, agentB, map);
   }
 
   simulateMatch(match, agentA, agentB, map) {
@@ -522,7 +522,7 @@ class AIArenaManager {
     match.totalTimeMs = elapsed;
   }
 
-  resolveMatch(match, agentA, agentB) {
+  resolveMatch(match, agentA, agentB, map) {
     agentA.inMatch = false;
     agentB.inMatch = false;
     agentA.lastMatchTime = Date.now();
@@ -721,7 +721,7 @@ class AIArenaManager {
     opponent.inMatch = true;
 
     this.simulateMatch(match, agent, opponent, map);
-    this.resolveMatch(match, agent, opponent);
+    this.resolveMatch(match, agent, opponent, map);
 
     agent.dailyMatches--; // Training matches don't count against daily cap
     agent.inMatch = false;

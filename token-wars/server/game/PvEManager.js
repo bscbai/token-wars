@@ -73,7 +73,7 @@ class PvEManager {
       dungeonId: dungeon.id,
       mapData: dungeon.mapData,
       roomIndex: 0,
-      monsters: Array.from(dungeon.monsters || []).map(m => m.serialize()),
+      monsters: Array.from(dungeon.monsters.values()).map(m => m.serialize()),
       playerPos: { x: player.x, y: player.y },
     });
 
