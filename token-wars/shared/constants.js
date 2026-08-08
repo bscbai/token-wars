@@ -235,6 +235,7 @@ function rollRarity() {
 // --- Protocol (Socket.IO events + REST endpoints) ---
 const EVENTS = {
   AUTH_LOGIN: 'auth:login', AUTH_SUCCESS: 'auth:success', AUTH_FAIL: 'auth:fail',
+  SESSION_REPLACED: 'session:replaced',
   PLAYER_UPDATE: 'player:update', PLAYER_DEAD: 'player:dead', PLAYER_RESPAWN: 'player:respawn',
   INPUT_MOVE: 'input:move', STATE_SYNC: 'state:sync',
   INPUT_SKILL: 'input:skill', COMBAT_HIT: 'combat:hit', COMBAT_DEATH: 'combat:death',

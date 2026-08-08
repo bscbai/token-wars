@@ -7,16 +7,23 @@ class NetworkManager {
     this.listeners = new Map();
   }
 
-  connect() {
+  connect(token) {
     if (this.socket) return;
+    if (token) this.sessionToken = token;
 
-    this.socket = io();
+    // Send the JWT in the handshake so the server's io.use() middleware can
+    // authenticate before the connection is accepted.  Connections without a
+    // valid token are rejected at the middleware level.
+    this.socket = io(undefined, { auth: { token: this.sessionToken } });
 
     this.socket.on('connect', () => {
       console.log('[Net] Connected to server');
-      if (this.sessionToken) {
-        this.socket.emit('auth:login', { token: this.sessionToken });
-      }
+      // Auth is handled by the handshake middleware — no need to emit
+      // auth:login.  The server emits auth:success directly.
+    });
+
+    this.socket.on('connect_error', (err) => {
+      console.error('[Net] Connection error:', err.message);
     });
 
     this.socket.on('disconnect', () => {
@@ -25,6 +32,7 @@ class NetworkManager {
 
     const allEvents = [
       'auth:success', 'auth:fail',
+      'session:replaced',
       'player:update', 'player:dead', 'player:respawn',
       'state:sync',
       'combat:hit', 'combat:death', 'combat:miss', 'combat:shield',

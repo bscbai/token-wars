@@ -1,6 +1,7 @@
 const { AIAgent, AI_LEVELS, AI_DECISIONS } = require('../models/AIAgent');
 const { SKILLS, calcDamage, MAP_WIDTH, MAP_HEIGHT, TILE, PVP } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
+const guard = require('../middleware/eventGuard');
 
 // AI Arena constants
 const AI_MATCH_TICK_MS = 50; // Simulate at 20Hz
@@ -123,49 +124,24 @@ class AIArenaManager {
   registerSocket(playerId, socket) {
     this.playerSockets.set(playerId, socket);
 
-    socket.on('ai_arena:deploy', ({ tokenDisk }) => {
-      this.deployAgent(playerId, tokenDisk);
-    });
+    // --- Schemas ---
+    const deploySchema   = { tokenDisk: { type: 'any', required: true } };
+    const agentIdSchema  = { agentId: { type: 'string', maxLength: 100, required: true } };
+    const behaviorSchema = { agentId: { type: 'string', maxLength: 100, required: true }, behaviorId: { type: 'string', maxLength: 50, required: true } };
+    const nameSchema     = { agentId: { type: 'string', maxLength: 100, required: true }, name: { type: 'string', maxLength: 64, required: true } };
+    const replaySchema   = { matchId: { type: 'string', maxLength: 200, required: true } };
 
-    socket.on('ai_arena:recall', ({ agentId }) => {
-      this.recallAgent(playerId, agentId);
-    });
-
-    socket.on('ai_arena:train', ({ agentId }) => {
-      this.startTrainingMatch(playerId, agentId);
-    });
-
-    socket.on('ai_arena:set_behavior', ({ agentId, behaviorId }) => {
-      this.setAgentBehavior(playerId, agentId, behaviorId);
-    });
-
-    socket.on('ai_arena:name_agent', ({ agentId, name }) => {
-      this.nameAgent(playerId, agentId, name);
-    });
-
-    socket.on('ai_arena:match_history', ({ agentId }) => {
-      this.sendMatchHistory(playerId, agentId);
-    });
-
-    socket.on('ai_arena:get_agents', () => {
-      this.sendAgentList(playerId);
-    });
-
-    socket.on('ai_arena:get_replay', ({ matchId }) => {
-      this.sendReplay(playerId, matchId);
-    });
-
-    socket.on('ai_arena:leaderboard', () => {
-      this.sendLeaderboard(playerId);
-    });
-
-    socket.on('ai_arena:tournament', () => {
-      this.sendTournamentState(playerId);
-    });
-
-    socket.on('ai_arena:season_info', () => {
-      this.sendSeasonInfo(playerId);
-    });
+    guard.on(socket, 'ai_arena:deploy',        deploySchema,   ({ tokenDisk }) => this.deployAgent(playerId, tokenDisk), 'economy');
+    guard.on(socket, 'ai_arena:recall',         agentIdSchema,  ({ agentId }) => this.recallAgent(playerId, agentId), 'economy');
+    guard.on(socket, 'ai_arena:train',          agentIdSchema,  ({ agentId }) => this.startTrainingMatch(playerId, agentId), 'economy');
+    guard.on(socket, 'ai_arena:set_behavior',   behaviorSchema, ({ agentId, behaviorId }) => this.setAgentBehavior(playerId, agentId, behaviorId), 'economy');
+    guard.on(socket, 'ai_arena:name_agent',     nameSchema,     ({ agentId, name }) => this.nameAgent(playerId, agentId, name), 'economy');
+    guard.on(socket, 'ai_arena:match_history',  agentIdSchema,  ({ agentId }) => this.sendMatchHistory(playerId, agentId), 'query');
+    guard.on(socket, 'ai_arena:get_agents',     null,           () => this.sendAgentList(playerId), 'query');
+    guard.on(socket, 'ai_arena:get_replay',     replaySchema,   ({ matchId }) => this.sendReplay(playerId, matchId), 'query');
+    guard.on(socket, 'ai_arena:leaderboard',    null,           () => this.sendLeaderboard(playerId), 'query');
+    guard.on(socket, 'ai_arena:tournament',     null,           () => this.sendTournamentState(playerId), 'query');
+    guard.on(socket, 'ai_arena:season_info',    null,           () => this.sendSeasonInfo(playerId), 'query');
 
     // Send existing agents on connect
     this.sendAgentList(playerId);
@@ -812,6 +788,8 @@ class AIArenaManager {
         if (agent._dailyReward.coprocessorFragments > 0) {
           player.coprocessorFragments = (player.coprocessorFragments || 0) + agent._dailyReward.coprocessorFragments;
         }
+        // Transaction point: daily AI arena settlement.
+        this.store.persist(player);
       }
       agent._dailyReward = { unstable: 0, coprocessorFragments: 0 };
     }

@@ -1,5 +1,6 @@
 const { MINING, RARITY } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
+const guard = require('../middleware/eventGuard');
 
 class MiningManager {
   constructor(io, store) {
@@ -18,14 +19,14 @@ class MiningManager {
     }
 
     // Collect handler
-    socket.on(EVENTS.MINING_COLLECT, () => {
+    guard.on(socket, EVENTS.MINING_COLLECT, null, () => {
       this.collect(playerId);
-    });
+    }, 'economy');
 
     // Upgrade handler
-    socket.on(EVENTS.MINING_UPGRADE, () => {
+    guard.on(socket, EVENTS.MINING_UPGRADE, null, () => {
       this.upgrade(playerId);
-    });
+    }, 'economy');
   }
 
   unregisterSocket(playerId) {
@@ -45,6 +46,8 @@ class MiningManager {
         const actual = Math.min(tokensToAdd, config.capacity - player.pendingMiningTokens);
         player.pendingMiningTokens += actual;
         player.lastMiningCollect += actual * config.rate;
+        // Accrual is low-stakes: mark dirty and let autosave batch it.
+        this.store.markDirty(player);
 
         // Sync to client if connected
         const socket = this.playerSockets.get(playerId);
@@ -69,6 +72,9 @@ class MiningManager {
     player.pendingMiningTokens = 0;
     player.lastMiningCollect = Date.now();
     player.addUnstableTokens(amount);
+
+    // Transaction point: pending tokens were zeroed, the payout must not vanish.
+    this.store.persist(player);
 
     const socket = this.playerSockets.get(playerId);
     if (socket) {
@@ -114,6 +120,9 @@ class MiningManager {
     // Apply upgrade
     player.miningLevel = currentLevel + 1;
 
+    // Transaction point: stable tokens were consumed to buy the upgrade.
+    this.store.persist(player);
+
     const socket = this.playerSockets.get(playerId);
     if (socket) {
       socket.emit(EVENTS.MINING_UPGRADED, {
@@ -149,6 +158,7 @@ class MiningManager {
     const actual = Math.min(tokensToAdd, config.capacity - player.pendingMiningTokens);
     player.pendingMiningTokens += actual;
     player.lastMiningCollect = now;
+    if (actual > 0) this.store.markDirty(player);
 
     return actual;
   }

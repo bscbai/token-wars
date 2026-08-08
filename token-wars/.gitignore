@@ -1,6 +1,9 @@
 node_modules/
 server/data/players.json
 server/data/*.json
+server/data/*.db
+server/data/*.db-wal
+server/data/*.db-shm
 .DS_Store
 .claude/
 .workbuddy/
@@ -8,3 +11,5 @@ server/data/*.json
 dist/
 out/token-wars游戏设计/
 AGENTS.md
+.backup-s1/
+2026-05-27-20-19-00/

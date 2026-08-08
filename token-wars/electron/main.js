@@ -2,20 +2,27 @@ const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 
 const isDev = !app.isPackaged;
-const GAME_PORT = 3000;
+
+// Official game server endpoint. Update DEFAULT_SERVER_URL to the production
+// server before building for Steam (Phase 4). Dev override via SERVER_URL env.
+const DEFAULT_SERVER_URL = 'http://localhost:3000';
+const SERVER_URL = process.env.SERVER_URL || DEFAULT_SERVER_URL;
+
+// Run an embedded server in-process (offline/training mode). Off by default —
+// the desktop client connects to SERVER_URL. Requires node:sqlite in Electron;
+// verify before enabling in packaged builds.
+const START_EMBEDDED = process.env.START_EMBEDDED_SERVER === '1';
 
 function startGameServer() {
   return new Promise((resolve, reject) => {
     try {
-      // __dirname = <app>/electron/
-      // server is at <app>/server/
       const serverPath = path.join(__dirname, '..', 'server', 'index.js');
       delete require.cache[require.resolve(serverPath)];
       require(serverPath);
-      // The server starts listening on import; give it a moment to bind
+      // The server starts listening on import; give it a moment to bind.
       setTimeout(() => resolve(), 500);
     } catch (err) {
-      console.error('Failed to start game server:', err);
+      console.error('Failed to start embedded game server:', err);
       reject(err);
     }
   });
@@ -45,7 +52,7 @@ function createWindow() {
     mainWindow.show();
   });
 
-  mainWindow.loadURL(`http://localhost:${GAME_PORT}`);
+  mainWindow.loadURL(SERVER_URL);
 
   if (isDev) {
     mainWindow.webContents.openDevTools();
@@ -58,7 +65,9 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   try {
-    await startGameServer();
+    if (START_EMBEDDED) {
+      await startGameServer();
+    }
     createWindow();
   } catch (err) {
     console.error('Failed to initialize:', err);
@@ -73,7 +82,9 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     app.whenReady().then(async () => {
-      await startGameServer();
+      if (START_EMBEDDED) {
+        await startGameServer();
+      }
       createWindow();
     });
   }

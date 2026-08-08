@@ -53,6 +53,9 @@ class Player {
     this.purchasedPacks = {}; // { packId: purchaseCount }
     this.lastDailyClaim = ''; // date string for daily credit claim
 
+    // Moderation
+    this.banned = false;
+
     // Combat state (transient, not persisted)
     this.shield = 0;
     this.shieldActive = false;
@@ -95,14 +98,19 @@ class Player {
     return unlock;
   }
 
+  // Returns the number of levels gained, so callers can treat a level-up as a
+  // transaction point worth persisting immediately.
   addXp(amount) {
     this.xp += amount;
+    let levelsGained = 0;
     while (this.level < LEVEL_XP.length && this.xp >= LEVEL_XP[this.level]) {
       this.xp -= LEVEL_XP[this.level];
       this.level++;
+      levelsGained++;
       this.maxHp = PLAYER_DEFAULTS.maxHp + (this.level - 1) * 5;
       this.hp = this.maxHp; // full heal on level up
     }
+    return levelsGained;
   }
 
   addStableToken(rarity) {
@@ -125,6 +133,16 @@ class Player {
     if (this.credits < amount) return false;
     this.credits -= amount;
     return true;
+  }
+
+  takeDamage(amount, attackerId) {
+    if (!this.alive) return false;
+    this.hp -= amount;
+    if (this.hp <= 0) {
+      this.hp = 0;
+      this.alive = false;
+    }
+    return this.alive;
   }
 
   serialize() {
@@ -179,6 +197,7 @@ class Player {
       streakResetDate: this.streakResetDate,
       purchasedPacks: this.purchasedPacks,
       lastDailyClaim: this.lastDailyClaim,
+      banned: this.banned,
       createdAt: this.createdAt,
       lastLoginAt: this.lastLoginAt,
     };
@@ -194,6 +213,7 @@ class Player {
     p.shieldActive = false;
     p.stealthed = false;
     p.buffs = [];
+    p.banned = !!data.banned;
     if (data.skills && Array.isArray(data.skills)) {
       p.skills = data.skills.map(s => ({ ...s, lastUsed: 0 }));
     }

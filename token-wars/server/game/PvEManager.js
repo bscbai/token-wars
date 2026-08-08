@@ -2,6 +2,7 @@ const { Dungeon, DUNGEON_TEMPLATES } = require('../models/Dungeon');
 const { Monster, MONSTER_TEMPLATES } = require('../models/Monster');
 const { MAP_WIDTH, MAP_HEIGHT, TILE } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
+const guard = require('../middleware/eventGuard');
 
 class PvEManager {
   constructor(io, store, combatSystem) {
@@ -18,9 +19,10 @@ class PvEManager {
     this.playerSockets.set(playerId, socket);
 
     // Dungeon join
-    socket.on(EVENTS.DUNGEON_JOIN, ({ dungeonId }) => {
+    const dungeonJoinSchema = { dungeonId: { type: 'string', maxLength: 100, required: true } };
+    guard.on(socket, EVENTS.DUNGEON_JOIN, dungeonJoinSchema, ({ dungeonId }) => {
       this.joinDungeon(playerId, dungeonId);
-    });
+    }, 'economy');
   }
 
   unregisterSocket(playerId) {
@@ -267,6 +269,8 @@ class PvEManager {
       if (Math.random() < rewards.stableChance) {
         player.addStableToken('rare');
       }
+      // Transaction point: dungeon clear rewards (tokens + xp/level-ups).
+      this.store.persist(player);
       this.combat.syncPlayer(player);
 
       const socket = this.playerSockets.get(player.id);

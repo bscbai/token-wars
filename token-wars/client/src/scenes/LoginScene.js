@@ -8,7 +8,8 @@ export class LoginScene extends Phaser.Scene {
   }
 
   create() {
-    net.connect();
+    // Socket connection is deferred until we have a token (see submit()).
+    // The server's io.use() middleware rejects connections without a valid JWT.
 
     // Disable Phaser input so DOM clicks work
     this.input.enabled = false;
@@ -186,7 +187,9 @@ export class LoginScene extends Phaser.Scene {
       }
 
       net.setSession(data.sessionToken, data.player.id);
-      net.emit('auth:login', { token: data.sessionToken });
+      // Connect with the JWT in the handshake — the server authenticates
+      // via io.use() middleware and emits auth:success directly.
+      net.connect(data.sessionToken);
 
       this.statusSpan.style.color = '#00ff88';
       this.statusSpan.textContent = '登录成功! 正在进入...';

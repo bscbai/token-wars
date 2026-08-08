@@ -37,6 +37,8 @@ class CombatSystem {
     // Consume tokens
     if (skill.tokenCost > 0) {
       player.unstableTokens -= skill.tokenCost;
+      // unstableTokens is persisted state; batch it via the dirty set (hot path).
+      this.store.markDirty(player);
     }
 
     // Set cooldown
@@ -225,6 +227,8 @@ class CombatSystem {
     if (loot.xp > 0) {
       player.addXp(loot.xp);
     }
+    // Transaction point: monster loot drop (+ any level-up it triggered).
+    this.store.persist(player);
     this.syncPlayer(player);
   }
 
@@ -240,6 +244,10 @@ class CombatSystem {
       dropped.push(shuffled[i]);
     }
     deadPlayer.stableTokens = deadPlayer.stableTokens.filter(t => !dropped.includes(t));
+
+    // Transaction point: death drop is a loss event — persist it immediately so
+    // a crash can't "undo" the penalty (or duplicate the dropped tokens).
+    this.store.persist(deadPlayer);
 
     // Unstable tokens are NOT dropped (they're ammo)
 
@@ -331,6 +339,8 @@ class CombatSystem {
       if (!player.spendUnstableTokens(drain)) {
         player.shieldActive = false;
         player.shield = 0;
+      } else {
+        this.store.markDirty(player);
       }
     }
   }

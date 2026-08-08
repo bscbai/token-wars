@@ -1,6 +1,7 @@
 const { Monster } = require('../models/Monster');
 const { EVENTS } = require('../../shared/protocol');
 const { MAP_WIDTH, MAP_HEIGHT, TILE } = require('../../shared/constants');
+const guard = require('../middleware/eventGuard');
 
 const WORLD_BOSS_CONFIG = {
   spawnInterval: 2 * 60 * 60 * 1000, // 2 hours
@@ -30,9 +31,9 @@ class WorldBossManager {
   registerSocket(playerId, socket) {
     this.playerSockets.set(playerId, socket);
 
-    socket.on(EVENTS.WORLD_BOSS_JOIN, () => {
+    guard.on(socket, EVENTS.WORLD_BOSS_JOIN, null, () => {
       this.joinBoss(playerId);
-    });
+    }, 'economy');
   }
 
   unregisterSocket(playerId) {
@@ -208,6 +209,8 @@ class WorldBossManager {
       player.addXp(rewards.xp);
       player.addStableToken(rewards.stableRarity);
 
+      // Transaction point: world boss payout (tokens + xp/level-ups).
+      this.store.persist(player);
       this.combat.syncPlayer(player);
 
       const socket = this.playerSockets.get(rank.playerId);
