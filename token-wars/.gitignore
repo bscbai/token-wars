@@ -1,6 +1,7 @@
 node_modules/
 server/data/players.json
 server/data/*.json
+server/data/*.json.bak
 server/data/*.db
 server/data/*.db-wal
 server/data/*.db-shm

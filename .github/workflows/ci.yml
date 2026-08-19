@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: token-wars/package-lock.json
+      - working-directory: token-wars
+        run: npm ci
+      - working-directory: token-wars
+        run: npm test
+
+  # Smoke-test the Electron packaging pipeline. Non-blocking: packaging quirks
+  # (icons, native rebuilds) shouldn't fail the test gate.
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: token-wars/package-lock.json
+      - working-directory: token-wars
+        run: npm ci
+      - working-directory: token-wars
+        run: node scripts/build-electron.js --linux
