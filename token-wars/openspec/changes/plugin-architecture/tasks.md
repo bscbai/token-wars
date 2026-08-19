@@ -2,12 +2,12 @@
 
 > 每个阶段独立可合入、可回退；全程 `npm test`（Vitest）必须绿。M1–M5 对应 design.md 第 7 节。
 
-## M0 — 行为锁定的回归测试
+## M0 — 行为锁定的回归测试 ✅（2026-08-19，81/81 用例通过）
 
-- [ ] 1.1 新增 `test/boot-regression.test.js`：启动 full 组合，断言 6 个 manager 均收到 `registerSocket`（mock io）——锁定现状 ×6 手工注册行为
-- [ ] 1.2 断言 `GameEngine.tick` 按 cadence 分发到 mining(1s)/worldBoss(5s)/aiArena(5s)——锁定现状 tick 行为
-- [ ] 1.3 断言 INPUT_SKILL 在"副本内/竞技场内/两者皆无"三种情况下分别路由到对应 combatSystem 调用/忽略——锁定现状路由行为
-- [ ] 1.4 `npm test` 全绿
+- [x] 1.1 `test/boot-regression.test.js` ①组：镜像 index.js 装配 + 替身 manager，断言 6 个 manager 的 registerSocket/unregisterSocket wiring、离线挂机先于注册、AUTH_SUCCESS 回发，及会话顶替时序（socket.io v4 服务端 disconnect(true) 同步触发 → 旧注册被注销、新连接随后重新注册并成为持有者）
+- [x] 1.2 ②组：真实 GameEngine 类直测 tick 分发——mining 每 20 tick（100 tick 内 5 次）、worldBoss/aiArena 每 100 tick、buff 清理/shield 流失每 10 tick 且仅存活玩家，含 10/19/20 tick 精确边界
+- [x] 1.3 ③组：镜像 INPUT_SKILL 处理器（真实 guard.on 接线）——副本优先/竞技场兜底/副本失效穿透到竞技场/大厅静默忽略/死亡忽略/schema 校验失败回发 error，共 6 场景
+- [x] 1.4 `npm test` 全绿：8 文件 81 用例（原 68 + 新 13），零产品代码改动
 
 ## M1 — 内核落地 + 原样包装（行为零变化）
 
