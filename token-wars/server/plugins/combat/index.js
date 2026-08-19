@@ -1,9 +1,10 @@
 /**
- * combat 插件 — 战斗系统即服务接缝（原 server/index.js:83 的装配）
+ * combat 插件 — 战斗系统即服务接缝（原 server/index.js:83,140 的装配）
  *
  * ctx.combat 是全服唯一的 CombatSystem 实例；pve/pvp/worldboss/aiarena
  * 均为它的消费者。未来可经 profile overrides 替换实现（测试假战斗、
  * 节日规则），这正是"服务接缝"的意义所在。
+ * M2 起订阅 player:join/leave 自行注册/注销（原 index.js ×6 手工调用之一）。
  */
 
 'use strict';
@@ -16,6 +17,14 @@ module.exports = {
   provides: ['combat'],
 
   setup(ctx) {
-    ctx.service('combat', new CombatSystem(ctx.io, ctx.get('store')));
+    const combat = new CombatSystem(ctx.io, ctx.get('store'));
+    ctx.service('combat', combat);
+
+    ctx.on('player:join', ({ player, socket }) => {
+      combat.registerSocket(player.id, socket);
+    });
+    ctx.on('player:leave', ({ player }) => {
+      combat.unregisterSocket(player.id);
+    });
   },
 };

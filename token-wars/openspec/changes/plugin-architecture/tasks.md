@@ -19,11 +19,12 @@
 - [x] 2.6 `server/core/profiles/full.js`（全量组合）；index.js 改为经 Loader 启动
 - [x] 2.7 M0 全部回归测试绿（120/120）；`node server/index.js --dump-config` 打印组合树；启动烟雾测试通过（服务正常起停）
 
-## M2 — 玩家接入事件化
+## M2 — 玩家接入事件化 ✅（2026-08-19，124/124 用例通过）
 
-- [ ] 3.1 identity/world-player 发出 `player:join`/`player:leave`（携带 player + socket）
-- [ ] 3.2 6 个游戏插件订阅事件调用自身 registerSocket/unregisterSocket；删除 index.js 中 ×6 手工调用
-- [ ] 3.3 会话顶替（SESSION_REPLACED kick）路径经同一事件流；M0 测试绿
+- [x] 3.1 world-player 发出 `player:join`/`player:leave`（携带 player + socket）；宿主 index.js 仅广播 `auth:authenticated`（握手/AUTH_LOGIN 两路同源）与 `socket:disconnect`，内部事件不进 shared/constants（design 决策 5）
+- [x] 3.2 6 个游戏插件（mining/combat/pve/pvp/worldboss/aiarena）订阅事件调用自身 registerSocket/unregisterSocket；index.js 的 registerPlayer 函数与 ×6 手工调用、三 Map 注册表全部删除（迁入 world-player，暴露 ctx.players 服务）
+- [x] 3.3 会话顶替（SESSION_REPLACED kick）路径经同一事件流，同步时序与 M0 ③ 锁定一致；M0 回归全绿
+- [x] 3.4 新增 `test/m2-player-events.test.js`：真实内核组合（Context+Loader+full profile 10 插件）+ 镜像薄宿主——join/leave 事件契约、6 manager 注册/注销、离线挂机先于注册、会话顶替、INV2（unload world-player 后不再注册）共 4 用例；启动烟雾（/health 经 ctx.players）通过
 
 ## M3 — tick 声明化
 

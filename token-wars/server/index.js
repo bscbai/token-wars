@@ -83,10 +83,8 @@ const miningManager = ctx.get('mining');
 const gameEngine = new GameEngine(io, store, combatSystem, pveManager, miningManager, worldBossManager, aiArenaManager);
 gameEngine.start();
 
-// Track connected players
-const connectedPlayers = new Map(); // socketId -> player
-const socketToPlayerId = new Map(); // socketId -> playerId
-const playerToSocket = new Map();   // playerId -> socketId (session uniqueness)
+// 在线注册表由 world-player 插件持有；此处仅取引用（INPUT_* 处理器 M4 迁入插件）
+const { connectedPlayers } = ctx.get('players');
 
 // Health check endpoint
 app.get('/health', (_req, res) => {
@@ -104,64 +102,24 @@ app.get('/health', (_req, res) => {
   });
 });
 
-/**
- * Register a player on a socket: enforce session uniqueness (kick any existing
- * socket for the same playerId), wire up all game managers, and emit
- * AUTH_SUCCESS.  Called from both the handshake-auth path and the compat
- * AUTH_LOGIN path — the latter is guarded by `socket.data.authenticated` to
- * prevent duplicate registration.
- */
-function registerPlayer(socket, player) {
-  // --- Session uniqueness: one account → one authoritative socket ---
-  const existingSocketId = playerToSocket.get(player.id);
-  if (existingSocketId && existingSocketId !== socket.id) {
-    const existingSocket = io.sockets.sockets.get(existingSocketId);
-    if (existingSocket) {
-      existingSocket.emit(EVENTS.SESSION_REPLACED, {
-        message: 'Session replaced by a new connection',
-      });
-      existingSocket.disconnect(true);
-      logger.info(
-        { playerId: player.id, oldSocketId: existingSocketId, newSocketId: socket.id },
-        '[WS] Replaced existing session'
-      );
-    }
-  }
-
-  playerToSocket.set(player.id, socket.id);
-  connectedPlayers.set(socket.id, player);
-  socketToPlayerId.set(socket.id, player.id);
-
-  // Calculate offline mining
-  miningManager.calculateOfflineMining(player);
-
-  // Register with all managers
-  miningManager.registerSocket(player.id, socket);
-  combatSystem.registerSocket(player.id, socket);
-  pveManager.registerSocket(player.id, socket);
-  pvpManager.registerSocket(player.id, socket);
-  worldBossManager.registerSocket(player.id, socket);
-  aiArenaManager.registerSocket(player.id, socket);
-
-  socket.emit(EVENTS.AUTH_SUCCESS, { playerId: player.id, player: player.serialize() });
-  logger.info({ username: player.username, socketId: socket.id }, '[WS] Player authenticated');
-}
-
+// --- Host connection loop（M2 形态：仅两个广播 + 待迁移的输入路由） ----------
+// 宿主不再手工调用任何 manager 的 register/unregister —— 认证完成广播
+// auth:authenticated，断开广播 socket:disconnect，world-player 插件据此
+// 发出 player:join/leave，各游戏插件自行订阅（事件即扩展点）。
 io.on('connection', (socket) => {
   logger.info({ socketId: socket.id }, '[WS] Client connected');
 
   // --- New path: handshake middleware already authenticated ---
-  // The socket.data.player is set by socketAuth middleware. Register the
-  // player immediately — no need to wait for an AUTH_LOGIN event.
+  // The socket.data.player is set by socketAuth middleware. Broadcast the
+  // authenticated fact — world-player turns it into player:join.
   if (socket.data.player) {
-    registerPlayer(socket, socket.data.player);
+    ctx.emit('auth:authenticated', { socket, player: socket.data.player });
   }
 
   // --- Compat path: AUTH_LOGIN event ---
-  // Kept for the transition period.  The idempotent guard
-  // (`socket.data.authenticated`) ensures that if the handshake middleware
-  // already authenticated, this handler is a no-op — preventing the duplicate
-  // registerSocket → duplicate listener → double-fire bug.
+  // Kept for the transition period (M4 迁入 identity 插件).  The idempotent
+  // guard (`socket.data.authenticated`) ensures that if the handshake
+  // middleware already authenticated, this handler is a no-op.
   socket.on(EVENTS.AUTH_LOGIN, ({ token }) => {
     if (socket.data.authenticated) return; // idempotent guard
 
@@ -176,7 +134,7 @@ io.on('connection', (socket) => {
     }
     socket.data.authenticated = true;
     socket.data.player = player;
-    registerPlayer(socket, player);
+    ctx.emit('auth:authenticated', { socket, player });
   });
 
   // --- Movement with wall collision + guard (rate limit + schema) ---
@@ -258,31 +216,10 @@ io.on('connection', (socket) => {
     socket.emit(EVENTS.PONG, { timestamp });
   });
 
-  // Disconnect
+  // Disconnect —— 广播断开事实，world-player 据此发出 player:leave
+  // （持有者守卫逻辑在 world-player 内，会话顶替时序不变）
   socket.on('disconnect', () => {
-    const player = connectedPlayers.get(socket.id);
-    const playerId = socketToPlayerId.get(socket.id);
-    if (playerId) {
-      // Only unregister from managers if this socket is still the active
-      // one for the player.  When a session is replaced (kick), the old
-      // socket's disconnect fires after playerToSocket has already been
-      // updated to the new socket — so this guard prevents accidentally
-      // unregistering the new connection.
-      if (playerToSocket.get(playerId) === socket.id) {
-        miningManager.unregisterSocket(playerId);
-        combatSystem.unregisterSocket(playerId);
-        pveManager.unregisterSocket(playerId);
-        pvpManager.unregisterSocket(playerId);
-        worldBossManager.unregisterSocket(playerId);
-        aiArenaManager.unregisterSocket(playerId);
-        playerToSocket.delete(playerId);
-      }
-      socketToPlayerId.delete(socket.id);
-    }
-    if (player) {
-      logger.info({ username: player.username }, '[WS] Player disconnected');
-      connectedPlayers.delete(socket.id);
-    }
+    ctx.emit('socket:disconnect', { socket });
     // Cleanup rate limit data
     guard.rateLimiter.cleanup(socket.id);
   });
