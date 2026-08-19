@@ -2,26 +2,32 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const { getStore } = require('./data/Store');
 const config = require('./config');
 const logger = require('./utils/logger');
-const { makeAuth } = require('./routes/auth');
-const { makePlayerRouter } = require('./routes/player');
-const { makeShopRouter } = require('./routes/shop');
-const { makeSocketAuth } = require('./middleware/socketAuth');
 const guard = require('./middleware/eventGuard');
-const MiningManager = require('./game/MiningManager');
-const CombatSystem = require('./game/CombatSystem');
-const PvEManager = require('./game/PvEManager');
-const PvPManager = require('./game/PvPManager');
-const WorldBossManager = require('./game/WorldBossManager');
-const AIArenaManager = require('./game/AIArenaManager');
 const GameEngine = require('./game/GameEngine');
+const { Context } = require('./core/Context');
+const { Loader } = require('./core/Loader');
 const { EVENTS } = require('../shared/protocol');
 const { MAP_WIDTH, MAP_HEIGHT, TILE } = require('../shared/constants');
 
 const PORT = config.PORT;
 const NODE_ENV = config.NODE_ENV;
+
+// --- CLI: --profile <name> / --dump-config ---------------------------------
+// --dump-config：解析组合并打印插件树后退出，不创建 http/io、不启动游戏循环
+const argv = process.argv.slice(2);
+function cliProfileName() {
+  const i = argv.indexOf('--profile');
+  return (i !== -1 && argv[i + 1]) || 'full';
+}
+if (argv.includes('--dump-config')) {
+  const dumper = new Loader(null);
+  const resolved = dumper.resolve(dumper.loadProfile(cliProfileName()), { env: process.env });
+  console.log(`[Token Wars] config dump\n${dumper.dumpConfig(resolved)}`);
+  process.exit(0);
+}
+const PROFILE_NAME = cliProfileName();
 
 // --- Default lobby map (open floor with border walls) ---
 const lobbyMap = [];
@@ -45,19 +51,11 @@ function isWalkable(x, y, mapData) {
   return map[y][x] !== TILE.WALL;
 }
 
-// Store singleton — created here (explicitly), never as an import side effect.
-const store = getStore();
-
 // Express setup
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'client'), { etag: false, lastModified: false, setHeaders: (res) => { res.set('Cache-Control', 'no-store'); } }));
 app.use('/shared', express.static(path.join(__dirname, '..', 'shared')));
-
-const { router: authRouter, verifySession } = makeAuth({ store });
-app.use('/api/auth', authRouter);
-app.use('/api/player', makePlayerRouter({ store, verifySession }));
-app.use('/api/shop', makeShopRouter({ store, verifySession }));
 
 // HTTP + Socket.IO
 const server = http.createServer(app);
@@ -66,25 +64,22 @@ const io = new Server(server, {
   cors: { origin: allowedOrigins, methods: ['GET', 'POST'] },
 });
 
-// --- Socket.IO handshake authentication middleware ---
-// Validates JWT from handshake.auth.token before the connection is accepted.
-// On success, socket.data.player / .authenticated are set so the connection
-// handler can register the player immediately.  On failure the connection is
-// rejected with a structured log entry.
-io.use(makeSocketAuth({ verifySession }));
+// --- Plugin kernel boot ----------------------------------------------------
+// 旧版 index.js 的装配（Store 单例、auth/player/shop 路由、socketAuth 中间件、
+// 6 个 Manager 实例化、store.load + autoSave）全部迁入 plugins/<name>/；
+// 此处仅建 Context、按 profile 挂载、经服务接缝取回引用。
+const ctx = new Context({ io, app, server, config, logger });
+const loader = new Loader(ctx);
+loader.mountProfile(loader.loadProfile(PROFILE_NAME), { env: process.env });
 
-// --- Socket.IO rate limiting & event validation ---
-// All rate-limiting and schema validation is now handled by the eventGuard
-// middleware (per-category token buckets + lightweight schema checks).
-// The shared RateLimiter singleton is accessed via `guard.rateLimiter`.
-
-// Game systems
-const miningManager = new MiningManager(io, store);
-const combatSystem = new CombatSystem(io, store);
-const pveManager = new PvEManager(io, store, combatSystem);
-const pvpManager = new PvPManager(io, store, combatSystem);
-const worldBossManager = new WorldBossManager(io, store, combatSystem);
-const aiArenaManager = new AIArenaManager(io, store, combatSystem);
+// Game systems（经由服务接缝——与旧版逐行等价的构造参数）
+const store = ctx.get('store');
+const combatSystem = ctx.get('combat');
+const pveManager = ctx.get('pve');
+const pvpManager = ctx.get('pvp');
+const worldBossManager = ctx.get('worldboss');
+const aiArenaManager = ctx.get('aiarena');
+const miningManager = ctx.get('mining');
 const gameEngine = new GameEngine(io, store, combatSystem, pveManager, miningManager, worldBossManager, aiArenaManager);
 gameEngine.start();
 
@@ -174,7 +169,7 @@ io.on('connection', (socket) => {
       socket.emit(EVENTS.AUTH_FAIL, { reason: 'Rate limited' });
       return;
     }
-    const player = verifySession(token);
+    const player = ctx.get('auth')(token);
     if (!player) {
       socket.emit(EVENTS.AUTH_FAIL, { reason: 'Invalid session' });
       return;
@@ -293,10 +288,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Load persisted data
-store.load();
-store.startAutoSave(60000);
-
 // --- Graceful shutdown ------------------------------------------------------
 // Order: stop accepting traffic -> drop sockets -> stop the tick -> flush and
 // close the db (which checkpoints the WAL). Hard-exit after SHUTDOWN_TIMEOUT_MS
@@ -378,5 +369,5 @@ process.on('SIGTERM', () => { shutdown('SIGTERM'); });
 
 // Start
 server.listen(PORT, '0.0.0.0', () => {
-  logger.info({ port: PORT, env: NODE_ENV }, '[Token Wars] Server running');
+  logger.info({ port: PORT, env: NODE_ENV, profile: PROFILE_NAME }, '[Token Wars] Server running');
 });

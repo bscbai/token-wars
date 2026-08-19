@@ -9,15 +9,15 @@
 - [x] 1.3 ③组：镜像 INPUT_SKILL 处理器（真实 guard.on 接线）——副本优先/竞技场兜底/副本失效穿透到竞技场/大厅静默忽略/死亡忽略/schema 校验失败回发 error，共 6 场景
 - [x] 1.4 `npm test` 全绿：8 文件 81 用例（原 68 + 新 13），零产品代码改动
 
-## M1 — 内核落地 + 原样包装（行为零变化）
+## M1 — 内核落地 + 原样包装（行为零变化）✅（2026-08-19，120/120 用例通过）
 
-- [ ] 2.1 实现 `server/core/Context.js`：service/get/on/emit/waterfall/socket/every + 效应栈 + INV2（unload 后处理器不再触发）
-- [ ] 2.2 实现 `server/core/Loader.js`：profile 载入、extends/disable/overrides、依赖拓扑排序（缺依赖 fail fast）、mount/unload、`--dump-config`
-- [ ] 2.3 实现 `server/core/Scheduler.js`：`every('500ms'|ticks, fn)` 统一节奏调度
-- [ ] 2.4 新增 `test/context.test.js`、`test/loader.test.js`（效应回滚、重名服务报错、拓扑排序、disable/overrides）
-- [ ] 2.5 创建 9 个插件包装（persistence/identity/world-player/combat/pve/pvp/worldboss/aiarena/mining + economy-shop），M1 阶段 setup 内仅实例化 + `ctx.service`，事件订阅仍留在 index.js
-- [ ] 2.6 `server/core/profiles/full.js`（全量组合）；index.js 改为经 Loader 启动
-- [ ] 2.7 M0 全部回归测试绿；`node server/index.js --dump-config` 打印组合树
+- [x] 2.1 实现 `server/core/Context.js`：service/get/on/emit/waterfall/socket/every + 效应栈 + INV2（unload 后处理器不再触发）
+- [x] 2.2 实现 `server/core/Loader.js`：profile 载入、extends/disable/overrides、依赖拓扑排序（缺依赖 fail fast）、mount/unload、`--dump-config`
+- [x] 2.3 实现 `server/core/Scheduler.js`：`every('500ms'|ticks, fn)` 统一节奏调度
+- [x] 2.4 新增 `test/context.test.js`、`test/loader.test.js`（效应回滚、重名服务报错、拓扑排序、disable/overrides）
+- [x] 2.5 创建 10 个插件包装（persistence/identity/world-player/combat/pve/pvp/worldboss/aiarena/mining/economy-shop），M1 阶段 setup 内仅实例化 + `ctx.service`，事件订阅仍留在 index.js
+- [x] 2.6 `server/core/profiles/full.js`（全量组合）；index.js 改为经 Loader 启动
+- [x] 2.7 M0 全部回归测试绿（120/120）；`node server/index.js --dump-config` 打印组合树；启动烟雾测试通过（服务正常起停）
 
 ## M2 — 玩家接入事件化
 

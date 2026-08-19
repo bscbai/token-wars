@@ -188,20 +188,24 @@ function validateSchema(data, schema) {
 /**
  * Register a guarded socket event handler.
  *
- *   on(socket, event, schema, handler, category)
+ *   on(socket, event, schema, handler, category) -> disposer
  *
  * 1. Rate-limit check (per category).  On failure → log + emit EVENTS.ERROR.
  * 2. Schema validation.                On failure → log + emit EVENTS.ERROR.
  * 3. Call handler with the original payload.
+ *
+ * 返回解绑函数（teardown）：调用后移除该监听器（socket.off）。
+ * 这是插件内核 ctx.socket 可逆注册的基础（plugin-architecture M1/M4）。
  *
  * @param {object}   socket    Socket.IO socket
  * @param {string}   event     Event name
  * @param {object|null} schema  Field rules or null for no validation
  * @param {function} handler   (payload) => void
  * @param {string}   category  Rate-limit category (default 'query')
+ * @returns {function} disposer — 移除监听器
  */
 function on(socket, event, schema, handler, category = 'query') {
-  socket.on(event, (rawData) => {
+  const wrapped = (rawData) => {
     // ① Rate limit
     if (!rateLimiter.consume(socket.id, category)) {
       logger.warn(
@@ -235,7 +239,12 @@ function on(socket, event, schema, handler, category = 'query') {
 
     // ③ Call handler
     handler(rawData);
-  });
+  };
+
+  socket.on(event, wrapped);
+  return () => {
+    if (typeof socket.off === 'function') socket.off(event, wrapped);
+  };
 }
 
 module.exports = {
