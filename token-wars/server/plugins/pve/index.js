@@ -1,10 +1,10 @@
 /**
  * pve 插件 — 副本战斗（原 server/index.js:84,142 的装配）
  *
- * 消费 ctx.combat 接缝。自有副本循环暂由 PvEManager 内部驱动（现状），
- * M3 并入 Scheduler；INPUT_SKILL 的副本上下文解析 M4 迁为
- * combat:resolve-context 瀑布认领。M2 起订阅 player:join/leave
- * 自行注册/注销（原 index.js ×6 手工调用之一）。
+ * 消费 ctx.combat 接缝。M2 起订阅 player:join/leave 自行注册/注销。
+ * M3 起副本循环由 ctx.every(1 tick) 全局扫描驱动（原 PvEManager
+ * 每实例 setInterval(50ms) 等价——1 tick = 50ms = 20Hz）；
+ * INPUT_SKILL 的副本上下文解析 M4 迁为 combat:resolve-context 瀑布认领。
  */
 
 'use strict';
@@ -25,6 +25,14 @@ module.exports = {
     });
     ctx.on('player:leave', ({ player }) => {
       pve.unregisterSocket(player.id);
+    });
+
+    // 节奏声明：每 1 tick（50ms）→ 遍历活跃副本各跑一次 dungeonTick
+    // （原 startDungeonLoop 的 setInterval(50) 已移除，state 非 active 自然跳过）
+    ctx.every(1, () => {
+      for (const dungeon of pve.activeDungeons.values()) {
+        if (dungeon.state === 'active') pve.dungeonTick(dungeon);
+      }
     });
   },
 };

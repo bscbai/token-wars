@@ -107,14 +107,8 @@ class PvEManager {
   }
 
   startDungeonLoop(dungeon) {
-    dungeon.loopInterval = setInterval(() => {
-      if (dungeon.state !== 'active') {
-        clearInterval(dungeon.loopInterval);
-        return;
-      }
-
-      this.dungeonTick(dungeon);
-    }, 50); // 20 Hz
+    // M3: 实例级 setInterval 已移除，改由 pve 插件的 ctx.every(1) 全局扫描驱动。
+    // dungeon.state 非 active 时由扫描器自然跳过（等价于原 clearInterval 自停）。
   }
 
   dungeonTick(dungeon) {

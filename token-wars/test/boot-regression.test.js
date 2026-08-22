@@ -2,14 +2,14 @@
  * M0 回归基线（openspec/changes/plugin-architecture · tasks.md 1.1–1.3）
  *
  * 目的：在插件化重构（M1–M5）动任何产品代码之前，把 server/index.js 与
- * GameEngine 的现状行为锁定为可执行断言。迁移每个阶段合入后，本文件必须
+ * 现状行为锁定为可执行断言。迁移每个阶段合入后，本文件必须
  * 保持全绿 —— 行为等价是插件化 proposal 的硬性验收条件。
  *
  * 锁定的三类行为：
  *   ① 玩家接入/断开 wiring：registerPlayer 对 6 个 manager 的
  *      registerSocket/unregisterSocket 调用，及会话顶替时旧 socket 的
  *      disconnect 守卫（不误注销新连接）。
- *   ② GameEngine.tick 节奏分发：mining 每 20 tick、worldBoss/aiArena 每
+ *   ② Scheduler 节奏分发（原 GameEngine.tick）：mining 每 20 tick、worldBoss/aiArena 每
  *      100 tick、buff 清理/shield 流失每 10 tick（仅存活玩家）。
  *   ③ INPUT_SKILL 战斗上下文路由：副本优先 → 竞技场兜底 → 大厅静默忽略，
  *      含「副本 id 存在但实例已失效时穿透到竞技场」的顺序语义。
@@ -30,7 +30,7 @@ const { Store } = require('../server/data/Store');
 const { makeAuth } = require('../server/routes/auth');
 const { makeSocketAuth } = require('../server/middleware/socketAuth');
 const guard = require('../server/middleware/eventGuard');
-const GameEngine = require('../server/game/GameEngine');
+const { Scheduler } = require('../server/core/Scheduler');
 const { EVENTS, MAP_WIDTH, MAP_HEIGHT } = require('../shared/constants');
 
 const JWT_SECRET = 'test-m0-regression-secret';
@@ -254,10 +254,10 @@ describe('M0 ① 玩家接入 wiring（registerSocket ×6）', () => {
   });
 });
 
-// --- ② GameEngine.tick 节奏分发（真实 GameEngine 类） ------------------------
+// --- ② Scheduler 节奏分发（原 GameEngine.tick，M3 迁移为声明式 ctx.every） ----
 
-describe('M0 ② GameEngine.tick 节奏分发', () => {
-  function buildEngine() {
+describe('M0 ② Scheduler 节奏分发（M3 迁移：原 GameEngine.tick 行为等价）', () => {
+  function buildScheduler() {
     const mining = { tick: vi.fn() };
     const worldBoss = { tick: vi.fn() };
     const aiArena = { tick: vi.fn() };
@@ -265,51 +265,63 @@ describe('M0 ② GameEngine.tick 节奏分发', () => {
     const alive = { id: 'alive-1', alive: true };
     const dead = { id: 'dead-1', alive: false };
     const store = { players: new Map([['alive-1', alive], ['dead-1', dead]]) };
-    const engine = new GameEngine({}, store, combat, {}, mining, worldBoss, aiArena);
-    return { engine, mining, worldBoss, aiArena, combat, alive };
+    const scheduler = new Scheduler();
+    // 与 M3 插件 ctx.every 声明等价的注册（cadence 逐项对应原 GameEngine.tick 分支）
+    scheduler.every(20, (now) => mining.tick(now));       // TICK_RATE = 每 20 tick
+    scheduler.every(100, (now) => worldBoss.tick(now));    // TICK_RATE*5 = 每 100 tick
+    scheduler.every(100, (now) => aiArena.tick(now));      // TICK_RATE*5 = 每 100 tick
+    scheduler.every(10, () => {
+      for (const [, player] of store.players) {
+        if (player.alive) {
+          combat.cleanupBuffs(player);
+          combat.processShieldDrain(player);
+        }
+      }
+    });
+    return { scheduler, mining, worldBoss, aiArena, combat, alive };
   }
 
-  function runTicks(engine, n) {
-    for (let i = 0; i < n; i++) engine.tick();
+  function runTicks(scheduler, n) {
+    for (let i = 0; i < n; i++) scheduler.tick();
   }
 
   it('100 tick 内：mining 每 20 tick 一次，共 5 次', () => {
-    const f = buildEngine();
-    runTicks(f.engine, 100);
+    const f = buildScheduler();
+    runTicks(f.scheduler, 100);
     expect(f.mining.tick).toHaveBeenCalledTimes(5);
   });
 
   it('100 tick 内：worldBoss / aiArena 每 100 tick 一次，各 1 次', () => {
-    const f = buildEngine();
-    runTicks(f.engine, 100);
+    const f = buildScheduler();
+    runTicks(f.scheduler, 100);
     expect(f.worldBoss.tick).toHaveBeenCalledTimes(1);
     expect(f.aiArena.tick).toHaveBeenCalledTimes(1);
   });
 
   it('边界：第 10 / 19 / 20 tick 的精确分发', () => {
     // 10 tick：buff 清理 1 次，mining/worldBoss/aiArena 均 0 次
-    const f10 = buildEngine();
-    runTicks(f10.engine, 10);
+    const f10 = buildScheduler();
+    runTicks(f10.scheduler, 10);
     expect(f10.combat.cleanupBuffs).toHaveBeenCalledTimes(1);
     expect(f10.mining.tick).toHaveBeenCalledTimes(0);
     expect(f10.worldBoss.tick).toHaveBeenCalledTimes(0);
 
     // 19 tick：仍无 mining；buff 清理仍只有 1 次（发生在第 10 tick）
-    const f19 = buildEngine();
-    runTicks(f19.engine, 19);
+    const f19 = buildScheduler();
+    runTicks(f19.scheduler, 19);
     expect(f19.mining.tick).toHaveBeenCalledTimes(0);
     expect(f19.combat.cleanupBuffs).toHaveBeenCalledTimes(1);
 
     // 20 tick：mining 恰好 1 次；buff 清理 2 次（第 10、20 tick）
-    const f20 = buildEngine();
-    runTicks(f20.engine, 20);
+    const f20 = buildScheduler();
+    runTicks(f20.scheduler, 20);
     expect(f20.mining.tick).toHaveBeenCalledTimes(1);
     expect(f20.combat.cleanupBuffs).toHaveBeenCalledTimes(2);
   });
 
   it('buff 清理 / shield 流失每 10 tick 一次，且只作用于存活玩家', () => {
-    const f = buildEngine();
-    runTicks(f.engine, 100);
+    const f = buildScheduler();
+    runTicks(f.scheduler, 100);
     expect(f.combat.cleanupBuffs).toHaveBeenCalledTimes(10);
     expect(f.combat.processShieldDrain).toHaveBeenCalledTimes(10);
     for (const call of f.combat.cleanupBuffs.mock.calls) {

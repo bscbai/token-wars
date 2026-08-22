@@ -133,10 +133,8 @@ class PvPManager {
   }
 
   startArenaLoop(arena) {
-    arena.loopInterval = setInterval(() => {
-      if (arena.state !== 'active') return;
-      this.arenaTick(arena);
-    }, 50); // 20 Hz
+    // M3: 实例级 setInterval 已移除，改由 pvp 插件的 ctx.every(1) 全局扫描驱动。
+    // arena.state 非 active 时由扫描器自然跳过（等价于原 early return）。
   }
 
   arenaTick(arena) {

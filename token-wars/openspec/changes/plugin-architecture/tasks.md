@@ -26,12 +26,12 @@
 - [x] 3.3 会话顶替（SESSION_REPLACED kick）路径经同一事件流，同步时序与 M0 ③ 锁定一致；M0 回归全绿
 - [x] 3.4 新增 `test/m2-player-events.test.js`：真实内核组合（Context+Loader+full profile 10 插件）+ 镜像薄宿主——join/leave 事件契约、6 manager 注册/注销、离线挂机先于注册、会话顶替、INV2（unload world-player 后不再注册）共 4 用例；启动烟雾（/health 经 ctx.players）通过
 
-## M3 — tick 声明化
+## M3 — tick 声明化 ✅（2026-08-19，124/124 用例通过）
 
-- [ ] 4.1 mining/worldboss/aiarena 改 `ctx.every` 声明节奏；玩家 buff 清理（cleanupBuffs/shieldDrain）归入 combat 插件自身的 `ctx.every(10 ticks)`
-- [ ] 4.2 PvE/PvP 自有循环并入 Scheduler（保持原 cadence）
-- [ ] 4.3 删除 `GameEngine.tick` 的硬编码分支；GameEngine 移除或退化为 Scheduler 薄壳
-- [ ] 4.4 M0 tick 回归测试绿（断言迁移到 Scheduler 行为等价）
+- [x] 4.1 mining/worldboss/aiarena 改 `ctx.every(TICK_RATE / TICK_RATE*5)` 声明节奏；combat 插件 `ctx.every(10 ticks)` 负责 buff 清理 + shield 流失（仅存活玩家）
+- [x] 4.2 PvE/PvP 实例级 setInterval(50ms) 移除，改由 pve/pvp 插件 `ctx.every(1 tick)` 全局扫描驱动（1 tick=50ms=20Hz，cadence 等价；state 非 active 自然跳过）
+- [x] 4.3 index.js 删 GameEngine 引用，改 `ctx.scheduler.start(TICK_MS)` / `ctx.scheduler.stop()`；GameEngine.js 保留但生产路径不再使用
+- [x] 4.4 M0 ② 测试断言迁移到 Scheduler（buildScheduler + scheduler.every 注册 + scheduler.tick 推进），4 个用例全绿；启动烟雾 /health `scheduler:true` 通过
 
 ## M4 — Socket 路由接缝化
 

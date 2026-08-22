@@ -5,11 +5,10 @@ const path = require('path');
 const config = require('./config');
 const logger = require('./utils/logger');
 const guard = require('./middleware/eventGuard');
-const GameEngine = require('./game/GameEngine');
 const { Context } = require('./core/Context');
 const { Loader } = require('./core/Loader');
 const { EVENTS } = require('../shared/protocol');
-const { MAP_WIDTH, MAP_HEIGHT, TILE } = require('../shared/constants');
+const { MAP_WIDTH, MAP_HEIGHT, TILE, TICK_MS } = require('../shared/constants');
 
 const PORT = config.PORT;
 const NODE_ENV = config.NODE_ENV;
@@ -72,16 +71,12 @@ const ctx = new Context({ io, app, server, config, logger });
 const loader = new Loader(ctx);
 loader.mountProfile(loader.loadProfile(PROFILE_NAME), { env: process.env });
 
-// Game systems（经由服务接缝——与旧版逐行等价的构造参数）
+// Game systems（经由服务接缝——M3 起节奏由插件 ctx.every 声明，Scheduler 驱动）
 const store = ctx.get('store');
 const combatSystem = ctx.get('combat');
 const pveManager = ctx.get('pve');
 const pvpManager = ctx.get('pvp');
-const worldBossManager = ctx.get('worldboss');
-const aiArenaManager = ctx.get('aiarena');
-const miningManager = ctx.get('mining');
-const gameEngine = new GameEngine(io, store, combatSystem, pveManager, miningManager, worldBossManager, aiArenaManager);
-gameEngine.start();
+ctx.scheduler.start(TICK_MS);
 
 // 在线注册表由 world-player 插件持有；此处仅取引用（INPUT_* 处理器 M4 迁入插件）
 const { connectedPlayers } = ctx.get('players');
@@ -94,7 +89,7 @@ app.get('/health', (_req, res) => {
     memoryRss: process.memoryUsage().rss,
     players: { connected: connectedPlayers.size, stored: store.players.size },
     systems: {
-      gameEngine: gameEngine.running,
+      scheduler: ctx.scheduler._master !== null,
       pvpArenas: pvpManager.activeArenas ? pvpManager.activeArenas.size : 0,
       pveDungeons: pveManager.activeDungeons ? pveManager.activeDungeons.size : 0,
     },
@@ -287,8 +282,8 @@ async function shutdown(signal) {
   }
 
   // 3) stop the game tick
-  try { gameEngine.stop(); } catch (err) {
-    logger.warn({ err: err.message }, '[Server] gameEngine.stop failed');
+  try { ctx.scheduler.stop(); } catch (err) {
+    logger.warn({ err: err.message }, '[Server] scheduler.stop failed');
   }
 
   // 4) final save + WAL checkpoint + db close
