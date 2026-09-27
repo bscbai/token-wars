@@ -17,7 +17,8 @@ module.exports = {
   provides: ['combat'],
 
   setup(ctx) {
-    const combat = new CombatSystem(ctx.io, ctx.get('store'));
+    const store = ctx.get('store');
+    const combat = new CombatSystem(ctx.io, store);
     ctx.service('combat', combat);
 
     ctx.on('player:join', ({ player, socket }) => {
@@ -25,6 +26,15 @@ module.exports = {
     });
     ctx.on('player:leave', ({ player }) => {
       combat.unregisterSocket(player.id);
+    });
+
+    // 玩家维护节奏（原 GameEngine.tick % 10 分支，M3 迁移时遗漏，
+    // combat-triangle 补回）：buff 清理、护盾到期/流失、基础弹药恢复。
+    // 10 tick = 500ms；内部按墙钟节流到 1/s 的流失精度。
+    ctx.every(10, (now) => {
+      for (const [, player] of store.players) {
+        if (player.alive) combat.tickPlayer(player, now);
+      }
     });
   },
 };

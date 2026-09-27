@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { PLAYER_DEFAULTS, RARITY, RARITY_CONFIG, MINING, LEVEL_XP, LEVEL_UNLOCKS, SKILLS } = require('../../shared/constants');
+const { PLAYER_DEFAULTS, RARITY, RARITY_CONFIG, MINING, LEVEL_XP, LEVEL_UNLOCKS, SKILLS, BASIC_AMMO } = require('../../shared/constants');
 
 class Player {
   constructor(username) {
@@ -19,6 +19,7 @@ class Player {
     // Tokens
     this.stableTokens = []; // [{id, rarity, type:'stable'}]
     this.unstableTokens = PLAYER_DEFAULTS.startUnstableTokens;
+    this.basicAmmo = BASIC_AMMO.MAX; // 基础弹药池（GDD §2.2），消耗优先于 unstableTokens
 
     // Equipped tokens (skill disk: 4x4 grid, null = empty)
     this.equippedTokens = new Array(16).fill(null);
@@ -59,8 +60,16 @@ class Player {
     // Combat state (transient, not persisted)
     this.shield = 0;
     this.shieldActive = false;
+    this.shieldExpiresAt = 0; // 护盾到期时间（连招可延长）
     this.stealthed = false;
     this.buffs = []; // [{name, atkMult, defMult, expiresAt}]
+
+    // Combo state (transient) — recent skill keys within the combo window
+    this.comboSeq = []; // [{key, at}]
+    this.comboEffects = {}; // active combo bonuses, e.g. {dodgeCrit: expiresAt}
+    this.lastCombatAt = 0; // last skill use (drives out-of-combat ammo regen)
+    this.lastAmmoRegenAt = 0; // last basic-ammo regen grant
+    this.lastShieldDrainAt = 0; // throttles shield drain to 1/sec
 
     // Timestamps
     this.createdAt = Date.now();
@@ -159,6 +168,7 @@ class Player {
       credits: this.credits,
       stableTokens: this.stableTokens,
       unstableTokens: this.unstableTokens,
+      basicAmmo: this.basicAmmo,
       equippedTokens: this.equippedTokens,
       miningLevel: this.miningLevel,
       pvpRating: this.pvpRating,
@@ -181,6 +191,7 @@ class Player {
       baseDef: this.baseDef,
       stableTokens: this.stableTokens,
       unstableTokens: this.unstableTokens,
+      basicAmmo: this.basicAmmo,
       equippedTokens: this.equippedTokens,
       skills: this.skills.map(s => ({ ...s, lastUsed: 0 })),
       level: this.level,
@@ -211,8 +222,16 @@ class Player {
     p.y = 0;
     p.shield = 0;
     p.shieldActive = false;
+    p.shieldExpiresAt = 0;
     p.stealthed = false;
     p.buffs = [];
+    // Old saves predate the basic ammo pool — rookies load with a full pool.
+    p.basicAmmo = typeof data.basicAmmo === 'number' ? data.basicAmmo : BASIC_AMMO.MAX;
+    p.comboSeq = [];
+    p.comboEffects = {};
+    p.lastCombatAt = 0;
+    p.lastAmmoRegenAt = Date.now();
+    p.lastShieldDrainAt = 0;
     p.banned = !!data.banned;
     if (data.skills && Array.isArray(data.skills)) {
       p.skills = data.skills.map(s => ({ ...s, lastUsed: 0 }));

@@ -152,7 +152,8 @@ module.exports = {
 
       const data = ctx.runWaterfall('combat:resolve-context', { player });
       if (data.entities) {
-        ctx.get('combat').useSkill(player, skillId, targetX, targetY, data.entities);
+        // mapData 供击退墙体校验（战斗三角 R 克 Q）；大厅/无地图 → 默认边界墙
+        ctx.get('combat').useSkill(player, skillId, targetX, targetY, data.entities, data.mapData || null);
       }
       // 未被任何战斗上下文认领（大厅）—— 静默忽略，与原 index.js 一致
     }, 'skill');

@@ -86,6 +86,7 @@ const SKILLS = {
     range: 0,
     type: 'shield',
     absorbAmount: 20,
+    duration: 4000, // ms — 护盾基础持续时间（GDD §4.4 连招时长语义的地基）
   },
   TOKEN_BURST: {
     id: 'token_burst',
@@ -97,6 +98,37 @@ const SKILLS = {
     type: 'aoe',
     aoeRadius: 2,
   },
+};
+
+// Skill key mapping (client key → skill slot index in Player.skills)
+const SKILL_KEYS = { Q: 0, W: 1, E: 2, R: 3 };
+
+// Combat triangle (GDD §4.1): Q counters E, E counters R, R counters Q
+const COMBAT_TRIANGLE = {
+  MELEE_VS_SHIELD_MULT: 0.5, // 攻击穿透护盾，造成 50% 伤害
+  KNOCKBACK_TILES: 1,        // 爆发击退距离
+};
+
+// Combo system (GDD §4.4): sequences within the window trigger bonuses
+const COMBOS = {
+  WINDOW_MS: 2000,
+  DODGE_CRIT_WINDOW_MS: 1000, // 闪避反击：W 后 1s 内
+  DODGE_CRIT_BONUS: 0.5,      // 暴击率 +50%
+  AOE_DAMAGE_BONUS: 0.3,      // 蓄力爆发：R 伤害 +30%
+  RECIPES: [
+    { id: 'charged_burst',  name: '蓄力爆发', seq: [SKILL_KEYS.Q, SKILL_KEYS.Q, SKILL_KEYS.R] }, // 最后 R 伤害 +30%
+    { id: 'counter_combo',  name: '反击连击', seq: [SKILL_KEYS.E, SKILL_KEYS.Q, SKILL_KEYS.Q] }, // 护盾期间攻击不耗弹药
+    { id: 'dodge_counter',  name: '闪避反击', seq: [SKILL_KEYS.W, SKILL_KEYS.Q] },               // 闪避后 1s 内暴击率 +50%
+    { id: 'blast_shield',   name: '爆破护盾', seq: [SKILL_KEYS.R, SKILL_KEYS.E, SKILL_KEYS.Q] }, // R 后 E 吸收量翻倍
+    { id: 'perfect_defense', name: '完美防御', seq: [SKILL_KEYS.E, SKILL_KEYS.W, SKILL_KEYS.E] }, // 第二次 E 持续时间 +100%
+  ],
+};
+
+// Basic ammo pool (GDD §2.2): free ammo that keeps rookies fighting
+const BASIC_AMMO = {
+  MAX: 50,            // 上限 50 发，不占背包
+  REGEN_MS: 30000,    // 脱战 30s 恢复 1 发
+  DAMAGE_MULT: 0.5,   // 动用基础弹药时本次伤害 ×0.5
 };
 
 // Co-processor tokens (rare special abilities)
@@ -240,6 +272,7 @@ const EVENTS = {
   INPUT_MOVE: 'input:move', STATE_SYNC: 'state:sync',
   INPUT_SKILL: 'input:skill', COMBAT_HIT: 'combat:hit', COMBAT_DEATH: 'combat:death',
   COMBAT_MISS: 'combat:miss', COMBAT_SHIELD: 'combat:shield',
+  COMBAT_COMBO: 'combat:combo', COMBAT_KNOCKBACK: 'combat:knockback',
   PROJECTILE_SPAWN: 'projectile:spawn', PROJECTILE_HIT: 'projectile:hit', PROJECTILE_DESTROY: 'projectile:destroy',
   MINING_UPDATE: 'mining:update', MINING_COLLECT: 'mining:collect', MINING_COLLECTED: 'mining:collected',
   MINING_UPGRADE: 'mining:upgrade', MINING_UPGRADED: 'mining:upgraded',
@@ -279,7 +312,8 @@ const REST = {
 const _exports = {
   TICK_RATE, TICK_MS, TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, TILE,
   RARITY, RARITY_CONFIG, TOKEN_TYPE, PLAYER_DEFAULTS, DEATH_DROP_RATE,
-  SKILLS, COPROCESSORS, MINING, PVP, SHOP_PACKS, LEVEL_XP, LEVEL_UNLOCKS,
+  SKILLS, SKILL_KEYS, COMBAT_TRIANGLE, COMBOS, BASIC_AMMO,
+  COPROCESSORS, MINING, PVP, SHOP_PACKS, LEVEL_XP, LEVEL_UNLOCKS,
   calcDamage, rollRarity,
   EVENTS, REST,
 };

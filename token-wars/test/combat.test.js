@@ -34,6 +34,7 @@ describe('CombatSystem', () => {
 
   it('basic attack hits a target in range, consumes a token, sets cooldown', () => {
     const attacker = new Player('att');
+    attacker.basicAmmo = 0; // lock the unstable-ammo path (basic ammo is consumed first)
     const target = makeMonster({ x: 0, y: 1 });
     const entities = new Map([[attacker.id, attacker], [target.id, target]]);
     const tokensBefore = attacker.unstableTokens;
@@ -61,6 +62,7 @@ describe('CombatSystem', () => {
 
   it('rejects when unstable tokens are insufficient', () => {
     const attacker = new Player('att');
+    attacker.basicAmmo = 0;
     attacker.unstableTokens = 0;
     const entities = new Map([[attacker.id, attacker]]);
 
@@ -83,6 +85,7 @@ describe('CombatSystem', () => {
 
   it('basic attack damages a player target (PvP)', () => {
     const attacker = new Player('att');
+    attacker.basicAmmo = 0; // full damage — no basic-ammo 0.5x penalty
     const target = new Player('tgt');
     target.x = 0; target.y = 1;
     const entities = new Map([[attacker.id, attacker], [target.id, target]]);
