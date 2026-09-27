@@ -1,7 +1,6 @@
 const Arena = require('../models/Arena');
 const { PVP, DEATH_DROP_RATE, MAP_WIDTH, MAP_HEIGHT, TILE } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
-const guard = require('../middleware/eventGuard');
 
 class PvPManager {
   constructor(io, store, combatSystem) {
@@ -16,16 +15,7 @@ class PvPManager {
 
   registerSocket(playerId, socket) {
     this.playerSockets.set(playerId, socket);
-
-    const queueSchema = { mode: { type: 'enum', enum: ['1v1', '3v3'], required: true } };
-
-    guard.on(socket, EVENTS.PVP_QUEUE, queueSchema, ({ mode }) => {
-      this.joinQueue(playerId, mode);
-    }, 'economy');
-
-    guard.on(socket, EVENTS.PVP_DEQUEUE, null, () => {
-      this.leaveQueue(playerId);
-    }, 'economy');
+    // M4: PVP_QUEUE/PVP_DEQUEUE 监听已迁至 pvp 插件的 ctx.socket 注册
   }
 
   unregisterSocket(playerId) {

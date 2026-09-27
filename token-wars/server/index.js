@@ -7,8 +7,7 @@ const logger = require('./utils/logger');
 const guard = require('./middleware/eventGuard');
 const { Context } = require('./core/Context');
 const { Loader } = require('./core/Loader');
-const { EVENTS } = require('../shared/protocol');
-const { MAP_WIDTH, MAP_HEIGHT, TILE, TICK_MS } = require('../shared/constants');
+const { TICK_MS } = require('../shared/constants');
 
 const PORT = config.PORT;
 const NODE_ENV = config.NODE_ENV;
@@ -27,28 +26,6 @@ if (argv.includes('--dump-config')) {
   process.exit(0);
 }
 const PROFILE_NAME = cliProfileName();
-
-// --- Default lobby map (open floor with border walls) ---
-const lobbyMap = [];
-for (let y = 0; y < MAP_HEIGHT; y++) {
-  lobbyMap[y] = [];
-  for (let x = 0; x < MAP_WIDTH; x++) {
-    if (x === 0 || x === MAP_WIDTH - 1 || y === 0 || y === MAP_HEIGHT - 1) {
-      lobbyMap[y][x] = TILE.WALL;
-    } else {
-      lobbyMap[y][x] = TILE.FLOOR;
-    }
-  }
-}
-
-function isWalkable(x, y, mapData) {
-  if (typeof x !== 'number' || typeof y !== 'number') return false;
-  if (Number.isNaN(x) || Number.isNaN(y)) return false;
-  if (x < 0 || x >= MAP_WIDTH || y < 0 || y >= MAP_HEIGHT) return false;
-  const map = mapData || lobbyMap;
-  if (!map || !map[y]) return false;
-  return map[y][x] !== TILE.WALL;
-}
 
 // Express setup
 const app = express();
@@ -73,12 +50,11 @@ loader.mountProfile(loader.loadProfile(PROFILE_NAME), { env: process.env });
 
 // Game systems（经由服务接缝——M3 起节奏由插件 ctx.every 声明，Scheduler 驱动）
 const store = ctx.get('store');
-const combatSystem = ctx.get('combat');
 const pveManager = ctx.get('pve');
 const pvpManager = ctx.get('pvp');
 ctx.scheduler.start(TICK_MS);
 
-// 在线注册表由 world-player 插件持有；此处仅取引用（INPUT_* 处理器 M4 迁入插件）
+// 在线注册表由 world-player 插件持有；此处仅取引用供 /health 使用
 const { connectedPlayers } = ctx.get('players');
 
 // Health check endpoint
@@ -97,121 +73,24 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// --- Host connection loop（M2 形态：仅两个广播 + 待迁移的输入路由） ----------
-// 宿主不再手工调用任何 manager 的 register/unregister —— 认证完成广播
-// auth:authenticated，断开广播 socket:disconnect，world-player 插件据此
-// 发出 player:join/leave，各游戏插件自行订阅（事件即扩展点）。
+// --- Host connection loop（M4 形态：三个广播，零协议事件注册） ----------------
+// 宿主不再注册任何客户端协议事件（INV1：网络可见处理器全部经 ctx.socket
+// 由插件注册）。宿主只广播三类事实：
+//   socket:connected     → identity 挂载 AUTH_LOGIN 兼容路径 + PING
+//   auth:authenticated   → world-player 注册玩家并应用全部 socket spec
+//   socket:disconnect    → world-player/identity 回滚该连接的全部监听
 io.on('connection', (socket) => {
   logger.info({ socketId: socket.id }, '[WS] Client connected');
 
-  // --- New path: handshake middleware already authenticated ---
-  // The socket.data.player is set by socketAuth middleware. Broadcast the
-  // authenticated fact — world-player turns it into player:join.
+  // 连接级协议事件（AUTH_LOGIN 兼容 + PING）由 identity 插件经此广播挂载
+  ctx.emit('socket:connected', { socket });
+
+  // 握手认证路径：socketAuth 中间件已写入 socket.data.player
   if (socket.data.player) {
     ctx.emit('auth:authenticated', { socket, player: socket.data.player });
   }
 
-  // --- Compat path: AUTH_LOGIN event ---
-  // Kept for the transition period (M4 迁入 identity 插件).  The idempotent
-  // guard (`socket.data.authenticated`) ensures that if the handshake
-  // middleware already authenticated, this handler is a no-op.
-  socket.on(EVENTS.AUTH_LOGIN, ({ token }) => {
-    if (socket.data.authenticated) return; // idempotent guard
-
-    if (!guard.rateLimiter.consume(socket.id, 'auth')) {
-      socket.emit(EVENTS.AUTH_FAIL, { reason: 'Rate limited' });
-      return;
-    }
-    const player = ctx.get('auth')(token);
-    if (!player) {
-      socket.emit(EVENTS.AUTH_FAIL, { reason: 'Invalid session' });
-      return;
-    }
-    socket.data.authenticated = true;
-    socket.data.player = player;
-    ctx.emit('auth:authenticated', { socket, player });
-  });
-
-  // --- Movement with wall collision + guard (rate limit + schema) ---
-  const moveSchema = {
-    dx: { type: 'number', min: -1, max: 1, required: true },
-    dy: { type: 'number', min: -1, max: 1, required: true },
-  };
-  guard.on(socket, EVENTS.INPUT_MOVE, moveSchema, ({ dx, dy }) => {
-    const player = connectedPlayers.get(socket.id);
-    if (!player || !player.alive) return;
-
-    const newX = player.x + dx;
-    const newY = player.y + dy;
-
-    // Get the correct map for collision check
-    let mapData = null;
-    const dungeonId = pveManager.playerDungeons.get(player.id);
-    if (dungeonId) {
-      const dungeon = pveManager.activeDungeons.get(dungeonId);
-      if (dungeon) mapData = dungeon.mapData;
-    }
-    const arenaId = pvpManager.playerArenas.get(player.id);
-    if (arenaId) {
-      const arena = pvpManager.activeArenas.get(arenaId);
-      if (arena) mapData = arena.mapData;
-    }
-
-    // Wall collision check
-    if (isWalkable(newX, newY, mapData)) {
-      player.x = newX;
-      player.y = newY;
-    }
-  }, 'movement');
-
-  // --- Skill use with mutual exclusion + guard (rate limit + schema) ---
-  const skillSchema = {
-    skillId: { type: 'number', min: 0, max: 3, integer: true, required: true },
-    targetX: { type: 'number', min: 0, max: MAP_WIDTH - 1, integer: true, required: true },
-    targetY: { type: 'number', min: 0, max: MAP_HEIGHT - 1, integer: true, required: true },
-  };
-  guard.on(socket, EVENTS.INPUT_SKILL, skillSchema, ({ skillId, targetX, targetY }) => {
-    const player = connectedPlayers.get(socket.id);
-    if (!player || !player.alive) return;
-
-    // Mutual exclusion: in dungeon OR in arena, never both
-    const dungeonId = pveManager.playerDungeons.get(player.id);
-    if (dungeonId) {
-      const dungeon = pveManager.activeDungeons.get(dungeonId);
-      if (dungeon) {
-        const allEntities = new Map([...dungeon.players, ...dungeon.monsters]);
-        combatSystem.useSkill(player, skillId, targetX, targetY, allEntities);
-        return;
-      }
-    }
-
-    const arenaId = pvpManager.playerArenas.get(player.id);
-    if (arenaId) {
-      const arena = pvpManager.activeArenas.get(arenaId);
-      if (arena) {
-        const allPlayers = new Map();
-        for (const team of arena.teams) {
-          for (const pid of team) {
-            const p = store.getPlayerById(pid);
-            if (p) allPlayers.set(pid, p);
-          }
-        }
-        combatSystem.useSkill(player, skillId, targetX, targetY, allPlayers);
-        return;
-      }
-    }
-
-    // Not in any combat context — ignore silently (lobby has no combat)
-  }, 'skill');
-
-  // Ping/pong (rate-limited via guard.rateLimiter; kept as bare socket.on
-  // per S3 exclusion — PING is an internal protocol event)
-  socket.on(EVENTS.PING, ({ timestamp }) => {
-    if (!guard.rateLimiter.consume(socket.id, 'ping')) return;
-    socket.emit(EVENTS.PONG, { timestamp });
-  });
-
-  // Disconnect —— 广播断开事实，world-player 据此发出 player:leave
+  // 断开 → 广播事实；world-player 据此发出 player:leave
   // （持有者守卫逻辑在 world-player 内，会话顶替时序不变）
   socket.on('disconnect', () => {
     ctx.emit('socket:disconnect', { socket });

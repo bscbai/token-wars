@@ -8,6 +8,7 @@ const { io: client } = require('socket.io-client');
 const { Store } = require('../server/data/Store');
 const { makeAuth } = require('../server/routes/auth');
 const { makeSocketAuth } = require('../server/middleware/socketAuth');
+const guard = require('../server/middleware/eventGuard');
 const { EVENTS, RARITY } = require('../shared/constants');
 const MiningManager = require('../server/game/MiningManager');
 
@@ -78,6 +79,12 @@ async function buildTestServer() {
     socketToPlayerId.set(socket.id, player.id);
     miningManager.calculateOfflineMining(player);
     miningManager.registerSocket(player.id, socket);
+    // M4 镜像：MiningManager.registerSocket 不再自注册事件，玩家级监听
+    // 由 mining 插件经 ctx.socket 应用（此处等价于 addSocket 应用一次 spec）。
+    // AUTH_LOGIN 幂等守卫保证 registerPlayer 每连接恰好一次 → 恰好一份监听。
+    guard.on(socket, EVENTS.MINING_UPGRADE, null, () => {
+      miningManager.upgrade(player.id);
+    }, 'economy');
     combatSystem.registerSocket(player.id, socket);
     pveManager.registerSocket(player.id, socket);
     pvpManager.registerSocket(player.id, socket);

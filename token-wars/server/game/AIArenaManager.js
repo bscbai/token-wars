@@ -1,7 +1,6 @@
 const { AIAgent, AI_LEVELS, AI_DECISIONS } = require('../models/AIAgent');
 const { SKILLS, calcDamage, MAP_WIDTH, MAP_HEIGHT, TILE, PVP } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
-const guard = require('../middleware/eventGuard');
 
 // AI Arena constants
 const AI_MATCH_TICK_MS = 50; // Simulate at 20Hz
@@ -123,25 +122,7 @@ class AIArenaManager {
 
   registerSocket(playerId, socket) {
     this.playerSockets.set(playerId, socket);
-
-    // --- Schemas ---
-    const deploySchema   = { tokenDisk: { type: 'any', required: true } };
-    const agentIdSchema  = { agentId: { type: 'string', maxLength: 100, required: true } };
-    const behaviorSchema = { agentId: { type: 'string', maxLength: 100, required: true }, behaviorId: { type: 'string', maxLength: 50, required: true } };
-    const nameSchema     = { agentId: { type: 'string', maxLength: 100, required: true }, name: { type: 'string', maxLength: 64, required: true } };
-    const replaySchema   = { matchId: { type: 'string', maxLength: 200, required: true } };
-
-    guard.on(socket, 'ai_arena:deploy',        deploySchema,   ({ tokenDisk }) => this.deployAgent(playerId, tokenDisk), 'economy');
-    guard.on(socket, 'ai_arena:recall',         agentIdSchema,  ({ agentId }) => this.recallAgent(playerId, agentId), 'economy');
-    guard.on(socket, 'ai_arena:train',          agentIdSchema,  ({ agentId }) => this.startTrainingMatch(playerId, agentId), 'economy');
-    guard.on(socket, 'ai_arena:set_behavior',   behaviorSchema, ({ agentId, behaviorId }) => this.setAgentBehavior(playerId, agentId, behaviorId), 'economy');
-    guard.on(socket, 'ai_arena:name_agent',     nameSchema,     ({ agentId, name }) => this.nameAgent(playerId, agentId, name), 'economy');
-    guard.on(socket, 'ai_arena:match_history',  agentIdSchema,  ({ agentId }) => this.sendMatchHistory(playerId, agentId), 'query');
-    guard.on(socket, 'ai_arena:get_agents',     null,           () => this.sendAgentList(playerId), 'query');
-    guard.on(socket, 'ai_arena:get_replay',     replaySchema,   ({ matchId }) => this.sendReplay(playerId, matchId), 'query');
-    guard.on(socket, 'ai_arena:leaderboard',    null,           () => this.sendLeaderboard(playerId), 'query');
-    guard.on(socket, 'ai_arena:tournament',     null,           () => this.sendTournamentState(playerId), 'query');
-    guard.on(socket, 'ai_arena:season_info',    null,           () => this.sendSeasonInfo(playerId), 'query');
+    // M4: 11 个 ai_arena:* 监听已迁至 aiarena 插件的 ctx.socket 注册
 
     // Send existing agents on connect
     this.sendAgentList(playerId);

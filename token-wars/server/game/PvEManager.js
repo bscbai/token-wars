@@ -2,7 +2,6 @@ const { Dungeon, DUNGEON_TEMPLATES } = require('../models/Dungeon');
 const { Monster, MONSTER_TEMPLATES } = require('../models/Monster');
 const { MAP_WIDTH, MAP_HEIGHT, TILE } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
-const guard = require('../middleware/eventGuard');
 
 class PvEManager {
   constructor(io, store, combatSystem) {
@@ -17,12 +16,7 @@ class PvEManager {
 
   registerSocket(playerId, socket) {
     this.playerSockets.set(playerId, socket);
-
-    // Dungeon join
-    const dungeonJoinSchema = { dungeonId: { type: 'string', maxLength: 100, required: true } };
-    guard.on(socket, EVENTS.DUNGEON_JOIN, dungeonJoinSchema, ({ dungeonId }) => {
-      this.joinDungeon(playerId, dungeonId);
-    }, 'economy');
+    // M4: DUNGEON_JOIN 监听已迁至 pve 插件的 ctx.socket 注册
   }
 
   unregisterSocket(playerId) {

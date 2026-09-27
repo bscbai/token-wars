@@ -33,13 +33,13 @@
 - [x] 4.3 index.js 删 GameEngine 引用，改 `ctx.scheduler.start(TICK_MS)` / `ctx.scheduler.stop()`；GameEngine.js 保留但生产路径不再使用
 - [x] 4.4 M0 ② 测试断言迁移到 Scheduler（buildScheduler + scheduler.every 注册 + scheduler.tick 推进），4 个用例全绿；启动烟雾 /health `scheduler:true` 通过
 
-## M4 — Socket 路由接缝化
+## M4 — Socket 路由接缝化 ✅（2026-08-22，132/132 用例通过）
 
-- [ ] 5.1 `eventGuard.on()` 返回解绑函数（`socket.off`）；`ctx.socket` 基于其实现可逆注册
-- [ ] 5.2 各 manager 的 socket 监听迁移为插件内 `ctx.socket`；index.js 中央注册删除（AUTH_LOGIN 兼容路径保留在 identity）
-- [ ] 5.3 INPUT_SKILL/INPUT_MOVE 迁入 world-player；战斗上下文解析改为 `combat:resolve-context` 瀑布（pve/pvp/worldboss 各挂认领监听器）
-- [ ] 5.4 新增 `test/seam.test.js`：INV1（网络可见处理器全部经 ctx.socket 注册）+ 瀑布认领互斥 + unload 回滚 socket 监听
-- [ ] 5.5 M0 路由回归测试绿
+- [x] 5.1 `eventGuard.on()` 返回解绑函数（`socket.off`）；`ctx.socket` 基于其实现可逆注册（spec 一次注册，addSocket 时应用到全部已连 socket，disposer/unload 全量回滚）
+- [x] 5.2 各 manager 的 socket 监听迁移为插件内 `ctx.socket`（mining 1 个、pve/pvp/worldboss 各 1 个、aiarena 11 个）；index.js 中央注册删除，仅剩三个广播（socket:connected / auth:authenticated / socket:disconnect），AUTH_LOGIN 兼容路径保留在 identity
+- [x] 5.3 INPUT_SKILL/INPUT_MOVE 迁入 world-player；战斗上下文解析改为 `combat:resolve-context` 瀑布（pve 优先认领 → pvp 兜底 → worldboss 参战者认领，互斥短路）
+- [x] 5.4 新增 `test/seam.test.js`：INV1 双层断言（行为层 INPUT_MOVE 恰好 1 格 + PING→PONG；静态层 index.js 与 game/*.js 无 guard.on / socket.on(EVENTS.*)）+ 瀑布认领互斥（pve 赢/穿透 pvp/worldboss/大厅）+ unload 回滚（mining/pve 监听与认领器全失效，其它插件路由不受影响）共 8 用例
+- [x] 5.5 全量回归 132/132 绿（M0 ②③ 断言迁移至 M4 形态）；启动烟雾：full profile 10 插件挂载、/ 返回 200
 
 ## M5 — Profile 组合落地
 

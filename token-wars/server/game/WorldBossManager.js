@@ -1,7 +1,6 @@
 const { Monster } = require('../models/Monster');
 const { EVENTS } = require('../../shared/protocol');
 const { MAP_WIDTH, MAP_HEIGHT, TILE } = require('../../shared/constants');
-const guard = require('../middleware/eventGuard');
 
 const WORLD_BOSS_CONFIG = {
   spawnInterval: 2 * 60 * 60 * 1000, // 2 hours
@@ -30,10 +29,7 @@ class WorldBossManager {
 
   registerSocket(playerId, socket) {
     this.playerSockets.set(playerId, socket);
-
-    guard.on(socket, EVENTS.WORLD_BOSS_JOIN, null, () => {
-      this.joinBoss(playerId);
-    }, 'economy');
+    // M4: WORLD_BOSS_JOIN 监听已迁至 worldboss 插件的 ctx.socket 注册
   }
 
   unregisterSocket(playerId) {

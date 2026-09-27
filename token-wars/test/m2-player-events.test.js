@@ -66,26 +66,13 @@ async function buildServer() {
   ctx.on('player:join', ({ player, socket }) => events.join.push({ player, socket }));
   ctx.on('player:leave', ({ player, socket }) => events.leave.push({ player, socket }));
 
-  // —— 镜像 index.js M2 宿主连接循环（两个广播 + AUTH_LOGIN 兼容路径） ——
+  // —— 镜像 index.js M4 宿主连接循环（三个广播，零协议事件注册；
+  //    AUTH_LOGIN 兼容 + PING 由 identity 插件经 socket:connected 挂载） ——
   io.on('connection', (socket) => {
+    ctx.emit('socket:connected', { socket });
     if (socket.data.player) {
       ctx.emit('auth:authenticated', { socket, player: socket.data.player });
     }
-    socket.on(EVENTS.AUTH_LOGIN, ({ token }) => {
-      if (socket.data.authenticated) return;
-      if (!guard.rateLimiter.consume(socket.id, 'auth')) {
-        socket.emit(EVENTS.AUTH_FAIL, { reason: 'Rate limited' });
-        return;
-      }
-      const player = ctx.get('auth')(token);
-      if (!player) {
-        socket.emit(EVENTS.AUTH_FAIL, { reason: 'Invalid session' });
-        return;
-      }
-      socket.data.authenticated = true;
-      socket.data.player = player;
-      ctx.emit('auth:authenticated', { socket, player });
-    });
     socket.on('disconnect', () => {
       ctx.emit('socket:disconnect', { socket });
       guard.rateLimiter.cleanup(socket.id);

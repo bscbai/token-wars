@@ -18,15 +18,7 @@ class MiningManager {
       this.syncMiningState(player, socket);
     }
 
-    // Collect handler
-    guard.on(socket, EVENTS.MINING_COLLECT, null, () => {
-      this.collect(playerId);
-    }, 'economy');
-
-    // Upgrade handler
-    guard.on(socket, EVENTS.MINING_UPGRADE, null, () => {
-      this.upgrade(playerId);
-    }, 'economy');
+    // M4: MINING_COLLECT/MINING_UPGRADE 监听已迁至 mining 插件的 ctx.socket 注册
   }
 
   unregisterSocket(playerId) {

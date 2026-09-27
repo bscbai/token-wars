@@ -102,6 +102,11 @@ class Context {
 
   // --- 广播事件 ------------------------------------------------------------
 
+  /** 记录任意可逆效应到当前插件（或宿主）效应栈，返回原 disposer（INV2）。 */
+  effect(disposer) {
+    return this._track(disposer);
+  }
+
   /** 订阅广播事件，返回 disposer。 */
   on(event, listener) {
     if (!this._events.has(event)) this._events.set(event, new Set());

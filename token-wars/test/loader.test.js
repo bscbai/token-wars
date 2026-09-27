@@ -270,8 +270,8 @@ describe('真实 full profile 解析', () => {
     expect(resolved.plugins.map((p) => p.name)).toEqual([
       'persistence',
       'identity',
-      'world-player',
       'combat',
+      'world-player',
       'mining',
       'pve',
       'pvp',
@@ -282,7 +282,8 @@ describe('真实 full profile 解析', () => {
 
     const byName = Object.fromEntries(resolved.plugins.map((p) => [p.name, p]));
     expect(byName.identity.dependsOn).toContain('persistence');
-    expect(byName['world-player'].dependsOn).toEqual(['persistence', 'identity']);
+    // M4：world-player 持有 INPUT_SKILL 路由（经 ctx.get('combat').useSkill）
+    expect(byName['world-player'].dependsOn).toEqual(['persistence', 'identity', 'combat']);
     expect(byName.pve.dependsOn).toEqual(['persistence', 'combat']);
     expect(byName.pvp.dependsOn).toEqual(['persistence', 'combat']);
     expect(byName.worldboss.dependsOn).toEqual(['persistence', 'combat']);
