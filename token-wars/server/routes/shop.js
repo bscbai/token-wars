@@ -1,6 +1,6 @@
 const express = require('express');
 const logger = require('../utils/logger');
-const { SHOP_PACKS, RARITY_CONFIG, rollRarity } = require('../../shared/constants');
+const { SHOP_PACKS, RARITY_CONFIG, rollRarity, COPROCESSOR_IDS } = require('../../shared/constants');
 
 function makeShopRouter({ store, verifySession }) {
   const router = express.Router();
@@ -61,8 +61,14 @@ function makeShopRouter({ store, verifySession }) {
     }
 
     if (pack.contents.coprocessor) {
-      received.coprocessor = true;
-      // TODO: add co-processor token to inventory
+      // GDD §3: 礼包赠送 1 个协处理器。优先未拥有（收集推进）；全拥有时
+      // addCoprocessor 自动折碎片（COPROCESSOR_SHOP.DUPLICATE_FRAGMENTS）。
+      const owned = new Set(player.coprocessors.map(c => c.id));
+      const unowned = COPROCESSOR_IDS.filter(id => !owned.has(id));
+      const pool = unowned.length > 0 ? unowned : COPROCESSOR_IDS;
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      const grant = player.addCoprocessor(pick);
+      received.coprocessor = { id: pick, status: grant.status };
     }
 
     // Track purchase

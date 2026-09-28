@@ -1,6 +1,7 @@
 const Arena = require('../models/Arena');
 const { PVP, DEATH_DROP_RATE, MAP_WIDTH, MAP_HEIGHT, TILE } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
+const { rollFragmentGrant } = require('./CoprocessorDrops');
 
 class PvPManager {
   constructor(io, store, combatSystem) {
@@ -263,6 +264,11 @@ class PvPManager {
           if (player.winStreak >= 3 && player.streakRewardsClaimed < PVP.WIN_STREAK_DAILY_CAP) {
             player.addUnstableTokens(2);
             player.streakRewardsClaimed++;
+            // 连胜宝箱协处理器碎片掉落（GDD §3.4）：10% 随机碎片
+            rollFragmentGrant(player, 'PVP_STREAK', {
+              store: this.store,
+              socket: this.playerSockets.get(pid),
+            });
           }
         } else {
           player.pvpLosses++;

@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { PLAYER_DEFAULTS, RARITY, RARITY_CONFIG, MINING, LEVEL_XP, LEVEL_UNLOCKS, SKILLS, BASIC_AMMO } = require('../../shared/constants');
+const { PLAYER_DEFAULTS, RARITY, RARITY_CONFIG, MINING, LEVEL_XP, LEVEL_UNLOCKS, SKILLS, BASIC_AMMO, COPROCESSOR_IDS, COPROCESSOR_STARS, COPROCESSOR_SHOP } = require('../../shared/constants');
 
 class Player {
   constructor(username) {
@@ -53,6 +53,11 @@ class Player {
     // Shop
     this.purchasedPacks = {}; // { packId: purchaseCount }
     this.lastDailyClaim = ''; // date string for daily credit claim
+
+    // Coprocessors (GDD §3): codex collection, fragment economy, single active load
+    this.coprocessors = [];  // [{ id, star }] star ∈ 1..COPROCESSOR_STARS.MAX
+    this.fragments = {};     // { [coprocessorId]: count }
+    this.activeCoprocessor = null; // loaded coprocessor id (null = none)
 
     // Moderation
     this.banned = false;
@@ -144,6 +149,67 @@ class Player {
     return true;
   }
 
+  // --- Coprocessors (GDD §3) ---
+
+  hasCoprocessor(id) {
+    return this.coprocessors.some(c => c.id === id);
+  }
+
+  getCoprocessor(id) {
+    return this.coprocessors.find(c => c.id === id) || null;
+  }
+
+  // Grants ownership at ★. Duplicates convert to fragment compensation
+  // (COPROCESSOR_SHOP.DUPLICATE_FRAGMENTS) instead of stacking.
+  addCoprocessor(id) {
+    if (!COPROCESSOR_IDS.includes(id)) return { status: 'invalid' };
+    if (this.hasCoprocessor(id)) {
+      const grant = this.addFragment(id, COPROCESSOR_SHOP.DUPLICATE_FRAGMENTS);
+      return { status: 'duplicate', fragments: grant.count };
+    }
+    this.coprocessors.push({ id, star: 1 });
+    return { status: 'granted', star: 1 };
+  }
+
+  addFragment(id, count = 1) {
+    if (!COPROCESSOR_IDS.includes(id)) {
+      throw new Error(`Unknown coprocessor id: ${id}`);
+    }
+    this.fragments[id] = (this.fragments[id] || 0) + count;
+    return { coprocessorId: id, count, total: this.fragments[id] };
+  }
+
+  canUpgradeCoprocessor(id) {
+    const owned = this.getCoprocessor(id);
+    if (!owned) return { ok: false, reason: 'not_owned' };
+    if (owned.star >= COPROCESSOR_STARS.MAX) return { ok: false, reason: 'max_star' };
+    const cost = COPROCESSOR_STARS.UPGRADE_COSTS[owned.star - 1];
+    if ((this.fragments[id] || 0) < cost) {
+      return { ok: false, reason: 'insufficient_fragments', cost };
+    }
+    return { ok: true, cost };
+  }
+
+  upgradeCoprocessor(id) {
+    const check = this.canUpgradeCoprocessor(id);
+    if (!check.ok) return check;
+    const owned = this.getCoprocessor(id);
+    this.fragments[id] -= check.cost;
+    owned.star += 1;
+    return { ok: true, star: owned.star };
+  }
+
+  // null/undefined unloads; otherwise only owned ids may be loaded.
+  setActiveCoprocessor(id) {
+    if (id === null || id === undefined) {
+      this.activeCoprocessor = null;
+      return { ok: true };
+    }
+    if (!this.hasCoprocessor(id)) return { ok: false, reason: 'not_owned' };
+    this.activeCoprocessor = id;
+    return { ok: true };
+  }
+
   takeDamage(amount, attackerId) {
     if (!this.alive) return false;
     this.hp -= amount;
@@ -170,6 +236,9 @@ class Player {
       unstableTokens: this.unstableTokens,
       basicAmmo: this.basicAmmo,
       equippedTokens: this.equippedTokens,
+      coprocessors: this.coprocessors,
+      fragments: this.fragments,
+      activeCoprocessor: this.activeCoprocessor,
       miningLevel: this.miningLevel,
       pvpRating: this.pvpRating,
       pvpWins: this.pvpWins,
@@ -193,6 +262,9 @@ class Player {
       unstableTokens: this.unstableTokens,
       basicAmmo: this.basicAmmo,
       equippedTokens: this.equippedTokens,
+      coprocessors: this.coprocessors,
+      fragments: this.fragments,
+      activeCoprocessor: this.activeCoprocessor,
       skills: this.skills.map(s => ({ ...s, lastUsed: 0 })),
       level: this.level,
       xp: this.xp,
@@ -227,6 +299,10 @@ class Player {
     p.buffs = [];
     // Old saves predate the basic ammo pool — rookies load with a full pool.
     p.basicAmmo = typeof data.basicAmmo === 'number' ? data.basicAmmo : BASIC_AMMO.MAX;
+    // Old saves predate the coprocessor system — empty codex, no fragments, nothing loaded.
+    p.coprocessors = Array.isArray(data.coprocessors) ? data.coprocessors : [];
+    p.fragments = data.fragments && typeof data.fragments === 'object' ? data.fragments : {};
+    p.activeCoprocessor = typeof data.activeCoprocessor === 'string' ? data.activeCoprocessor : null;
     p.comboSeq = [];
     p.comboEffects = {};
     p.lastCombatAt = 0;

@@ -131,43 +131,205 @@ const BASIC_AMMO = {
   DAMAGE_MULT: 0.5,   // 动用基础弹药时本次伤害 ×0.5
 };
 
-// Co-processor tokens (rare special abilities)
+// Co-processor tokens (GDD §3): 16-codex collection with ★→★★→★★★ star scaling.
+// ★ = GDD "免费版" column, ★★ = GDD main table, ★★★ = extrapolation ruling
+// (see openspec/changes/coprocessor-system/design.md §3). cooldown in ms.
+const COPROCESSOR_CATEGORIES = {
+  ATTACK: 'attack',
+  DEFENSE: 'defense',
+  MOBILITY: 'mobility',
+  ECONOMY: 'economy',
+};
+
 const COPROCESSORS = {
+  // --- 攻击型 ---
   LIGHTNING_SURGE: {
     id: 'lightning_surge',
     name: '闪电链',
-    multiplier: 1.5,
-    chainCount: 3,
-    cooldown: 8000,
-    tokenCost: 2,
-    freeVersion: { multiplier: 1.0, chainCount: 2, cooldown: 10000 },
+    category: COPROCESSOR_CATEGORIES.ATTACK,
+    stars: [
+      { damageMult: 1.0, chainCount: 2, cooldown: 10000, tokenCost: 2 },
+      { damageMult: 1.3, chainCount: 3, cooldown: 8000, tokenCost: 2 },
+      { damageMult: 1.5, chainCount: 4, cooldown: 6000, tokenCost: 1 },
+    ],
   },
+  PIERCING_SHOT: {
+    id: 'piercing_shot',
+    name: '穿透射击',
+    category: COPROCESSOR_CATEGORIES.ATTACK,
+    stars: [
+      { damageMult: 0.8, cooldown: 8000, tokenCost: 1 },
+      { damageMult: 1.0, cooldown: 6000, tokenCost: 1 },
+      { damageMult: 1.2, cooldown: 4000, tokenCost: 1 },
+    ],
+  },
+  SPLIT_ROUND: {
+    id: 'split_round',
+    name: '分裂弹',
+    category: COPROCESSOR_CATEGORIES.ATTACK,
+    stars: [
+      { fragmentCount: 2, fragmentMult: 0.5, cooldown: 12000, tokenCost: 2 }, // fragmentMult: 裁决值（每弹片 50% 伤害）
+      { fragmentCount: 3, fragmentMult: 0.5, cooldown: 10000, tokenCost: 2 },
+      { fragmentCount: 4, fragmentMult: 0.5, cooldown: 8000, tokenCost: 1 },
+    ],
+  },
+  BURN_MARK: {
+    id: 'burn_mark',
+    name: '灼烧印记',
+    category: COPROCESSOR_CATEGORIES.ATTACK,
+    stars: [
+      { burnStacks: 2, cooldown: 2000, tokenCost: 1 },
+      { burnStacks: 3, cooldown: 1500, tokenCost: 1 },
+      { burnStacks: 4, cooldown: 1200, tokenCost: 1 },
+    ],
+  },
+  // --- 防御型 ---
   SHIELD_OVERLOAD: {
     id: 'shield_overload',
     name: '护盾超载',
-    absorbAmount: 50,
-    reflectPercent: 0.3,
-    cooldown: 12000,
-    tokenCost: 2,
-    freeVersion: { absorbAmount: 30, reflectPercent: 0.15, cooldown: 15000 },
+    category: COPROCESSOR_CATEGORIES.DEFENSE,
+    stars: [
+      { absorbAmount: 30, reflectPercent: 0.15, cooldown: 15000, tokenCost: 2 },
+      { absorbAmount: 50, reflectPercent: 0.3, cooldown: 12000, tokenCost: 2 },
+      { absorbAmount: 70, reflectPercent: 0.4, cooldown: 10000, tokenCost: 1 },
+    ],
   },
+  DAMAGE_TO_HEAL: {
+    id: 'damage_to_heal',
+    name: '伤害转治疗',
+    category: COPROCESSOR_CATEGORIES.DEFENSE,
+    stars: [
+      { duration: 2000, cooldown: 25000, tokenCost: 2 },
+      { duration: 3000, cooldown: 20000, tokenCost: 2 },
+      { duration: 4000, cooldown: 15000, tokenCost: 1 },
+    ],
+  },
+  REBOUND_BARRIER: {
+    id: 'rebound_barrier',
+    name: '反弹屏障',
+    category: COPROCESSOR_CATEGORIES.DEFENSE,
+    stars: [
+      { reflectChance: 0.5, duration: 4000, cooldown: 20000, tokenCost: 2 }, // duration: 裁决值（区域持续时长）
+      { reflectChance: 1.0, duration: 5000, cooldown: 15000, tokenCost: 2 },
+      { reflectChance: 1.0, duration: 6000, cooldown: 12000, tokenCost: 1 },
+    ],
+  },
+  EMERGENCY_REPAIR: {
+    id: 'emergency_repair',
+    name: '紧急修复',
+    category: COPROCESSOR_CATEGORIES.DEFENSE,
+    stars: [
+      { healPercent: 0.15, cooldown: 90000, tokenCost: 0 },
+      { healPercent: 0.3, cooldown: 60000, tokenCost: 0 },
+      { healPercent: 0.45, cooldown: 45000, tokenCost: 0 },
+    ],
+  },
+  // --- 机动型 ---
   STEALTH_FIELD: {
     id: 'stealth_field',
     name: '区域隐身',
-    duration: 3000,
-    backstabMultiplier: 2.0,
-    cooldown: 15000,
-    tokenCost: 2,
-    freeVersion: { duration: 2000, backstabMultiplier: 1.5, cooldown: 20000 },
+    category: COPROCESSOR_CATEGORIES.MOBILITY,
+    stars: [
+      { duration: 2000, backstabMultiplier: 1.5, cooldown: 20000, tokenCost: 2 },
+      { duration: 3000, backstabMultiplier: 2.0, cooldown: 15000, tokenCost: 2 },
+      { duration: 4000, backstabMultiplier: 2.5, cooldown: 12000, tokenCost: 1 },
+    ],
   },
+  BLINK: {
+    id: 'blink',
+    name: '瞬移闪现',
+    category: COPROCESSOR_CATEGORIES.MOBILITY,
+    stars: [
+      { range: 3, cooldown: 12000, tokenCost: 1 }, // range: 裁决值（★★=6 为闪避距离 2 倍，★ 减半）
+      { range: 6, cooldown: 8000, tokenCost: 1 },
+      { range: 8, cooldown: 6000, tokenCost: 1 },
+    ],
+  },
+  SLOW_FIELD: {
+    id: 'slow_field',
+    name: '减速力场',
+    category: COPROCESSOR_CATEGORIES.MOBILITY,
+    stars: [
+      { slowPercent: 0.3, radius: 3, cooldown: 18000, tokenCost: 1 }, // radius: 裁决值（力场半径，格）
+      { slowPercent: 0.5, radius: 3, cooldown: 12000, tokenCost: 1 },
+      { slowPercent: 0.6, radius: 4, cooldown: 10000, tokenCost: 1 },
+    ],
+  },
+  PORTAL: {
+    id: 'portal',
+    name: '传送门',
+    category: COPROCESSOR_CATEGORIES.MOBILITY,
+    stars: [
+      { duration: 5000, cooldown: 45000, tokenCost: 2 },
+      { duration: 10000, cooldown: 30000, tokenCost: 2 },
+      { duration: 15000, cooldown: 25000, tokenCost: 1 },
+    ],
+  },
+  // --- 经济型 ---
   TOKEN_MAGNET: {
     id: 'token_magnet',
     name: '算力磁铁',
-    radius: 8,
-    cooldown: 20000,
-    tokenCost: 1,
-    freeVersion: { radius: 4, cooldown: 30000 },
+    category: COPROCESSOR_CATEGORIES.ECONOMY,
+    stars: [
+      { radius: 4, cooldown: 30000, tokenCost: 1 },
+      { radius: 8, cooldown: 20000, tokenCost: 1 },
+      { radius: 10, cooldown: 15000, tokenCost: 1 },
+    ],
   },
+  TOKEN_DOUBLER: {
+    id: 'token_doubler',
+    name: 'Token 翻倍',
+    category: COPROCESSOR_CATEGORIES.ECONOMY,
+    stars: [
+      { dropMult: 1.5, cooldown: 90000, tokenCost: 0 },
+      { dropMult: 2.0, cooldown: 60000, tokenCost: 0 },
+      { dropMult: 2.5, cooldown: 45000, tokenCost: 0 },
+    ],
+  },
+  RARITY_BOOST: {
+    id: 'rarity_boost',
+    name: '稀有率提升',
+    category: COPROCESSOR_CATEGORIES.ECONOMY,
+    stars: [
+      { rarityBonus: 0.1, duration: 30000, cooldown: 180000, tokenCost: 1 },
+      { rarityBonus: 0.2, duration: 30000, cooldown: 120000, tokenCost: 1 },
+      { rarityBonus: 0.3, duration: 30000, cooldown: 90000, tokenCost: 1 },
+    ],
+  },
+  OFFLINE_BOOST: {
+    id: 'offline_boost',
+    name: '离线加速',
+    category: COPROCESSOR_CATEGORIES.ECONOMY,
+    stars: [
+      { miningMult: 1.25, duration: 7200000, cooldown: 86400000, tokenCost: 0 },
+      { miningMult: 1.5, duration: 7200000, cooldown: 86400000, tokenCost: 0 },
+      { miningMult: 2.0, duration: 14400000, cooldown: 86400000, tokenCost: 0 },
+    ],
+  },
+};
+
+// Star progression (GDD §3.4): ★ → ★★ costs 3 same-type fragments, ★★ → ★★★ costs 8.
+const COPROCESSOR_STARS = {
+  MAX: 3,
+  UPGRADE_COSTS: [3, 8], // index = current star - 1
+};
+
+// Derived: all 16 codex ids (validation + uniform random rolls).
+const COPROCESSOR_IDS = Object.values(COPROCESSORS).map(c => c.id);
+
+// Fragment sources (GDD §3.4 probability table). Non-rate sources are declared
+// here for codex completeness but not wired in this change (world boss / daily).
+const COPROCESSOR_FRAGMENT_SOURCES = {
+  SOLO_BOSS: { rate: 0.15 },            // 单人副本 Boss
+  TEAM_BOSS: { rate: 0.30 },            // 团队副本 Boss（2+ 玩家）
+  WORLD_BOSS: { byContribution: true }, // 世界 Boss 按贡献度分配（未接线）
+  PVP_STREAK: { rate: 0.10 },           // PvP 3 连胜宝箱
+  DAILY_TASK: { pool: true },           // 每日任务奖励池（未接线）
+};
+
+// Shop rulings for coprocessor grants.
+const COPROCESSOR_SHOP = {
+  DUPLICATE_FRAGMENTS: 3, // 礼包开出已拥有的协处理器 → 折 3 碎片
 };
 
 // Mining
@@ -273,6 +435,7 @@ const EVENTS = {
   INPUT_SKILL: 'input:skill', COMBAT_HIT: 'combat:hit', COMBAT_DEATH: 'combat:death',
   COMBAT_MISS: 'combat:miss', COMBAT_SHIELD: 'combat:shield',
   COMBAT_COMBO: 'combat:combo', COMBAT_KNOCKBACK: 'combat:knockback',
+  COPROCESSOR_FRAGMENT: 'coprocessor:fragment', // → 玩家: { coprocessorId, count, total, source }
   PROJECTILE_SPAWN: 'projectile:spawn', PROJECTILE_HIT: 'projectile:hit', PROJECTILE_DESTROY: 'projectile:destroy',
   MINING_UPDATE: 'mining:update', MINING_COLLECT: 'mining:collect', MINING_COLLECTED: 'mining:collected',
   MINING_UPGRADE: 'mining:upgrade', MINING_UPGRADED: 'mining:upgraded',
@@ -313,7 +476,9 @@ const _exports = {
   TICK_RATE, TICK_MS, TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, TILE,
   RARITY, RARITY_CONFIG, TOKEN_TYPE, PLAYER_DEFAULTS, DEATH_DROP_RATE,
   SKILLS, SKILL_KEYS, COMBAT_TRIANGLE, COMBOS, BASIC_AMMO,
-  COPROCESSORS, MINING, PVP, SHOP_PACKS, LEVEL_XP, LEVEL_UNLOCKS,
+  COPROCESSORS, COPROCESSOR_CATEGORIES, COPROCESSOR_STARS, COPROCESSOR_IDS,
+  COPROCESSOR_FRAGMENT_SOURCES, COPROCESSOR_SHOP,
+  MINING, PVP, SHOP_PACKS, LEVEL_XP, LEVEL_UNLOCKS,
   calcDamage, rollRarity,
   EVENTS, REST,
 };

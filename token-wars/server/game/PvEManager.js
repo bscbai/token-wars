@@ -2,6 +2,7 @@ const { Dungeon, DUNGEON_TEMPLATES } = require('../models/Dungeon');
 const { Monster, MONSTER_TEMPLATES } = require('../models/Monster');
 const { MAP_WIDTH, MAP_HEIGHT, TILE } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
+const { rollFragmentGrant } = require('./CoprocessorDrops');
 
 class PvEManager {
   constructor(io, store, combatSystem) {
@@ -257,6 +258,11 @@ class PvEManager {
       if (Math.random() < rewards.stableChance) {
         player.addStableToken('rare');
       }
+      // 协处理器碎片掉落（GDD §3.4）：团队通关 30% / 单人通关 15%
+      rollFragmentGrant(player, dungeon.players.size >= 2 ? 'TEAM_BOSS' : 'SOLO_BOSS', {
+        store: this.store,
+        socket: this.playerSockets.get(player.id),
+      });
       // Transaction point: dungeon clear rewards (tokens + xp/level-ups).
       this.store.persist(player);
       this.combat.syncPlayer(player);
