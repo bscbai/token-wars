@@ -28,10 +28,14 @@ No test/lint/typecheck scripts. No build step for the web client (Phaser served 
 token-wars/
 ├── server/
 │   ├── index.js          # Express + Socket.IO entry (PORT env or 3000)
-│   ├── game/             # GameEngine, CombatSystem, PvEManager, PvPManager,
-│   │                     #   MiningManager, WorldBossManager, AIArenaManager
+│   ├── game/             # CombatSystem, PvEManager, PvPManager, MiningManager,
+│   │                     #   WorldBossManager, AIArenaManager, CoprocessorDrops
+│   ├── core/             # Plugin kernel: Context, Loader, Scheduler (tick cadence)
+│   ├── plugins/          # 10 plugins: persistence, identity, combat, world-player,
+│   │                     #   mining, pve, pvp, worldboss, aiarena, economy-shop
+│   ├── middleware/       # socketAuth (JWT handshake), eventGuard (rate limit + schema)
 │   ├── models/           # Player, Monster, Arena, Dungeon (DUNGEON_TEMPLATES)
-│   ├── data/             # Store.js (persistence), maps/ (map JSON), players.json (runtime)
+│   ├── data/             # Store.js (SQLite persistence), maps/ (map JSON), *.db (runtime)
 │   └── routes/           # auth, player, shop (REST)
 ├── client/               # Phaser.js static frontend (src/: scenes, entities, systems, ui)
 ├── shared/               # constants.js (canonical), protocol.js (re-export shim)
@@ -47,8 +51,8 @@ token-wars/
 
 - **Server-authoritative**: all combat, cooldowns, token consumption, movement validation computed server-side; client does input prediction only.
 - **Real-time**: Socket.IO. Event names in `EVENTS`, REST endpoints in `REST`.
-- **Persistence**: in-memory + JSON auto-save every 60s (`Store.startAutoSave(60000)`); graceful shutdown flushes on SIGINT/SIGTERM.
-- **Tick loop**: `GameEngine` runs at 20Hz (`TICK_MS`). Mining ticks each 1s, World Boss & AI Arena each 5s; PvE/PvP run their own loops.
+- **Persistence**: SQLite (`server/data/tokenwars.db`, node:sqlite) via `Store`; dirty-tracking + auto-save every 60s (`Store.startAutoSave(60000)`); graceful shutdown flushes on SIGINT/SIGTERM.
+- **Tick loop**: plugin kernel — `Scheduler` drives `ctx.every(n)` declarations at 20Hz (`TICK_MS`). Mining each 20 ticks, World Boss & AI Arena each 100 ticks, combat player-maintenance each 10 ticks; PvE/PvP loops scan each tick. (`server/game/GameEngine.js` was retired in M3.)
 
 ## Protocol gotcha
 
@@ -56,20 +60,20 @@ token-wars/
 
 ## Auth flow
 
-1. REST `POST /api/auth/register|login` → `{ sessionToken, player }`
-2. Socket.IO `auth:login` with `{ token }` → server calls `verifySession()`
-3. Sessions are in-memory (`server/routes/auth.js`, `sessions` Map) — **not persisted**, all sessions lost on restart.
+1. REST `POST /api/auth/register|login` → JWT (`sessionToken`, signed with `JWT_SECRET`, default expiry 7d)
+2. Socket.IO handshake auth: `socketAuth` middleware validates the JWT via `verifySession()` and attaches `socket.data.player` (legacy `auth:login` event path still supported by the identity plugin)
+3. `JWT_SECRET` is **required in production** (boot throws otherwise); dev falls back to an insecure built-in secret.
 
 ## Key files
 
 - `server/index.js:18` — `PORT = process.env.PORT || 3000`
 - `shared/constants.js` — game balance + protocol: damage formula, XP table, skills, shop packs, mining rates, PvP, `EVENTS`/`REST`
-- `server/game/CombatSystem.js` — damage calc, skill validation, cooldowns
-- `server/game/GameEngine.js` — 20Hz tick loop
+- `server/core/Scheduler.js` — 20Hz tick cadence driver (replaced GameEngine in M3)
+- `server/game/CombatSystem.js` — damage calc, skill validation, cooldowns, combos
 - `server/game/AIArenaManager.js` — AI agent arena (deploy/train/tournaments/seasons/leaderboards; `ai_arena:*` events)
 - `server/models/Dungeon.js` — `DUNGEON_TEMPLATES` (dungeon wave configs live here, **not** in data files)
-- `server/data/Store.js` — player persistence + auto-save
-- `server/routes/auth.js:10` — in-memory `sessions` Map
+- `server/data/Store.js` — SQLite player persistence + auto-save
+- `server/middleware/socketAuth.js` — JWT handshake authentication
 
 ## Game mechanics (verified numbers)
 
@@ -89,10 +93,10 @@ token-wars/
 
 ## Data & gitignore
 
-- `server/data/players.json` and `server/data/*.json` are runtime-generated and gitignored (do not commit).
+- `server/data/players.json` (legacy) and `server/data/*.json` / `*.db*` are runtime-generated and gitignored (do not commit).
 - `server/data/maps/` (e.g. `solo_dungeon.json`) is committed.
-- `token-wars/.gitignore` also ignores `node_modules/`, `dist/`, `.claude/`, `.workbuddy/`, `out/token-wars游戏设计/`.
-- Credentials stored as bcrypt hashes (`bcryptjs`) in players.json.
+- `token-wars/.gitignore` also ignores `node_modules/`, `dist/`, `.env`, `.claude/`, `.workbuddy/`, `out/token-wars游戏设计/`.
+- Credentials stored as bcrypt hashes (`bcryptjs`) inside the SQLite player rows.
 
 ## Deployment
 

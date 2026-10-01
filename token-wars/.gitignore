@@ -12,5 +12,6 @@ server/data/*.db-shm
 dist/
 out/token-wars游戏设计/
 AGENTS.md
+.env
 .backup-s1/
 2026-05-27-20-19-00/
