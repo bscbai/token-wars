@@ -145,7 +145,21 @@ class MiningManager {
     const elapsed = now - player.lastMiningCollect;
     const maxOffline = MINING.OFFLINE_CAP_HOURS * 3600 * 1000;
     const cappedElapsed = Math.min(elapsed, maxOffline);
-    const tokensToAdd = Math.floor(cappedElapsed / config.rate);
+
+    // offline_boost: overlap between the offline window and the boost window
+    // is mined at miningMult speed.
+    let effectiveElapsed = cappedElapsed;
+    if (player.copOfflineBoostUntil && player.copOfflineBoostMult > 1) {
+      const boostStart = player.lastMiningCollect;
+      const boostEnd = Math.min(player.copOfflineBoostUntil, now);
+      if (boostEnd > boostStart) {
+        const boostedMs = Math.min(boostEnd - boostStart, cappedElapsed);
+        const normalMs = cappedElapsed - boostedMs;
+        effectiveElapsed = normalMs + boostedMs * player.copOfflineBoostMult;
+      }
+    }
+
+    const tokensToAdd = Math.floor(effectiveElapsed / config.rate);
 
     const actual = Math.min(tokensToAdd, config.capacity - player.pendingMiningTokens);
     player.pendingMiningTokens += actual;

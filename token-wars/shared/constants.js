@@ -416,8 +416,11 @@ function calcDamage(atk, skillMultiplier, defenderDef) {
 }
 
 // Random rarity roll
-function rollRarity() {
-  const rand = Math.random();
+// rollRarity(bonus=0): bonus ∈ [0,1] shifts probability toward higher
+// rarities. Implementation: subtract bonus from the random roll and clamp to
+// [0,1), which compresses the common/uncommon bands and expands rare/epic.
+function rollRarity(bonus = 0) {
+  const rand = Math.max(0, Math.min(0.9999, Math.random() - bonus));
   let cumulative = 0;
   for (const [rarity, config] of Object.entries(RARITY_CONFIG)) {
     cumulative += config.dropRate;
@@ -437,6 +440,8 @@ const EVENTS = {
   COMBAT_COMBO: 'combat:combo', COMBAT_KNOCKBACK: 'combat:knockback',
   INPUT_COPROCESSOR: 'input:coprocessor', COPROCESSOR_ACTIVATED: 'coprocessor:activated',
   COPROCESSOR_FRAGMENT: 'coprocessor:fragment', // → 玩家: { coprocessorId, count, total, source }
+  PORTAL_TELEPORT: 'portal:teleport', // → { playerId, fromX, fromY, toX, toY }
+  SLOW_APPLIED: 'slow:applied', // → { entityId, slowPercent, untilMs }
   PROJECTILE_SPAWN: 'projectile:spawn', PROJECTILE_HIT: 'projectile:hit', PROJECTILE_DESTROY: 'projectile:destroy',
   MINING_UPDATE: 'mining:update', MINING_COLLECT: 'mining:collect', MINING_COLLECTED: 'mining:collected',
   MINING_UPGRADE: 'mining:upgrade', MINING_UPGRADED: 'mining:upgraded',

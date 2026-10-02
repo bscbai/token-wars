@@ -156,7 +156,15 @@ class PvEManager {
       // Move toward target
       else if (dist > 1) {
         monster.aiState = 'chasing';
-        this.moveMonsterToward(monster, target, dungeon.mapData);
+        // slow_field: skip movement with probability = slowPercent.
+        const slow = this.combat.coprocessor
+          ? this.combat.coprocessor.slowDebuffs.get(monster.id)
+          : null;
+        if (slow && Date.now() < slow.until && Math.random() < slow.factor) {
+          // slowed — skip this tick's movement
+        } else {
+          this.moveMonsterToward(monster, target, dungeon.mapData);
+        }
       }
     }
 

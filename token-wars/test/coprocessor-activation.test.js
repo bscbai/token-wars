@@ -147,10 +147,13 @@ describe('Coprocessor activation — attack effects', () => {
     expect(m1.hp).toBe(100 - calcDamage(10, 1.0, 0) * 2 - calcDamage(10, 2.0, 0));
   });
 
-  it('returns not_implemented for the deferred defense tier', () => {
+  it('shield_overload now implemented (defense tier no longer deferred)', () => {
     const { coprocessor: c } = makeSystem();
     const p = makePlayer('shield_overload');
     const r = c.activate(p, 6, 5, makeEntities([ent('m1', 6, 5)]), null);
-    expect(r).toEqual({ success: false, reason: 'not_implemented' });
+    expect(r.success).toBe(true);
+    expect(p.shieldActive).toBe(true);
+    expect(p.shield).toBe(30);
+    expect(p.copReflect).toBe(0.15);
   });
 });

@@ -138,6 +138,11 @@ module.exports = {
       if (isWalkable(player.x + dx, player.y + dy, mapData)) {
         player.x += dx;
         player.y += dy;
+        // portal: after stepping, try to teleport through a coprocessor portal.
+        const coprocessor = ctx.get('coprocessor');
+        if (coprocessor && coprocessor.portals && coprocessor.portals.size > 0) {
+          coprocessor.tryPortalTeleport(player);
+        }
       }
     }, 'movement');
 

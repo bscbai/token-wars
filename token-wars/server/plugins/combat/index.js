@@ -20,8 +20,12 @@ module.exports = {
   setup(ctx) {
     const store = ctx.get('store');
     const combat = new CombatSystem(ctx.io, store);
+    const coprocessor = new CoprocessorSystem(ctx.io, store, combat);
+    // Back-reference so PvE/PvP managers can read coprocessor-side state
+    // (slow debuffs, portals) without taking a separate constructor dep.
+    combat.coprocessor = coprocessor;
     ctx.service('combat', combat);
-    ctx.service('coprocessor', new CoprocessorSystem(ctx.io, store, combat));
+    ctx.service('coprocessor', coprocessor);
 
     ctx.on('player:join', ({ player, socket }) => {
       combat.registerSocket(player.id, socket);

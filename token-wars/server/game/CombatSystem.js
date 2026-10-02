@@ -1,7 +1,7 @@
 const {
   SKILLS, calcDamage, DEATH_DROP_RATE, RARITY_CONFIG,
   COMBAT_TRIANGLE, COMBOS, BASIC_AMMO,
-  MAP_WIDTH, MAP_HEIGHT, TILE,
+  MAP_WIDTH, MAP_HEIGHT, TILE, rollRarity,
 } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
 
@@ -165,6 +165,14 @@ class CombatSystem {
     if (isCrit) damage = Math.floor(damage * 1.5);
     damage = Math.max(Math.floor(damage * damageMult), 1);
 
+    // stealth_field: next attack from stealth deals backstabMultiplier damage
+    // and breaks stealth.
+    if (player.stealthed && player.copBackstabMult > 0) {
+      damage = Math.max(1, Math.floor(damage * player.copBackstabMult));
+      player.stealthed = false;
+      player.copBackstabMult = 0;
+    }
+
     // Combat triangle: Q counters E — melee pierces an active shield at 50%
     // damage, straight to HP, without depleting the shield value (GDD §4.1).
     let penetrated = false;
@@ -242,6 +250,14 @@ class CombatSystem {
     const results = [];
     const radius = skill.aoeRadius;
 
+    // stealth_field: AOE from stealth applies backstab to all targets, then breaks.
+    let aoeBackstab = 1;
+    if (player.stealthed && player.copBackstabMult > 0) {
+      aoeBackstab = player.copBackstabMult;
+      player.stealthed = false;
+      player.copBackstabMult = 0;
+    }
+
     for (const [, entity] of entities) {
       if (entity.id === player.id) continue;
       if (!entity.alive) continue;
@@ -251,7 +267,7 @@ class CombatSystem {
         const isCrit = Math.random() < 0.1;
         let damage = calcDamage(player.atk, skill.multiplier, entity.def || 0);
         if (isCrit) damage = Math.floor(damage * 1.5);
-        damage = Math.max(Math.floor(damage * damageMult * comboMult), 1);
+        damage = Math.max(Math.floor(damage * damageMult * comboMult * aoeBackstab), 1);
 
         // Combat triangle: E counters R — an active shield fully absorbs the
         // AOE hit (no HP loss; shield value spent up to the hit size, GDD §4.1).
@@ -366,9 +382,14 @@ class CombatSystem {
     const [min, max] = lootTable.unstable;
     loot.unstable = Math.floor(Math.random() * (max - min + 1)) + min;
 
-    // Stable token chance
+    // Stable token chance — rarity rolled with the killer's coprocessor bonus
+    // (rarity_boost) instead of the template's fixed rarity.
     if (Math.random() < lootTable.stableChance) {
-      const rarity = lootTable.stableRarity || 'common';
+      const now = Date.now();
+      const bonus = (killer && killer.copRarityUntil && now < killer.copRarityUntil)
+        ? (killer.copRarityBonus || 0)
+        : 0;
+      const rarity = rollRarity(bonus);
       loot.stable.push({ rarity });
     }
 
@@ -379,11 +400,21 @@ class CombatSystem {
   }
 
   applyLoot(player, loot) {
+    const now = Date.now();
+    // token_doubler: next loot drop within the window is multiplied.
+    let mult = 1;
+    if (player.copLootMultUntil && now < player.copLootMultUntil && player.copLootMult > 0) {
+      mult = player.copLootMult;
+      player.copLootMult = 0;
+      player.copLootMultUntil = 0;
+    }
+
     if (loot.unstable > 0) {
-      player.addUnstableTokens(loot.unstable);
+      player.addUnstableTokens(Math.max(1, Math.floor(loot.unstable * mult)));
     }
     for (const stableToken of loot.stable) {
-      player.addStableToken(stableToken.rarity);
+      const count = mult > 1 ? Math.max(1, Math.floor(mult)) : 1;
+      for (let i = 0; i < count; i++) player.addStableToken(stableToken.rarity);
     }
     if (loot.xp > 0) {
       player.addXp(loot.xp);
@@ -432,6 +463,18 @@ class CombatSystem {
         skill.lastUsed = 0;
       }
       deadPlayer.coprocessorLastUsed = 0;
+      // Reset all coprocessor transient effect state on death.
+      deadPlayer.copReflect = 0;
+      deadPlayer.copDamageToHealUntil = 0;
+      deadPlayer.copReboundUntil = 0;
+      deadPlayer.copReboundChance = 0;
+      deadPlayer.copBackstabMult = 0;
+      deadPlayer.copStealthUntil = 0;
+      deadPlayer.copLootMult = 0;
+      deadPlayer.copLootMultUntil = 0;
+      deadPlayer.copRarityBonus = 0;
+      deadPlayer.copRarityUntil = 0;
+      deadPlayer.copPortalImmuneUntil = 0;
       if (socket) {
         socket.emit(EVENTS.PLAYER_RESPAWN, { x: 15, y: 28 });
       }
@@ -440,9 +483,31 @@ class CombatSystem {
 
   // Damage a player (from monsters, hazards, etc.)
   damagePlayer(player, damage, sourceId, entities) {
+    const now = Date.now();
+
+    // rebound_barrier: chance to fully negate + reflect the incoming damage.
+    if (player.copReboundUntil && now < player.copReboundUntil &&
+        Math.random() < player.copReboundChance) {
+      const source = entities && sourceId ? entities.get(sourceId) : null;
+      if (source && source.alive && source.takeDamage) {
+        source.takeDamage(damage, player.id);
+        if (source.hp <= 0) this.handleEntityDeath(source, player, entities);
+      }
+      this.syncPlayer(player);
+      return 0;
+    }
+
+    // damage_to_heal: incoming damage converted to healing within the window.
+    if (player.copDamageToHealUntil && now < player.copDamageToHealUntil) {
+      player.hp = Math.min(player.maxHp, player.hp + damage);
+      this.syncPlayer(player);
+      return 0;
+    }
+
+    let absorbed = 0;
     // Check shield
     if (player.shieldActive && player.shield > 0) {
-      const absorbed = Math.min(damage, player.shield);
+      absorbed = Math.min(damage, player.shield);
       player.shield -= absorbed;
       damage -= absorbed;
       if (player.shield <= 0) {
@@ -452,6 +517,15 @@ class CombatSystem {
           active: false,
           absorbRemaining: 0,
         });
+      }
+      // shield_overload: reflect a percent of the absorbed damage to the source.
+      if (absorbed > 0 && player.copReflect > 0) {
+        const source = entities && sourceId ? entities.get(sourceId) : null;
+        if (source && source.alive && source.takeDamage) {
+          const reflected = Math.max(1, Math.floor(absorbed * player.copReflect));
+          source.takeDamage(reflected, player.id);
+          if (source.hp <= 0) this.handleEntityDeath(source, player, entities);
+        }
       }
     }
 
@@ -499,6 +573,28 @@ class CombatSystem {
   // buff cleanup, shield expiry/drain, basic-ammo regen, combo-effect expiry.
   tickPlayer(player, now) {
     this.cleanupBuffs(player);
+
+    // stealth_field expiry
+    if (player.stealthed && player.copStealthUntil && now >= player.copStealthUntil) {
+      player.stealthed = false;
+      player.copBackstabMult = 0;
+      player.copStealthUntil = 0;
+    }
+
+    // emergency_repair auto-trigger: HP < 20% and the loaded coprocessor is
+    // emergency_repair and cooldown is ready.
+    if (player.activeCoprocessor === 'emergency_repair' && player.hp < player.maxHp * 0.2) {
+      const coprocessor = Object.values(require('../../shared/constants').COPROCESSORS)
+        .find((c) => c.id === 'emergency_repair');
+      const owned = player.getCoprocessor('emergency_repair');
+      if (coprocessor && owned) {
+        const cfg = coprocessor.stars[owned.star - 1];
+        if (now - (player.coprocessorLastUsed || 0) >= cfg.cooldown) {
+          player.hp = Math.min(player.maxHp, player.hp + Math.floor(player.maxHp * cfg.healPercent));
+          player.coprocessorLastUsed = now;
+        }
+      }
+    }
 
     if (player.shieldActive) {
       // Duration expiry (GDD §4.4 combos extend it)

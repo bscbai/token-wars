@@ -70,6 +70,22 @@ class Player {
     this.stealthed = false;
     this.buffs = []; // [{name, atkMult, defMult, expiresAt}]
 
+    // Coprocessor effect state (M6.1/M6.2/M6.3) — transient, reset on death/load.
+    this.copReflect = 0;              // shield_overload: reflect % of absorbed damage
+    this.copDamageToHealUntil = 0;    // damage_to_heal window end
+    this.copReboundUntil = 0;         // rebound_barrier window end
+    this.copReboundChance = 0;        // rebound_barrier reflect chance
+    this.copBackstabMult = 0;         // stealth_field next-attack multiplier
+    this.copStealthUntil = 0;         // stealth_field expiry
+    this.copLootMult = 0;             // token_doubler next-drop multiplier
+    this.copLootMultUntil = 0;        // token_doubler window end
+    this.copRarityBonus = 0;          // rarity_boost bonus
+    this.copRarityUntil = 0;          // rarity_boost window end
+    this.copPortalImmuneUntil = 0;    // portal teleport anti-loop immunity
+    // Persisted offline boost (only effect that spans offline sessions).
+    this.copOfflineBoostUntil = 0;
+    this.copOfflineBoostMult = 1;
+
     // Combo state (transient) — recent skill keys within the combo window
     this.comboSeq = []; // [{key, at}]
     this.comboEffects = {}; // active combo bonuses, e.g. {dodgeCrit: expiresAt}
@@ -282,6 +298,10 @@ class Player {
       purchasedPacks: this.purchasedPacks,
       lastDailyClaim: this.lastDailyClaim,
       banned: this.banned,
+      // Only offline boost is persisted (spans offline sessions); all other
+      // coprocessor effect state is transient and reset on load.
+      copOfflineBoostUntil: this.copOfflineBoostUntil,
+      copOfflineBoostMult: this.copOfflineBoostMult,
       createdAt: this.createdAt,
       lastLoginAt: this.lastLoginAt,
     };
@@ -298,6 +318,20 @@ class Player {
     p.shieldExpiresAt = 0;
     p.stealthed = false;
     p.buffs = [];
+    // Coprocessor effect state — transient, reset on load.
+    p.copReflect = 0;
+    p.copDamageToHealUntil = 0;
+    p.copReboundUntil = 0;
+    p.copReboundChance = 0;
+    p.copBackstabMult = 0;
+    p.copStealthUntil = 0;
+    p.copLootMult = 0;
+    p.copLootMultUntil = 0;
+    p.copRarityBonus = 0;
+    p.copRarityUntil = 0;
+    p.copPortalImmuneUntil = 0;
+    p.copOfflineBoostUntil = typeof data.copOfflineBoostUntil === 'number' ? data.copOfflineBoostUntil : 0;
+    p.copOfflineBoostMult = typeof data.copOfflineBoostMult === 'number' ? data.copOfflineBoostMult : 1;
     // Old saves predate the basic ammo pool — rookies load with a full pool.
     p.basicAmmo = typeof data.basicAmmo === 'number' ? data.basicAmmo : BASIC_AMMO.MAX;
     // Old saves predate the coprocessor system — empty codex, no fragments, nothing loaded.

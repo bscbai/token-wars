@@ -17,6 +17,7 @@ const {
   calcDamage,
   MAP_WIDTH,
   MAP_HEIGHT,
+  TILE,
 } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
 
@@ -27,13 +28,33 @@ const SPLIT_RANGE = 5;                  // 分裂弹：弹片重定向的最大�
 const BURN_STACK_DAMAGE_MULT = 0.5;     // 每层灼烧 = 50% atk 的即时伤害
 const BURN_DETONATE_STACKS = 3;         // 累计层数阈值 → 引爆
 const BURN_DETONATE_DAMAGE_MULT = 2.0;  // 引爆伤害倍数（atk × 2）
+const SLOW_DURATION_MS = 5000;          // slow_field 减速持续
+const PORTAL_IMMUNE_MS = 500;           // 传送门防回传免疫窗口
+const TOKEN_MAGNET_RADIUS_MULT = 3;     // token_magnet 每格半径授予的 unstable 数
+const TOKEN_DOUBLER_WINDOW_MS = 15000;  // token_doubler 下一次掉落窗口
 
 // coprocessor id → 处理器方法名
 const EFFECT_HANDLERS = {
+  // 攻击型（M6）
   lightning_surge: 'effectLightningSurge',
   piercing_shot: 'effectPiercingShot',
   split_round: 'effectSplitRound',
   burn_mark: 'effectBurnMark',
+  // 防御型（M6.1）
+  shield_overload: 'effectShieldOverload',
+  damage_to_heal: 'effectDamageToHeal',
+  rebound_barrier: 'effectReboundBarrier',
+  emergency_repair: 'effectEmergencyRepair',
+  // 机动型（M6.2）
+  stealth_field: 'effectStealthField',
+  blink: 'effectBlink',
+  slow_field: 'effectSlowField',
+  portal: 'effectPortal',
+  // 经济型（M6.3）
+  token_magnet: 'effectTokenMagnet',
+  token_doubler: 'effectTokenDoubler',
+  rarity_boost: 'effectRarityBoost',
+  offline_boost: 'effectOfflineBoost',
 };
 
 class CoprocessorSystem {
@@ -43,6 +64,10 @@ class CoprocessorSystem {
     this.combat = combat;
     // 灼烧累计（entityId → 层数），不改写未知实体结构。
     this.burn = new Map();
+    // slow_field 减速 debuff（entityId → { until, factor }）。
+    this.slowDebuffs = new Map();
+    // portal 双向门（portalId → { x, y, pairId, ownerId, until }）。
+    this.portals = new Map();
   }
 
   // 解析装载 + 校验冷却/消耗 + 分发效果。
@@ -72,7 +97,7 @@ class CoprocessorSystem {
 
     const method = EFFECT_HANDLERS[id];
     const result = method
-      ? this[method](player, cfg, targetX, targetY, entities)
+      ? this[method](player, cfg, targetX, targetY, entities, mapData)
       : { success: false, reason: 'not_implemented' };
 
     if (result.success) {
@@ -208,6 +233,176 @@ class CoprocessorSystem {
     }
 
     return { success: true, hits: [hit], stacksApplied: cfg.burnStacks, detonated };
+  }
+
+  // --- 共享：地图通行判定（与 world-player lobbyMap 等价） ---
+  isWalkable(x, y, mapData) {
+    if (typeof x !== 'number' || typeof y !== 'number') return false;
+    if (Number.isNaN(x) || Number.isNaN(y)) return false;
+    if (x < 0 || x >= MAP_WIDTH || y < 0 || y >= MAP_HEIGHT) return false;
+    const map = mapData;
+    if (map && map[y] && map[y][x] === TILE.WALL) return false;
+    return true;
+  }
+
+  // 按 entityId 定位实体（来自 entities Map）。
+  findEntityById(entityId, entities) {
+    if (!entities || !entityId) return null;
+    return entities.get(entityId) || null;
+  }
+
+  // --- 防御型效果处理器（M6.1） --------------------------------------------
+
+  // 护盾超载：设护盾 + 反射百分比（damagePlayer 内读取 copReflect）。
+  effectShieldOverload(player, cfg) {
+    player.shieldActive = true;
+    player.shield = cfg.absorbAmount;
+    player.shieldExpiresAt = Date.now() + 4000; // 与 executeShield 默认时长一致
+    player.lastShieldDrainAt = Date.now();
+    player.copReflect = cfg.reflectPercent;
+    this.combat.broadcastToPlayers(null, EVENTS.COMBAT_SHIELD, {
+      playerId: player.id, active: true, absorbRemaining: player.shield,
+    });
+    return { success: true, absorb: cfg.absorbAmount, reflect: cfg.reflectPercent };
+  }
+
+  // 伤害转治疗：duration 内受击转为治疗。
+  effectDamageToHeal(player, cfg) {
+    player.copDamageToHealUntil = Date.now() + cfg.duration;
+    return { success: true, until: player.copDamageToHealUntil };
+  }
+
+  // 反弹屏障：duration 内按 reflectChance 全额反弹（damagePlayer 内判定）。
+  effectReboundBarrier(player, cfg) {
+    player.copReboundUntil = Date.now() + cfg.duration;
+    player.copReboundChance = cfg.reflectChance;
+    return { success: true, until: player.copReboundUntil, chance: cfg.reflectChance };
+  }
+
+  // 紧急修复：立即回复 healPercent*maxHp。
+  effectEmergencyRepair(player, cfg) {
+    const heal = Math.floor(player.maxHp * cfg.healPercent);
+    player.hp = Math.min(player.maxHp, player.hp + heal);
+    return { success: true, healed: heal };
+  }
+
+  // --- 机动型效果处理器（M6.2） --------------------------------------------
+
+  // 区域隐身：隐身 duration，下次攻击 ×backstabMultiplier。
+  effectStealthField(player, cfg) {
+    player.stealthed = true;
+    player.copBackstabMult = cfg.backstabMultiplier;
+    player.copStealthUntil = Date.now() + cfg.duration;
+    return { success: true, until: player.copStealthUntil, mult: cfg.backstabMultiplier };
+  }
+
+  // 瞬移闪现：沿玩家→目标方向步进最多 range 格，遇墙停止。
+  effectBlink(player, cfg, tx, ty, entities, mapData) {
+    const dx = Math.sign(tx - player.x);
+    const dy = Math.sign(ty - player.y);
+    if (dx === 0 && dy === 0) return { success: false, reason: 'no_direction' };
+
+    let nx = player.x;
+    let ny = player.y;
+    let stepped = 0;
+    for (let i = 0; i < cfg.range; i++) {
+      const tryX = nx + dx;
+      const tryY = ny + dy;
+      if (!this.isWalkable(tryX, tryY, mapData)) break;
+      nx = tryX;
+      ny = tryY;
+      stepped++;
+    }
+    if (stepped === 0) return { success: false, reason: 'blocked' };
+
+    player.x = nx;
+    player.y = ny;
+    return { success: true, x: nx, y: ny, distance: stepped };
+  }
+
+  // 减速力场：radius 内所有敌人获得 SLOW_DURATION_MS 减速 debuff。
+  effectSlowField(player, cfg, tx, ty, entities) {
+    const now = Date.now();
+    const affected = [];
+    for (const [, e] of (entities || [])) {
+      if (!e || e.id === player.id || !e.alive) continue;
+      const dist = Math.abs(tx - e.x) + Math.abs(ty - e.y);
+      if (dist <= cfg.radius) {
+        this.slowDebuffs.set(e.id, { until: now + SLOW_DURATION_MS, factor: cfg.slowPercent });
+        affected.push(e.id);
+      }
+    }
+    return { success: true, affected, slowPercent: cfg.slowPercent };
+  }
+
+  // 传送门：在玩家点与目标点各建一个门，pairId 互指，持续 duration。
+  effectPortal(player, cfg, tx, ty) {
+    const now = Date.now();
+    const until = now + cfg.duration;
+    const idA = `p_${player.id}_${now}`;
+    const idB = `p_${player.id}_${now + 1}`;
+    this.portals.set(idA, { x: player.x, y: player.y, pairId: idB, ownerId: player.id, until });
+    this.portals.set(idB, { x: tx, y: ty, pairId: idA, ownerId: player.id, until });
+    return { success: true, portalA: { x: player.x, y: player.y }, portalB: { x: tx, y: ty } };
+  }
+
+  // 尝试把玩家从所在传送门传送到配对门（被 world-player move 后调用）。
+  tryPortalTeleport(player) {
+    const now = Date.now();
+    if (player.copPortalImmuneUntil && now < player.copPortalImmuneUntil) return false;
+
+    // 清理过期门
+    for (const [id, p] of this.portals) {
+      if (now >= p.until) this.portals.delete(id);
+    }
+
+    for (const [id, p] of this.portals) {
+      if (p.x === player.x && p.y === player.y) {
+        const pair = this.portals.get(p.pairId);
+        if (pair && now < pair.until) {
+          const fromX = player.x, fromY = player.y;
+          player.x = pair.x;
+          player.y = pair.y;
+          player.copPortalImmuneUntil = now + PORTAL_IMMUNE_MS;
+          this.combat.broadcastToPlayers(null, EVENTS.PORTAL_TELEPORT, {
+            playerId: player.id, fromX, fromY, toX: pair.x, toY: pair.y,
+          });
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // --- 经济型效果处理器（M6.3） --------------------------------------------
+
+  // 算力磁铁：立即授予 radius*TOKEN_MAGNET_RADIUS_MULT 个 unstable（环境收集语义）。
+  effectTokenMagnet(player, cfg) {
+    const amount = cfg.radius * TOKEN_MAGNET_RADIUS_MULT;
+    player.addUnstableTokens(amount);
+    return { success: true, amount };
+  }
+
+  // Token 翻倍：15s 内下一次掉落 ×dropMult（applyLoot 内读取）。
+  effectTokenDoubler(player, cfg) {
+    player.copLootMult = cfg.dropMult;
+    player.copLootMultUntil = Date.now() + TOKEN_DOUBLER_WINDOW_MS;
+    return { success: true, mult: cfg.dropMult, until: player.copLootMultUntil };
+  }
+
+  // 稀有率提升：duration 内 rollRarity 传入 rarityBonus。
+  effectRarityBoost(player, cfg) {
+    player.copRarityBonus = cfg.rarityBonus;
+    player.copRarityUntil = Date.now() + cfg.duration;
+    return { success: true, bonus: cfg.rarityBonus, until: player.copRarityUntil };
+  }
+
+  // 离线加速：持久化倍率与到期时间（跨离线）。
+  effectOfflineBoost(player, cfg) {
+    player.copOfflineBoostMult = cfg.miningMult;
+    player.copOfflineBoostUntil = Date.now() + cfg.duration;
+    this.store.markDirty(player);
+    return { success: true, mult: cfg.miningMult, until: player.copOfflineBoostUntil };
   }
 }
 
