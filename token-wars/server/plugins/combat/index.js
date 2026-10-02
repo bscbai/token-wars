@@ -10,16 +10,18 @@
 'use strict';
 
 const CombatSystem = require('../../game/CombatSystem');
+const CoprocessorSystem = require('../../game/CoprocessorSystem');
 
 module.exports = {
   name: 'combat',
   dependsOn: ['persistence'],
-  provides: ['combat'],
+  provides: ['combat', 'coprocessor'],
 
   setup(ctx) {
     const store = ctx.get('store');
     const combat = new CombatSystem(ctx.io, store);
     ctx.service('combat', combat);
+    ctx.service('coprocessor', new CoprocessorSystem(ctx.io, store, combat));
 
     ctx.on('player:join', ({ player, socket }) => {
       combat.registerSocket(player.id, socket);

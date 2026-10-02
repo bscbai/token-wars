@@ -157,5 +157,20 @@ module.exports = {
       }
       // 未被任何战斗上下文认领（大厅）—— 静默忽略，与原 index.js 一致
     }, 'skill');
+
+    // 协处理器技能（M6）：独立行动槽，目标选择 + 上下文解析与 INPUT_SKILL 同源。
+    const coprocessorSchema = {
+      targetX: { type: 'number', min: 0, max: MAP_WIDTH - 1, integer: true, required: true },
+      targetY: { type: 'number', min: 0, max: MAP_HEIGHT - 1, integer: true, required: true },
+    };
+    ctx.socket(EVENTS.INPUT_COPROCESSOR, coprocessorSchema, ({ targetX, targetY }, { player }) => {
+      if (!player.alive) return;
+
+      const data = ctx.runWaterfall('combat:resolve-context', { player });
+      if (data.entities) {
+        ctx.get('coprocessor').activate(player, targetX, targetY, data.entities, data.mapData || null);
+      }
+      // 大厅/无上下文 —— 静默忽略
+    }, 'skill');
   },
 };

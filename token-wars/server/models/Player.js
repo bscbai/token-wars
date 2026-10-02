@@ -58,6 +58,7 @@ class Player {
     this.coprocessors = [];  // [{ id, star }] star ∈ 1..COPROCESSOR_STARS.MAX
     this.fragments = {};     // { [coprocessorId]: count }
     this.activeCoprocessor = null; // loaded coprocessor id (null = none)
+    this.coprocessorLastUsed = 0; // transient cooldown timestamp (M6; not persisted)
 
     // Moderation
     this.banned = false;
@@ -303,6 +304,7 @@ class Player {
     p.coprocessors = Array.isArray(data.coprocessors) ? data.coprocessors : [];
     p.fragments = data.fragments && typeof data.fragments === 'object' ? data.fragments : {};
     p.activeCoprocessor = typeof data.activeCoprocessor === 'string' ? data.activeCoprocessor : null;
+    p.coprocessorLastUsed = 0; // cooldown is transient — reset on load (mirrors skills)
     p.comboSeq = [];
     p.comboEffects = {};
     p.lastCombatAt = 0;

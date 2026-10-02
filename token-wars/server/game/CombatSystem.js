@@ -431,6 +431,7 @@ class CombatSystem {
       for (const skill of deadPlayer.skills) {
         skill.lastUsed = 0;
       }
+      deadPlayer.coprocessorLastUsed = 0;
       if (socket) {
         socket.emit(EVENTS.PLAYER_RESPAWN, { x: 15, y: 28 });
       }

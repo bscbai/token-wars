@@ -435,6 +435,7 @@ const EVENTS = {
   INPUT_SKILL: 'input:skill', COMBAT_HIT: 'combat:hit', COMBAT_DEATH: 'combat:death',
   COMBAT_MISS: 'combat:miss', COMBAT_SHIELD: 'combat:shield',
   COMBAT_COMBO: 'combat:combo', COMBAT_KNOCKBACK: 'combat:knockback',
+  INPUT_COPROCESSOR: 'input:coprocessor', COPROCESSOR_ACTIVATED: 'coprocessor:activated',
   COPROCESSOR_FRAGMENT: 'coprocessor:fragment', // → 玩家: { coprocessorId, count, total, source }
   PROJECTILE_SPAWN: 'projectile:spawn', PROJECTILE_HIT: 'projectile:hit', PROJECTILE_DESTROY: 'projectile:destroy',
   MINING_UPDATE: 'mining:update', MINING_COLLECT: 'mining:collect', MINING_COLLECTED: 'mining:collected',
