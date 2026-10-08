@@ -159,7 +159,7 @@
 
 ---
 
-## 10. 竞品格局（GitHub 调研 2026-10-07）
+## 10. 竞品格局（GitHub 调研 2026-10-07，补充调研 2026-10-08）
 
 ### 10.1 同类项目盘点
 
@@ -173,27 +173,34 @@
 | Tiny AI Arena（hp6/ai-arena） | 4 个模型大逃杀 + 排行榜 + 回放自动播放 | 概念最接近；回合制、单图、模型固定不可自带 agent |
 | MCP Arena（pkronstrom/mcp-arena） | **agent 经 MCP 协议接入**实时 RTS（象棋大逃杀）+ Phaser 观战 | 协议设计最近似；仅 4 stars、玩具级引擎 |
 | ArenaOS（Devpost） | 引擎无关的 agent 竞技 OS：Observation→Decision→Action→Eval→Replay 统一契约 + 6 环境 | 抽象层级相同；黑客松阶段产物 |
+| ARC-AGI-Arcade（agno-agi，2026-08） | agent 在 ARC-AGI-3 上竞速通关，支持 **bring your own harness**，跨模型「手册」学习迁移 | 「自带 harness 参赛」接入范式先例；**token 成本/局已成正式指标**（80K vs 65K vs 195K） |
+| OpenArena.to | agent 排行榜（GitHub stars + X 综合分）+ 奖金池 + 自注册 | 指标聚合阶段，路线图才含实时 agent 对战 |
+| Turing Arena（Mantle 黑客松 2026） | 链上 commit-reveal 交易 agent 基准，预言机结算 + 声誉注册 | 可验证防作弊机制（承诺-揭示杜绝抄袭/回溯）可借鉴 |
 
 **B. 模型对拼平台（对应底盘组）**
 
-| 项目 | 形态 |
-|---|---|
-| LMArena / Chatbot Arena（lm-sys/FastChat，Apache-2.0） | 人类投票 Elo 排行榜的事实标准，10M+ 请求，可自托管 |
-| LLM Chess Arena（chess.louisguichard.fr） | LLM 下棋，**已记录 Time/Move 与 Cost/Game**——延迟与成本已作为旁路指标 |
-| ChessArena（ACL 2026，XiaoFaJiang） | 学术测试床，Glicko 评分，Bullet/Blitz/Standard/Blindfold 四种时限模式 |
-| llmchess / Auto-Arena / Arena-Hard-Auto / lone-arena | 本地对战、自动化评审、自托管等细分工具 |
+| 项目 | 形态 | 与我们的关系 |
+|---|---|---|
+| LMArena / Chatbot Arena（lm-sys/FastChat，Apache-2.0） | 人类投票 Elo 排行榜的事实标准，10M+ 请求，可自托管 | Elo/投票指标定义可直接复用 |
+| LLM Chess Arena（chess.louisguichard.fr） | LLM 下棋，**已记录 Time/Move 与 Cost/Game**——延迟与成本已作为旁路指标 | 延迟/成本作为正式旁路指标的先例 |
+| ChessArena（ACL 2026，XiaoFaJiang） | 学术测试床，Glicko 评分，Bullet/Blitz/Standard/Blindfold 四种时限模式 | 时限分级（对应我们的决策延迟上限）参照 |
+| llmchess / Auto-Arena / Arena-Hard-Auto / lone-arena | 本地对战、自动化评审、自托管等细分工具 | 自动化评审工具链可参考 |
+| Kaggle Game Arena（Google DeepMind + Kaggle，2026-07，开源） | 前沿模型实时棋类**直播对战**：首届 8 模型参赛、Grok 4 夺冠，正扩展至 Connect Four | **机构背书的重量级入场者**，旗舰级直播 + 可复盘——「游戏即评测」已被大厂做到标杆 |
+| Game Reasoning Arena（LAION/SLAMPAI，arXiv 2508.03368） | LLM 棋盘游戏锦标赛（Tic-Tac-Toe/Connect Four/Kuhn Poker 等）+ **全程推理 trace 记录**，OpenSpiel/Ray 并行 | 「遥测=决策 trace」的学术先例；发现大模型自适应推理、小模型过早锁定策略 |
 
 **C. 硬件赛道（对应动力单元组）**
 
-- **无人区**。现有项目至多把延迟/成本当旁路指标（LLM Chess Arena），或静态罗列 VRAM 需求（Onyx leaderboard），**没有把"同模型同 agent、比推理硬件"做成受规则约束的竞赛组别**。
+- **无人区**（2026-10-08 补充调研再次确认）。现有项目至多把延迟/成本当旁路指标（LLM Chess Arena 的 Cost/Game、ARC-AGI-Arcade 的 token/局），或静态罗列 VRAM 需求（Onyx leaderboard），**没有把"同模型同 agent、比推理硬件"做成受规则约束的竞赛组别**。
 
 ### 10.2 战略结论
 
-1. **车手组赛道拥挤但可差异化**：所有同类项目要么回合制（Halite/Lux/Tiny AI Arena）、要么文本（TextArena）、要么象棋变体。我们的**实时动作战斗 + 协处理器改装文化 + 服务端权威**是独有组合；MCP Arena 证明"标准协议接入 agent"是正确技术路线。
-2. **底盘组有参照系**：LMArena 与象棋竞技场已建立 Elo/成本/延迟度量惯例，我们可直接复用其指标定义。
-3. **动力单元组是明确空白**：三赛道中唯一无人占据的组别，建议作为旗舰差异点。
+1. **车手组赛道拥挤但可差异化**：所有同类项目要么回合制（Halite/Lux/Tiny AI Arena）、要么文本（TextArena）、要么象棋变体。我们的**实时动作战斗 + 协处理器改装文化 + 服务端权威**是独有组合；MCP Arena 证明"标准协议接入 agent"是正确技术路线，ARC-AGI-Arcade 验证了"自带 harness 参赛"模式可行。
+2. **底盘组有参照系，但已出现 heavyweight**：LMArena 与象棋竞技场已建立 Elo/成本/延迟度量惯例，我们可直接复用其指标定义；但 Kaggle Game Arena（Google DeepMind + Kaggle）已旗舰级占位模型对拼——正面竞争不明智，更应凸显实时动作 + 改装 + 硬件组的差异路线。
+3. **动力单元组仍是明确空白**：三赛道中唯一无人占据的组别（两轮调研确认），建议作为旗舰差异点。
 4. **全场共同缺口 = 我们的机会**：无人做 parity 规则体系（token 预算/延迟上限/模型规格申报抽查）、无人有"制造商锦标赛"跨赛道积分、无人产出持续运营的公开 benchmark 报告。
-5. **入场时机正确**：该领域项目多为单人/hackathon 阶段（MCP Arena 4 stars、Tiny AI Arena 个人项目），而我们的服务端战斗游戏与协处理器系统已工程化落地——**用成品打 Demo，时间窗存在**。
-6. **协议建议**：agent 接入优先采用 MCP（Model Context Protocol）而非自研协议——MCP Arena 已验证游戏场景可行，且 MCP 是 agent 工具调用的事实标准，参赛方零学习成本。
+5. **成本与遥测正成为行业惯例**：ARC-AGI-Arcade 按 token/局计量成绩、Game Reasoning Arena 记录全程推理 trace——外部趋势印证白皮书 §4 parity 规则与 §6 遥测的设计方向。
+6. **可验证性有新解**：Turing Arena 的链上 commit-reveal 机制（承诺-揭示杜绝抄袭与回溯）可作 §9「模型申报可信度」未决问题的参考实现。
+7. **入场时机正确**：该领域项目多为单人/hackathon 阶段（MCP Arena 4 stars、Tiny AI Arena 个人项目），而我们的服务端战斗游戏与协处理器系统已工程化落地——**用成品打 Demo，时间窗存在**。
+8. **协议建议**：agent 接入优先采用 MCP（Model Context Protocol）而非自研协议——MCP Arena 已验证游戏场景可行，且 MCP 是 agent 工具调用的事实标准，参赛方零学习成本。
 
 **参考链接**：见交付说明（chat）Sources。
