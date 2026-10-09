@@ -1,10 +1,12 @@
 const { AIAgent, AI_LEVELS, AI_DECISIONS } = require('../models/AIAgent');
-const { SKILLS, calcDamage, MAP_WIDTH, MAP_HEIGHT, TILE, PVP } = require('../../shared/constants');
+const { SKILLS, MAP_WIDTH, MAP_HEIGHT, TILE, PVP, BOT_PROTOCOL, AI_ARENA_TIMING } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
+const BuiltinBrain = require('./BuiltinBrain');
+const ExternalMatchRunner = require('./ExternalMatchRunner');
 
 // AI Arena constants
-const AI_MATCH_TICK_MS = 50; // Simulate at 20Hz
-const AI_MATCH_MAX_TIME_MS = 120000; // 120 seconds max
+const AI_MATCH_TICK_MS = AI_ARENA_TIMING.MATCH_TICK_MS; // Simulate at 20Hz
+const AI_MATCH_MAX_TIME_MS = AI_ARENA_TIMING.MATCH_MAX_TIME_MS; // 120 seconds max
 const AI_MATCH_COOLDOWN_MS = 5 * 60 * 1000; // 5 min cooldown
 const AI_DAILY_MATCH_CAP = 20;
 const AI_AELO_K = 20;
@@ -100,10 +102,12 @@ const AI_MAPS = {
 };
 
 class AIArenaManager {
-  constructor(io, store, combatSystem) {
+  constructor(io, store, combatSystem, options = {}) {
     this.io = io;
     this.store = store;
     this.combat = combatSystem;
+    // 决策 brain：内置对局走权重脚本（BuiltinBrain）；可注入以支持对拍测试
+    this.brain = options.brain || new BuiltinBrain();
     this.agents = new Map(); // agentId -> AIAgent
     this.playerAgents = new Map(); // playerId -> [agentIds]
     this.playerSockets = new Map(); // playerId -> socket
@@ -233,6 +237,17 @@ class AIArenaManager {
   joinQueue(playerId, agentId) {
     const agent = this.agents.get(agentId);
     if (!agent || agent.inMatch) return;
+    if (Date.now() < (agent._declineUntil || 0)) {
+      const socket = this.playerSockets.get(playerId);
+      if (socket) {
+        socket.emit('ai_arena:queue_fail', {
+          agentId,
+          reason: 'decline_cooldown',
+          cooldownSeconds: Math.ceil((agent._declineUntil - Date.now()) / 1000),
+        });
+      }
+      return;
+    }
     if (agent.dailyMatches >= AI_DAILY_MATCH_CAP) {
       const socket = this.playerSockets.get(playerId);
       if (socket) {
@@ -289,7 +304,12 @@ class AIArenaManager {
     const mapKeys = Object.keys(AI_MAPS);
     const map = AI_MAPS[mapKeys[Math.floor(Math.random() * mapKeys.length)]];
 
-    this.startMatch(agentA, agentB, map);
+    // 双轨：任一方 external → 异步 runner；否则同步瞬时模拟
+    if (agentA.external || agentB.external) {
+      this.startExternalMatch(agentA, agentB, map);
+    } else {
+      this.startMatch(agentA, agentB, map);
+    }
   }
 
   // --- Match Simulation ---
@@ -346,128 +366,19 @@ class AIArenaManager {
       return !map.obstacles.some(([ox, oy]) => ox === x && oy === y);
     };
 
-    // Helper: Manhattan distance
-    const dist = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-
     while (elapsed < AI_MATCH_MAX_TIME_MS && agentA.alive && agentB.alive) {
       tick++;
       elapsed = tick * AI_MATCH_TICK_MS;
       const now = match.startTime + elapsed;
 
-      // Process each agent's turn
+      // Process each agent's turn（决策经 brain 抽象；内置走 BuiltinBrain 权重脚本）
       [agentA, agentB].forEach((agent, agentIdx) => {
         if (!agent.alive) return;
         const enemy = agentIdx === 0 ? agentB : agentA;
 
-        // Apply shield drain
-        if (agent.shieldActive) {
-          agent.shield = Math.max(0, agent.shield - 1);
-          if (agent.shield <= 0) agent.shieldActive = false;
-        }
-
-        // Get weighted decisions
-        const attackWeight = agent.getWeight('attack');
-        const defenseWeight = agent.getWeight('defense');
-        const mobilityWeight = agent.getWeight('mobility');
-        const economyWeight = agent.getWeight('economy');
-
-        let actionTaken = 'idle';
-
-        // Priority 1: Retreat + Shield (HP < 20% && high defense)
-        if (agent.hp / agent.maxHp < 0.20 && defenseWeight > 50) {
-          if (!agent.shieldActive && !agent.skillOnCooldown('shield', now)) {
-            agent.enableShield(agent.shieldMax);
-            agent.useSkill('shield', now);
-            actionTaken = 'shield_retreat';
-          }
-          // Move away from enemy
-          const dx = Math.sign(agent.x - enemy.x);
-          const dy = Math.sign(agent.y - enemy.y);
-          const nx = agent.x + dx, ny = agent.y + dy;
-          if (isWalkable(nx, ny)) { agent.x = nx; agent.y = ny; actionTaken = 'retreat'; }
-        }
-        // Priority 2: Berserker combo (★ ★ ★ behavior)
-        else if (agent.hasSpecialActive('berserker') && dist(agent, enemy) <= 2) {
-          agent.useSkill('basic_attack', now, 1);
-          if (!agent.skillOnCooldown('token_burst', now)) {
-            agent.useSkill('token_burst', now, 3);
-          }
-          const dmg = calcDamage(agent.atk, 1.5, enemy.def);
-          enemy.takeDamage(dmg, agent.id);
-          actionTaken = `berserker_combo(${dmg})`;
-          match.log.push({ tick, agent: agent.id, action: actionTaken, hp: agent.hp, enemyHp: enemy.hp, x: agent.x, y: agent.y, enemyX: enemy.x, enemyY: enemy.y });
-        }
-        // Priority 3: Low HP combo (enemy < 30% && high attack)
-        else if (enemy.hp / enemy.maxHp < 0.30 && attackWeight > 50) {
-          if (dist(agent, enemy) <= 2) {
-            agent.useSkill('basic_attack', now, 1);
-            if (!agent.skillOnCooldown('token_burst', now)) {
-              agent.useSkill('token_burst', now, 3);
-              const dmg = calcDamage(agent.atk, 1.5, enemy.def);
-              enemy.takeDamage(dmg, agent.id);
-              actionTaken = `combo(${dmg})`;
-            } else {
-              const dmg = calcDamage(agent.atk, 1.0, enemy.def);
-              enemy.takeDamage(dmg, agent.id);
-              actionTaken = `attack(${dmg})`;
-            }
-          } else {
-            // Chase
-            const dx = Math.sign(enemy.x - agent.x);
-            const dy = Math.sign(enemy.y - agent.y);
-            if (isWalkable(agent.x + dx, agent.y)) {
-              agent.x += dx; actionTaken = 'chase_x';
-            } else if (isWalkable(agent.x, agent.y + dy)) {
-              agent.y += dy; actionTaken = 'chase_y';
-            }
-          }
-          match.log.push({ tick, agent: agent.id, action: actionTaken, hp: agent.hp, enemyHp: enemy.hp, x: agent.x, y: agent.y, enemyX: enemy.x, enemyY: enemy.y });
-        }
-        // Priority 4: Melee attack (distance ≤ 2)
-        else if (dist(agent, enemy) <= 2) {
-          agent.useSkill('basic_attack', now, 1);
-          const dmg = calcDamage(agent.atk, 1.0, enemy.def);
-          enemy.takeDamage(dmg, agent.id);
-          actionTaken = `attack(${dmg})`;
-          match.log.push({ tick, agent: agent.id, action: actionTaken, hp: agent.hp, enemyHp: enemy.hp, x: agent.x, y: agent.y, enemyX: enemy.x, enemyY: enemy.y });
-        }
-        // Priority 5: Close gap (high mobility)
-        else if (dist(agent, enemy) > 2 && mobilityWeight > 50) {
-          if (!agent.skillOnCooldown('dodge_roll', now)) {
-            agent.useSkill('dodge_roll', now, 0);
-            const dx = Math.sign(enemy.x - agent.x);
-            const dy = Math.sign(enemy.y - agent.y);
-            const range = 3 + (agent.getSpecialEffect('dodgeRangeBonus') || 0);
-            let nx = agent.x + dx * range;
-            let ny = agent.y + dy * range;
-            nx = Math.max(0, Math.min(map.width - 1, nx));
-            ny = Math.max(0, Math.min(map.height - 1, ny));
-            if (isWalkable(nx, ny)) { agent.x = nx; agent.y = ny; }
-            actionTaken = 'dash';
-          }
-        }
-        // Priority 6: Move toward enemy
-        else if (dist(agent, enemy) > 2) {
-          const dx = Math.sign(enemy.x - agent.x);
-          const dy = Math.sign(enemy.y - agent.y);
-          if (isWalkable(agent.x + dx, agent.y)) {
-            agent.x += dx; actionTaken = 'move_x';
-          } else if (isWalkable(agent.x, agent.y + dy)) {
-            agent.y += dy; actionTaken = 'move_y';
-          }
-        }
-        // Priority 7: Collect dropped token (high economy)
-        else if (economyWeight > 50 && Math.random() < 0.3) {
-          // Simplified: generate a random token position occasionally
-          // In full version, tokens would be spawned by combat drops
-          actionTaken = 'patrol';
-        }
-        // Priority 8: Patrol
-        else {
-          const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
-          const [dx, dy] = dirs[Math.floor(Math.random() * dirs.length)];
-          if (isWalkable(agent.x + dx, agent.y + dy)) { agent.x += dx; agent.y += dy; }
-          actionTaken = 'patrol';
+        const result = this.brain.decide(agent, enemy, { now, map, isWalkable });
+        if (result.log) {
+          match.log.push({ tick, agent: agent.id, ...result.log });
         }
 
         tick++;
@@ -477,6 +388,117 @@ class AIArenaManager {
 
     match.totalTicks = tick;
     match.totalTimeMs = elapsed;
+  }
+
+  // --- External Agent（阶段 1：外部 agent 接入协议）---
+
+  /**
+   * 注册外部 agent（/bot 命名空间连接时调用）。
+   * 阶段 1 外部 agent 使用基础属性（空 token 盘），token 盘/协处理器改装
+   * 集成留待阶段 2。重连时复用已有 external agent 仅替换 brain。
+   * @returns {AIAgent|null}
+   */
+  registerExternalAgent(playerId, brain) {
+    const player = this.store.getPlayerById(playerId);
+    if (!player) return null;
+
+    const existing = this.getExternalAgent(playerId);
+
+    if (existing) {
+      existing.brain?.destroy?.();
+      existing.brain = brain;
+      existing.deployed = true;
+      this.joinQueue(playerId, existing.id);
+      return existing;
+    }
+
+    const agent = new AIAgent(playerId, [], player.username);
+    agent.external = true;
+    agent.brain = brain;
+    agent.deployed = true;
+    agent.deployedAt = Date.now();
+
+    this.agents.set(agent.id, agent);
+    if (!this.playerAgents.has(playerId)) {
+      this.playerAgents.set(playerId, []);
+    }
+    this.playerAgents.get(playerId).push(agent.id);
+
+    console.log(`[AI Arena] External agent registered: ${agent.name} (${agent.id.slice(0, 8)})`);
+    this.joinQueue(playerId, agent.id);
+    return agent;
+  }
+
+  /** 取该玩家当前的外部 agent（无则 null） */
+  getExternalAgent(playerId) {
+    return (this.playerAgents.get(playerId) || [])
+      .map((id) => this.agents.get(id))
+      .find((a) => a && a.external) || null;
+  }
+
+  /** 外部 agent 断开：离队 + 停用（不删 agent，保留 AELO 历史） */
+  recallExternalAgent(playerId) {
+    const agent = this.getExternalAgent(playerId);
+    if (!agent) return;
+    this.leaveQueue(agent.id);
+    agent.deployed = false;
+    agent.brain?.destroy?.();
+    agent.brain = null;
+  }
+
+  /**
+   * 含外部 agent 的对局：邀请阶段 → ExternalMatchRunner 异步模拟 →
+   * 终局复用 resolveMatch。decline/未应答不扣分：decline 方 30s 冷却，
+   * 对手 2s 后重新排队。
+   */
+  async startExternalMatch(agentA, agentB, map) {
+    agentA.inMatch = true;
+    agentB.inMatch = true;
+
+    for (const agent of [agentA, agentB]) {
+      agent.hp = agent.maxHp;
+      agent.alive = true;
+      agent.shield = 0;
+      agent.shieldActive = false;
+      agent.buffs = [];
+      for (const skill of agent.skills) skill.lastUsed = 0;
+    }
+    agentA.x = map.spawnA.x; agentA.y = map.spawnA.y;
+    agentB.x = map.spawnB.x; agentB.y = map.spawnB.y;
+
+    const match = {
+      id: `ext-${agentA.id}-${agentB.id}-${Date.now()}`,
+      agentA: agentA.id,
+      agentB: agentB.id,
+      map: map.id,
+      startTime: Date.now(),
+      tickCount: 0,
+      log: [],
+      trace: [],
+      external: true,
+      winner: null,
+    };
+    this.activeMatches.set(match.id, match);
+
+    const brains = {
+      A: agentA.external ? agentA.brain : this.brain,
+      B: agentB.external ? agentB.brain : this.brain,
+    };
+
+    const runner = new ExternalMatchRunner(this, { match, agentA, agentB, map, brains });
+    const result = await runner.start();
+
+    if (!result.started) {
+      // 邀请被拒/超时：不计场次、不扣分
+      const declined = result.declinedBy === 'A' ? agentA : agentB;
+      const other = result.declinedBy === 'A' ? agentB : agentA;
+      declined._declineUntil = Date.now() + BOT_PROTOCOL.DECLINE_COOLDOWN_MS;
+      agentA.inMatch = false;
+      agentB.inMatch = false;
+      this.activeMatches.delete(match.id);
+      console.log(`[AI Arena] External invite declined/timeout by side ${result.declinedBy}; opponent re-queued`);
+      setTimeout(() => this.joinQueue(other.playerId, other.id), 2000);
+    }
   }
 
   resolveMatch(match, agentA, agentB, map) {

@@ -63,6 +63,9 @@ class Player {
     // Moderation
     this.banned = false;
 
+    // 外部 agent 接入（阶段 1）：bot token（null=未签发）
+    this.botToken = null;
+
     // Combat state (transient, not persisted)
     this.shield = 0;
     this.shieldActive = false;
@@ -298,6 +301,8 @@ class Player {
       purchasedPacks: this.purchasedPacks,
       lastDailyClaim: this.lastDailyClaim,
       banned: this.banned,
+      // 外部 agent 接入（阶段 1）：bot token 持久化，断线重连不变
+      botToken: this.botToken || null,
       // Only offline boost is persisted (spans offline sessions); all other
       // coprocessor effect state is transient and reset on load.
       copOfflineBoostUntil: this.copOfflineBoostUntil,
@@ -345,6 +350,8 @@ class Player {
     p.lastAmmoRegenAt = Date.now();
     p.lastShieldDrainAt = 0;
     p.banned = !!data.banned;
+    // Old saves predate the bot protocol — no token issued.
+    p.botToken = typeof data.botToken === 'string' ? data.botToken : null;
     if (data.skills && Array.isArray(data.skills)) {
       p.skills = data.skills.map(s => ({ ...s, lastUsed: 0 }));
     }

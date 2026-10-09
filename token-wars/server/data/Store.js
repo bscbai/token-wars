@@ -210,6 +210,15 @@ class Store {
     return this.players.get(id) || null;
   }
 
+  /** 外部 agent 接入（阶段 1）：按 bot token 反查玩家 */
+  getPlayerByBotToken(token) {
+    if (typeof token !== 'string' || token.length === 0) return null;
+    for (const player of this.players.values()) {
+      if (player.botToken && player.botToken === token) return player;
+    }
+    return null;
+  }
+
   getPlayerByUsername(username) {
     return this.playersByUsername.get(username) || null;
   }

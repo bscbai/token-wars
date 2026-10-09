@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const { BOT_NAMESPACE } = require('../../shared/constants');
 
 /**
  * Socket.IO handshake authentication middleware factory.
@@ -12,11 +13,20 @@ const logger = require('../utils/logger');
  * On failure (missing or invalid token) the connection is rejected via
  * `next(new Error(...))` and a structured log entry is emitted.
  *
+ * `/bot` 命名空间例外：外部 agent 无 JWT 会话，改用 botToken 握手
+ * （命名空间级中间件校验，见 aiarena 插件）。此中间件经 io.use 全局
+ * 挂载，故必须在此放行，否则 bot 连接会被 JWT 检查拦截。
+ *
  * @param {function} verifySession  — (token) => Player | null
  * @returns {function} Socket.IO middleware  — (socket, next) => void
  */
 function makeSocketAuth({ verifySession }) {
   return function socketAuth(socket, next) {
+    if (socket.nsp && socket.nsp.name === BOT_NAMESPACE) {
+      // bot 认证由 /bot 命名空间中间件负责（botToken），此处直接放行
+      return next();
+    }
+
     const token = socket.handshake.auth && socket.handshake.auth.token;
 
     if (!token) {

@@ -470,12 +470,34 @@ const EVENTS = {
   AI_ARENA_TOURNAMENT_ROUND: 'ai_arena:tournament_round',
   AI_ARENA_TOURNAMENT_END: 'ai_arena:tournament_end',
   AI_ARENA_SEASON_INFO: 'ai_arena:season_info', AI_ARENA_SEASON_UPDATE: 'ai_arena:season_update',
+  // 外部 agent 接入协议（/bot 命名空间，详见 openspec/changes/archive/agent-access-protocol）
+  BOT_MATCH_INVITE: 'bot:match_invite', BOT_MATCH_ACCEPT: 'bot:match_accept',
+  BOT_MATCH_DECLINE: 'bot:match_decline', BOT_STATE: 'bot:state',
+  BOT_ACTION: 'bot:action', BOT_MATCH_END: 'bot:match_end', BOT_ERROR: 'bot:error',
   ERROR: 'error', PING: 'ping', PONG: 'pong',
 };
 
 const REST = {
   AUTH_REGISTER: '/api/auth/register', AUTH_LOGIN: '/api/auth/login',
   SHOP_LIST: '/api/shop/packs', SHOP_BUY: '/api/shop/buy', PLAYER_PROFILE: '/api/player/profile',
+};
+
+// 外部 agent 接入协议（阶段 1）— parity 规则常量，详见 openspec/changes/archive/agent-access-protocol/design.md
+const BOT_NAMESPACE = '/bot';        // 外部 agent 专用命名空间（botToken 握手，绕过 JWT）
+const BOT_PROTOCOL = {
+  VERSION: 1,                        // 协议版本；不匹配的连接被拒绝
+  DECISION_DEADLINE_MS: 500,         // 单次决策截止时间；超时按 idle 处理
+  DECISION_TIMEOUT_LIMIT: 3,         // 连续超时上限；达到判负
+  TOKEN_BUDGET_DEFAULT: 100000,      // 单场 token 预算（agent 自报累计）
+  MATCH_ACCEPT_TIMEOUT_MS: 5000,     // match_invite 应答超时（视作 decline）
+  DECLINE_COOLDOWN_MS: 30000,        // decline 后的邀请冷却
+  VIOLATION_LIMIT: 10,               // 单场非法动作上限；超过判负
+};
+
+// AI 竞技场对局节奏（AIArenaManager 与 ExternalMatchRunner 共用，避免循环依赖）
+const AI_ARENA_TIMING = {
+  MATCH_TICK_MS: 50,          // 20Hz
+  MATCH_MAX_TIME_MS: 120000,  // 单场最长 120s
 };
 
 const _exports = {
@@ -486,7 +508,7 @@ const _exports = {
   COPROCESSOR_FRAGMENT_SOURCES, COPROCESSOR_SHOP,
   MINING, PVP, SHOP_PACKS, LEVEL_XP, LEVEL_UNLOCKS,
   calcDamage, rollRarity,
-  EVENTS, REST,
+  EVENTS, REST, BOT_PROTOCOL, BOT_NAMESPACE, AI_ARENA_TIMING,
 };
 
 // Always set browser global (for client-side modules)

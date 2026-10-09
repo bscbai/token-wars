@@ -30,6 +30,9 @@ const RATE_CATEGORIES = {
   query:    { limit: 5,  windowMs: 1000 },  // 5/s
   ping:     { limit: 10, windowMs: 1000 },  // 10/s
   auth:     { limit: 10, windowMs: 60000 }, // 10/min
+  // /bot 命名空间（外部 agent）：20Hz 对局每秒 ~20 个 action，100/s 宽限；
+  // schema 不在此层预校验——非法动作须透传给 runner 计违规（parity 规则）
+  bot:      { limit: 100, windowMs: 1000 }, // 100/s
 };
 
 // --- RateLimiter class ----------------------------------------------------

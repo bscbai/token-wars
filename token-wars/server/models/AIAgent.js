@@ -107,6 +107,12 @@ class AIAgent {
     this.lastMatchTime = 0;
     this.matchCooldownMs = 5 * 60 * 1000; // 5 minutes
 
+    // 外部 agent 接入（阶段 1）：external=true 时 brain 为 ExternalBrain，
+    // 对局由 ExternalMatchRunner 驱动；内置 agent 两者为默认值
+    this.external = false;
+    this.brain = null;
+    this._declineUntil = 0; // decline 后的邀请冷却截止（ms epoch）
+
     // Co-processor tokens assigned
     this.coprocessors = [];
   }
