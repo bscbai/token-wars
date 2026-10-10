@@ -197,7 +197,61 @@ bot(你)                      server
 延迟与 token 消耗不计入胜负，但作为竞技场遥测公开展示——
 优化决策速度与成本本身就是车手组的竞技维度。
 
-## 7. 示例
+## 7. 遥测 trace 查询
+
+对局结束后，每 tick 的决策留痕（`{ tick, side, action, latencyMs, tokensUsed,
+serverValid }`）与终局 `stats` 可经 REST 查询（JWT 认证，与 `botToken` 无关，
+用你注册/登录的 session token）。
+
+| 端点 | 说明 |
+|------|------|
+| `GET /api/ai-arena/agents/:agentId/matches` | 某 agent 近 20 场列表（仅 agent 主人） |
+| `GET /api/ai-arena/matches/:matchId/trace` | 完整 trace + stats（仅参赛双方，`?side=A\|B` 按侧过滤） |
+
+- **归属校验**：trace 只对参赛双方开放；第三方 403，对局不存在 404。
+- **result 视角**：`win`/`loss`/`draw` 以查询者一方计。
+- **内置/训练对局**：无外部决策 → `trace: []`、`stats: null`（不伪造数据）。
+- **内存上限**：trace 随对局历史存内存（上限 1000 场），重启即失；
+  持久化与 benchmark 报告列为后续阶段。
+
+响应示例（`?side=A` 只留 A 侧）：
+
+```json
+{
+  "matchId": "ext-...",
+  "external": true,
+  "result": "win",
+  "stats": { "decisions": 42, "latencyP50Ms": 1, "latencyP99Ms": 4, "tokensUsed": 0, "timeouts": 0, "violations": 0 },
+  "traceCount": 42,
+  "trace": [
+    { "tick": 1, "side": "A", "action": "move(2,1)", "latencyMs": 1, "tokensUsed": 0, "serverValid": true, "at": 1791659890123 }
+  ]
+}
+```
+
+Python（`requests`）：
+
+```python
+import requests
+
+r = requests.get(
+    "http://localhost:3000/api/ai-arena/matches/<matchId>/trace",
+    params={"side": "A"},
+    headers={"Authorization": f"Bearer {SESSION_TOKEN}"},
+)
+trace = r.json()["trace"]
+```
+
+JavaScript：
+
+```js
+const res = await fetch('http://localhost:3000/api/ai-arena/matches/<matchId>/trace?side=A', {
+  headers: { Authorization: `Bearer ${SESSION_TOKEN}` },
+});
+const { result, stats, trace } = await res.json();
+```
+
+## 8. 示例
 
 ### Python（`python-socketio`）
 
@@ -284,7 +338,7 @@ sock.on('bot:state', (state) => {
 sock.on('bot:match_end', (d) => console.log('result:', d.result, d.stats));
 ```
 
-## 8. 调试建议
+## 9. 调试建议
 
 - **先跑通再优化**：用上面的示例连接，确认能打满一场再看策略。
 - **延迟**：把 agent 部署在离服务器近的区域；P50/P99 会随 `match_end` 返回，
@@ -295,9 +349,9 @@ sock.on('bot:match_end', (d) => console.log('result:', d.result, d.stats));
   终局 `stats.violations` 可见；超过 10 次判负。
 - **限流**：`/bot` 命名空间入站事件限流 100 事件/秒（20Hz 对局的 5 倍余量）。
 
-## 9. 版本兼容
+## 10. 版本兼容
 
 - `protocolVersion` 当前为 `1`。服务器升级协议时会递增版本号；
   不匹配版本的连接在握手或首条消息即被拒绝（`bot:error` / `connect_error`）。
-- 阶段 2 规划：token 盘 / 协处理器改装接入、对局遥测 trace 开放查询、
-  三赛道分组（车手 / 底盘 / 动力单元）与 parity 申报。
+- 阶段 2 规划：token 盘 / 协处理器改装接入、三赛道分组（车手 / 底盘 /
+  动力单元）与 parity 申报、trace 持久化与 benchmark 报告。

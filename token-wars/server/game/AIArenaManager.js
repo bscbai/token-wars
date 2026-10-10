@@ -578,6 +578,10 @@ class AIArenaManager {
       agentBName: agentB.name,
       agentAAelo: agentA.aelo,
       agentBAelo: agentB.aelo,
+      // 遥测 trace 查询的归属基础（agent 可能被删/替换，不能反查玩家）；
+      // 训练对局对手 playerId 为 'system'
+      agentAPlayerId: agentA.playerId,
+      agentBPlayerId: agentB.playerId,
       mapData: {
         id: map.id,
         name: map.name,
@@ -709,19 +713,25 @@ class AIArenaManager {
 
   // --- Replay ---
 
+  /** 对局归属校验：仅参赛双方玩家可读（history 条目带 playerId） */
+  _ownsMatch(match, playerId) {
+    return match.agentAPlayerId === playerId || match.agentBPlayerId === playerId;
+  }
+
   sendReplay(playerId, matchId) {
     const match = this.matchHistory.find(m => m.id === matchId);
+    const socket = this.playerSockets.get(playerId);
     if (!match) {
-      const socket = this.playerSockets.get(playerId);
       if (socket) socket.emit('ai_arena:replay', { error: 'match_not_found' });
       return;
     }
+    if (!this._ownsMatch(match, playerId)) {
+      if (socket) socket.emit('ai_arena:replay', { error: 'forbidden' });
+      return;
+    }
 
-    // Determine which agent this player controls
-    const agentA = this.agents.get(match.agentA);
-    const playerAgentId = (agentA && agentA.playerId === playerId) ? match.agentA : match.agentB;
+    const playerAgentId = match.agentAPlayerId === playerId ? match.agentA : match.agentB;
 
-    const socket = this.playerSockets.get(playerId);
     if (socket) {
       socket.emit('ai_arena:replay', {
         matchId: match.id,
@@ -732,8 +742,26 @@ class AIArenaManager {
         map: match.mapData,
         totalTicks: match.totalTicks,
         log: match.log,
+        // 遥测 trace（阶段 2a）：external 对局非空；内置/训练对局为空数组
+        trace: match.trace || [],
+        stats: match.stats || null,
       });
     }
+  }
+
+  /** 对局摘要（sendMatchHistory 与 REST list 共用；含 trace 可得性） */
+  _summarizeMatchFor(match, agentId) {
+    return {
+      id: match.id,
+      opponent: match.agentA === agentId ? match.agentBName : match.agentAName,
+      map: match.mapData?.name || 'unknown',
+      result: match.winner === 'draw' ? 'draw' : (match.winner === agentId ? 'win' : 'loss'),
+      winnerId: match.winner,
+      totalTicks: match.totalTicks,
+      external: !!match.external,
+      traceCount: (match.trace || []).length,
+      saved: match.saved,
+    };
   }
 
   sendMatchHistory(playerId, agentId) {
@@ -744,20 +772,57 @@ class AIArenaManager {
       .filter(m => m.agentA === agentId || m.agentB === agentId)
       .slice(-20)
       .reverse()
-      .map(m => ({
-        id: m.id,
-        opponent: m.agentA === agentId ? m.agentBName : m.agentAName,
-        map: m.mapData?.name || 'unknown',
-        result: m.winner === 'draw' ? 'draw' : (m.winner === agentId ? 'win' : 'loss'),
-        winnerId: m.winner,
-        totalTicks: m.totalTicks,
-        saved: m.saved,
-      }));
+      .map(m => this._summarizeMatchFor(m, agentId));
 
     const socket = this.playerSockets.get(playerId);
     if (socket) {
       socket.emit('ai_arena:match_history', { agentId, history });
     }
+  }
+
+  // --- 遥测 trace 查询（阶段 2a，REST /api/ai-arena）---
+
+  /** 某 agent 的近期对局列表（含 trace 条目数与本人 stats）；仅 agent 主人可查 */
+  getAgentMatches(playerId, agentId) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return { error: 'forbidden' };
+
+    const matches = this.matchHistory
+      .filter(m => m.agentA === agentId || m.agentB === agentId)
+      .slice(-20)
+      .reverse()
+      .map(m => ({
+        ...this._summarizeMatchFor(m, agentId),
+        stats: m.stats ? m.stats[m.agentA === agentId ? 'A' : 'B'] : null,
+      }));
+
+    return { agentId, matches };
+  }
+
+  /**
+   * 完整遥测 trace 查询；仅参赛双方玩家可查。
+   * @returns {{ error:'match_not_found'|'forbidden' } | { matchId, external, result, stats, traceCount, trace }}
+   */
+  getMatchTrace(playerId, matchId, { side } = {}) {
+    const match = this.matchHistory.find(m => m.id === matchId);
+    if (!match) return { error: 'match_not_found' };
+    if (!this._ownsMatch(match, playerId)) return { error: 'forbidden' };
+
+    const playerSide = match.agentAPlayerId === playerId ? 'A' : 'B';
+    const playerAgentId = playerSide === 'A' ? match.agentA : match.agentB;
+    const result = match.winner === 'draw' ? 'draw' : (match.winner === playerAgentId ? 'win' : 'loss');
+
+    let trace = match.trace || [];
+    if (side === 'A' || side === 'B') trace = trace.filter(t => t.side === side);
+
+    return {
+      matchId: match.id,
+      external: !!match.external,
+      result,
+      stats: match.stats ? match.stats[playerSide] : null,
+      traceCount: trace.length,
+      trace,
+    };
   }
 
   // --- Tick (called periodically by GameEngine) ---
