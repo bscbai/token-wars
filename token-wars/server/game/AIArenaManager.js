@@ -120,6 +120,9 @@ class AIArenaManager {
     this.currentSeason = { buff: null, week: 1 };
     this.tournament = null; // active tournament bracket
     this.tournamentTimer = null; // interval for match broadcasts
+
+    // 对局归档（阶段 2b trace 持久化）：恢复最近对局，重启后 trace 查询不中断
+    this._restoreMatches();
   }
 
   // --- Socket Registration ---
@@ -572,7 +575,7 @@ class AIArenaManager {
     match.loserAelo = loser?.aelo || null;
 
     // Save to history for replays
-    this.matchHistory.push({
+    const entry = {
       ...match,
       agentAName: agentA.name,
       agentBName: agentB.name,
@@ -592,10 +595,15 @@ class AIArenaManager {
         spawnB: map.spawnB,
       },
       saved: Date.now(),
-    });
+    };
+    this.matchHistory.push(entry);
     if (this.matchHistory.length > this.maxHistoryLength) {
       this.matchHistory.shift();
     }
+
+    // 对局归档（阶段 2b trace 持久化）：终局 write-through + 按同一 cap 裁剪旧行
+    this.store.saveMatch(entry);
+    this.store.pruneMatches(this.maxHistoryLength);
 
     // Notify both players
     for (const agent of [agentA, agentB]) {
@@ -777,6 +785,19 @@ class AIArenaManager {
     const socket = this.playerSockets.get(playerId);
     if (socket) {
       socket.emit('ai_arena:match_history', { agentId, history });
+    }
+  }
+
+  // --- 对局归档（阶段 2b trace 持久化）---
+
+  /** 构造时从库恢复最近 maxHistoryLength 场（loadMatches 新→旧，倒序入 history 保持旧→新） */
+  _restoreMatches() {
+    const rows = this.store.loadMatches(this.maxHistoryLength);
+    for (let i = rows.length - 1; i >= 0; i--) {
+      this.matchHistory.push(rows[i]);
+    }
+    if (rows.length > 0) {
+      console.log(`[AI Arena] Restored ${rows.length} archived matches`);
     }
   }
 

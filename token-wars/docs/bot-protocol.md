@@ -211,8 +211,8 @@ serverValid }`）与终局 `stats` 可经 REST 查询（JWT 认证，与 `botTok
 - **归属校验**：trace 只对参赛双方开放；第三方 403，对局不存在 404。
 - **result 视角**：`win`/`loss`/`draw` 以查询者一方计。
 - **内置/训练对局**：无外部决策 → `trace: []`、`stats: null`（不伪造数据）。
-- **内存上限**：trace 随对局历史存内存（上限 1000 场），重启即失；
-  持久化与 benchmark 报告列为后续阶段。
+- **持久化**：trace 随对局终局落库（SQLite `ai_matches`），服务重启后
+  查询/回放不中断；保留最近 1000 场，超出自动裁剪。
 
 响应示例（`?side=A` 只留 A 侧）：
 
@@ -354,4 +354,4 @@ sock.on('bot:match_end', (d) => console.log('result:', d.result, d.stats));
 - `protocolVersion` 当前为 `1`。服务器升级协议时会递增版本号；
   不匹配版本的连接在握手或首条消息即被拒绝（`bot:error` / `connect_error`）。
 - 阶段 2 规划：token 盘 / 协处理器改装接入、三赛道分组（车手 / 底盘 /
-  动力单元）与 parity 申报、trace 持久化与 benchmark 报告。
+  动力单元）与 parity 申报、benchmark 报告（trace 已持久化）。

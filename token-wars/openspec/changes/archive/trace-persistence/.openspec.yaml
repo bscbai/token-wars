@@ -1,0 +1,4 @@
+schema: spec-driven
+name: trace-persistence
+description: 阶段 2b — 对局遥测 trace 持久化（SQLite 落库 + 重启恢复）
+created: 2026-10-13
