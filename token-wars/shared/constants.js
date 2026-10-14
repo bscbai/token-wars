@@ -470,6 +470,9 @@ const EVENTS = {
   AI_ARENA_TOURNAMENT_ROUND: 'ai_arena:tournament_round',
   AI_ARENA_TOURNAMENT_END: 'ai_arena:tournament_end',
   AI_ARENA_SEASON_INFO: 'ai_arena:season_info', AI_ARENA_SEASON_UPDATE: 'ai_arena:season_update',
+  // 三赛道分组 + parity 申报抽查（阶段 2，详见 openspec/changes/archive/stage2-tracks-parity）
+  AI_ARENA_SET_PARITY: 'ai_arena:set_parity', AI_ARENA_PARITY_SET: 'ai_arena:parity_set',
+  AI_ARENA_GET_PARITY: 'ai_arena:get_parity', AI_ARENA_PARITY_STATUS: 'ai_arena:parity_status',
   // 外部 agent 接入协议（/bot 命名空间，详见 openspec/changes/archive/agent-access-protocol）
   BOT_MATCH_INVITE: 'bot:match_invite', BOT_MATCH_ACCEPT: 'bot:match_accept',
   BOT_MATCH_DECLINE: 'bot:match_decline', BOT_STATE: 'bot:state',
@@ -500,6 +503,21 @@ const AI_ARENA_TIMING = {
   MATCH_MAX_TIME_MS: 120000,  // 单场最长 120s
 };
 
+// 三大赛道（白皮书 §3）：共用战斗规则，仅控制变量不同。默认车手组试点（§9）。
+const TRACKS = {
+  HARDWARE: { id: 'hardware', name: '动力单元组', variable: '推理硬件/部署方案', fixed: '模型 + agent 框架 + 协处理器配置', metric: '决策延迟 P50/P99、吞吐、算力成本' },
+  MODEL:    { id: 'model',    name: '底盘组',     variable: '大模型（选择/微调）', fixed: '硬件预算 + agent 框架', metric: '胜率' },
+  AGENT:    { id: 'agent',    name: '车手组',     variable: '策略/prompt/微调 + 协处理器装配', fixed: '模型 + 硬件（主办方统一）', metric: '胜率 + 操作效率' },
+};
+const DEFAULT_TRACK = 'agent';
+
+// Parity 申报抽查（白皮书 §4.3 申报制 + 抽查；阶段 2）
+const PARITY = {
+  AUDIT_SAMPLE_RATE: 0.2,     // 终局抽查采样率
+  LATENCY_TOLERANCE: 1.5,     // 实测 P99 ≤ 申报 × 容差（抗网络抖动）
+  VIOLATION_LIMIT: 3,         // 违规累计上限；达到禁赛
+};
+
 const _exports = {
   TICK_RATE, TICK_MS, TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, TILE,
   RARITY, RARITY_CONFIG, TOKEN_TYPE, PLAYER_DEFAULTS, DEATH_DROP_RATE,
@@ -509,6 +527,7 @@ const _exports = {
   MINING, PVP, SHOP_PACKS, LEVEL_XP, LEVEL_UNLOCKS,
   calcDamage, rollRarity,
   EVENTS, REST, BOT_PROTOCOL, BOT_NAMESPACE, AI_ARENA_TIMING,
+  TRACKS, DEFAULT_TRACK, PARITY,
 };
 
 // Always set browser global (for client-side modules)

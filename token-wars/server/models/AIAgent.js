@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const {
   RARITY_CONFIG, SKILLS, COPROCESSORS, calcDamage,
-  MAP_WIDTH, MAP_HEIGHT, TILE, PLAYER_DEFAULTS,
+  MAP_WIDTH, MAP_HEIGHT, TILE, PLAYER_DEFAULTS, DEFAULT_TRACK,
 } = require('../../shared/constants');
 
 // AI training levels
@@ -50,7 +50,7 @@ const AI_DECISIONS = {
 };
 
 class AIAgent {
-  constructor(playerId, tokenDisk, playerName) {
+  constructor(playerId, tokenDisk, playerName, track = DEFAULT_TRACK) {
     this.id = uuidv4();
     this.playerId = playerId;
     this.playerName = playerName;
@@ -112,6 +112,13 @@ class AIAgent {
     this.external = false;
     this.brain = null;
     this._declineUntil = 0; // decline 后的邀请冷却截止（ms epoch）
+
+    // 三赛道分组 + parity 申报抽查（阶段 2）：track 缺省车手组（白皮书 §9 试点）；
+    // 申报制非门槛——未申报可对局，抽查记 undeclared
+    this.track = track;
+    this.parityDeclaration = null; // { model, hardware, tokensPerDecision, latencyBudgetMs, spec, at }
+    this.parityFlags = 0;          // 累计违规次数
+    this.paritySuspended = false;  // 达 PARITY.VIOLATION_LIMIT 禁赛
 
     // Co-processor tokens assigned
     this.coprocessors = [];
@@ -299,6 +306,8 @@ class AIAgent {
       deployed: this.deployed,
       specialBehavior: this.specialBehavior,
       tokenDiskSize: this.tokenDisk.filter(t => t !== null).length,
+      track: this.track,
+      paritySuspended: this.paritySuspended,
     };
   }
 
@@ -312,6 +321,8 @@ class AIAgent {
       tokenDisk: this.tokenDisk,
       skills: this.skills,
       coprocessors: this.coprocessors,
+      parityDeclaration: this.parityDeclaration,
+      parityFlags: this.parityFlags,
     };
   }
 }

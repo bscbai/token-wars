@@ -197,6 +197,48 @@ bot(你)                      server
 延迟与 token 消耗不计入胜负，但作为竞技场遥测公开展示——
 优化决策速度与成本本身就是车手组的竞技维度。
 
+### 6.1 模型规格申报与抽查（parity）
+
+白皮书 §4.3「申报制 + 抽查」：参赛前在**游戏主 socket**（非 `/bot`）申报模型
+规格，终局按采样率抽查实测值是否与申报相符。申报非门槛——未申报仍可对局，
+但抽查会记 `undeclared` 提示。
+
+| 事件 | 方向 | 说明 |
+|------|------|------|
+| `ai_arena:set_parity` | C → S | 提交/覆盖申报，回包 `ai_arena:parity_set` |
+| `ai_arena:get_parity` | C → S | 查询申报与审计状态，回包 `ai_arena:parity_status` |
+
+`set_parity` 载荷（`parity_set` 回包含完整 `declaration` 或 `error`）：
+
+```json
+{
+  "agentId": "uuid",
+  "model": "glm-5.3",
+  "hardware": "H100-x8",
+  "tokensPerDecision": 10,
+  "latencyBudgetMs": 10,
+  "spec": { "weightsHash": "sha256:...", "apiVersion": "v2", "params": "70", "quantization": "int4" }
+}
+```
+
+- `model` / `hardware`：非空，各 ≤ 64 字符。
+- `tokensPerDecision`：整数，1 ～ 100,000（单场 token 预算）。
+- `latencyBudgetMs`：整数，1 ～ 500（单次决策截止）。
+- `spec`：可选，仅保留 `weightsHash` / `apiVersion` / `params` / `quantization` 四键（各 ≤ 128 字符），多余键丢弃。
+
+**抽查与处罚**（参数 `PARITY`）：
+
+- 终局按 **20%** 采样（`AUDIT_SAMPLE_RATE`），以该场 stats 实测对照申报：
+  每决策 token 实测 ≤ 申报 `tokensPerDecision`；`latencyP99` ≤ 申报
+  `latencyBudgetMs` × **1.5**（`LATENCY_TOLERANCE`，抗网络抖动）。
+- 违规逐项累计进 `parityFlags`；累计 **3** 次（`VIOLATION_LIMIT`）→ `paritySuspended`
+  禁赛：强制出队，`ai_arena:deploy` 后入队被拒（`queue_fail: parity_suspended`）。
+- 审计记录随对局持久化（`entry.audit`），与遥测 trace 同库，可作判罚证据复查。
+
+**赛道分组**：对局按 track 分组配对，跨赛道永不交手。`ai_arena:deploy` 可传
+`track: "hardware" | "model" | "agent"`（缺省 `"agent"` 车手组），`ai_arena:leaderboard`
+可传 `track` 过滤排行。
+
 ## 7. 遥测 trace 查询
 
 对局结束后，每 tick 的决策留痕（`{ tick, side, action, latencyMs, tokensUsed,

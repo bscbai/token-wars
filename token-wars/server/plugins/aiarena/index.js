@@ -20,7 +20,7 @@ const { makeBotRouter } = require('../../routes/bot');
 const { makeAiarenaRouter } = require('../../routes/aiarena');
 const guard = require('../../middleware/eventGuard');
 const { EVENTS } = require('../../../shared/protocol');
-const { BOT_NAMESPACE, TICK_RATE } = require('../../../shared/constants');
+const { BOT_NAMESPACE, TICK_RATE, BOT_PROTOCOL } = require('../../../shared/constants');
 
 module.exports = {
   name: 'aiarena',
@@ -40,21 +40,32 @@ module.exports = {
     });
 
     // 玩家级路由（原 AIArenaManager.registerSocket 的 guard.on 迁移，schema 原样）
-    const deploySchema   = { tokenDisk: { type: 'any', required: true } };
+    const deploySchema   = { tokenDisk: { type: 'any', required: true }, track: { type: 'string', maxLength: 16 } };
     const agentIdSchema  = { agentId: { type: 'string', maxLength: 100, required: true } };
     const behaviorSchema = { agentId: { type: 'string', maxLength: 100, required: true }, behaviorId: { type: 'string', maxLength: 50, required: true } };
     const nameSchema     = { agentId: { type: 'string', maxLength: 100, required: true }, name: { type: 'string', maxLength: 64, required: true } };
     const replaySchema   = { matchId: { type: 'string', maxLength: 200, required: true } };
+    // parity 申报（阶段 2）：数值边界与 BOT_PROTOCOL 常量对齐
+    const paritySchema   = {
+      agentId: { type: 'string', maxLength: 100, required: true },
+      model: { type: 'string', maxLength: 64, required: true },
+      hardware: { type: 'string', maxLength: 64, required: true },
+      tokensPerDecision: { type: 'number', integer: true, min: 1, max: BOT_PROTOCOL.TOKEN_BUDGET_DEFAULT, required: true },
+      latencyBudgetMs: { type: 'number', integer: true, min: 1, max: BOT_PROTOCOL.DECISION_DEADLINE_MS, required: true },
+      spec: { type: 'any' },
+    };
 
-    ctx.socket(EVENTS.AI_ARENA_DEPLOY,        deploySchema,   ({ tokenDisk }, { player }) => aiarena.deployAgent(player.id, tokenDisk), 'economy');
+    ctx.socket(EVENTS.AI_ARENA_DEPLOY,        deploySchema,   ({ tokenDisk, track }, { player }) => aiarena.deployAgent(player.id, tokenDisk, track), 'economy');
     ctx.socket(EVENTS.AI_ARENA_RECALL,         agentIdSchema,  ({ agentId }, { player }) => aiarena.recallAgent(player.id, agentId), 'economy');
     ctx.socket(EVENTS.AI_ARENA_TRAIN,          agentIdSchema,  ({ agentId }, { player }) => aiarena.startTrainingMatch(player.id, agentId), 'economy');
     ctx.socket(EVENTS.AI_ARENA_SET_BEHAVIOR,   behaviorSchema, ({ agentId, behaviorId }, { player }) => aiarena.setAgentBehavior(player.id, agentId, behaviorId), 'economy');
     ctx.socket(EVENTS.AI_ARENA_NAME_AGENT,     nameSchema,     ({ agentId, name }, { player }) => aiarena.nameAgent(player.id, agentId, name), 'economy');
+    ctx.socket(EVENTS.AI_ARENA_SET_PARITY,     paritySchema,   (payload, { player }) => aiarena.setParityDeclaration(player.id, payload.agentId, payload), 'economy');
+    ctx.socket(EVENTS.AI_ARENA_GET_PARITY,     agentIdSchema,  ({ agentId }, { player }) => aiarena.sendParityStatus(player.id, agentId), 'query');
     ctx.socket(EVENTS.AI_ARENA_MATCH_HISTORY,  agentIdSchema,  ({ agentId }, { player }) => aiarena.sendMatchHistory(player.id, agentId), 'query');
     ctx.socket(EVENTS.AI_ARENA_GET_AGENTS,     null,           (_p, { player }) => aiarena.sendAgentList(player.id), 'query');
     ctx.socket(EVENTS.AI_ARENA_GET_REPLAY,     replaySchema,   ({ matchId }, { player }) => aiarena.sendReplay(player.id, matchId), 'query');
-    ctx.socket(EVENTS.AI_ARENA_LEADERBOARD,    null,           (_p, { player }) => aiarena.sendLeaderboard(player.id), 'query');
+    ctx.socket(EVENTS.AI_ARENA_LEADERBOARD,    { track: { type: 'string', maxLength: 16 } }, (p, { player }) => aiarena.sendLeaderboard(player.id, { track: p && p.track }), 'query');
     ctx.socket(EVENTS.AI_ARENA_TOURNAMENT,     null,           (_p, { player }) => aiarena.sendTournamentState(player.id), 'query');
     ctx.socket(EVENTS.AI_ARENA_SEASON_INFO,    null,           (_p, { player }) => aiarena.sendSeasonInfo(player.id), 'query');
 

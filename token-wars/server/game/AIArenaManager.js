@@ -1,8 +1,11 @@
 const { AIAgent, AI_LEVELS, AI_DECISIONS } = require('../models/AIAgent');
-const { SKILLS, MAP_WIDTH, MAP_HEIGHT, TILE, PVP, BOT_PROTOCOL, AI_ARENA_TIMING } = require('../../shared/constants');
+const { SKILLS, MAP_WIDTH, MAP_HEIGHT, TILE, PVP, BOT_PROTOCOL, AI_ARENA_TIMING, TRACKS, DEFAULT_TRACK, PARITY } = require('../../shared/constants');
 const { EVENTS } = require('../../shared/protocol');
 const BuiltinBrain = require('./BuiltinBrain');
 const ExternalMatchRunner = require('./ExternalMatchRunner');
+
+// 三赛道 id 索引（阶段 2）：TRACKS 枚举的 KEY 形态 → 以 id 快速校验
+const TRACKS_BY_ID = Object.values(TRACKS).reduce((acc, t) => { acc[t.id] = t; return acc; }, {});
 
 // AI Arena constants
 const AI_MATCH_TICK_MS = AI_ARENA_TIMING.MATCH_TICK_MS; // Simulate at 20Hz
@@ -108,6 +111,7 @@ class AIArenaManager {
     this.combat = combatSystem;
     // 决策 brain：内置对局走权重脚本（BuiltinBrain）；可注入以支持对拍测试
     this.brain = options.brain || new BuiltinBrain();
+    this._rng = options.rng || null; // parity 抽查采样器（可注入以测试确定性）
     this.agents = new Map(); // agentId -> AIAgent
     this.playerAgents = new Map(); // playerId -> [agentIds]
     this.playerSockets = new Map(); // playerId -> socket
@@ -141,11 +145,13 @@ class AIArenaManager {
 
   // --- Agent Lifecycle ---
 
-  deployAgent(playerId, tokenDisk) {
+  deployAgent(playerId, tokenDisk, track = null) {
     const player = this.store.getPlayerById(playerId);
     if (!player) return;
 
-    const agent = new AIAgent(playerId, tokenDisk, player.username);
+    // 赛道（阶段 2）：缺省车手组；非法值回退默认
+    const trackId = track && TRACKS_BY_ID[track] ? track : DEFAULT_TRACK;
+    const agent = new AIAgent(playerId, tokenDisk, player.username, trackId);
     this.agents.set(agent.id, agent);
 
     if (!this.playerAgents.has(playerId)) {
@@ -240,6 +246,13 @@ class AIArenaManager {
   joinQueue(playerId, agentId) {
     const agent = this.agents.get(agentId);
     if (!agent || agent.inMatch) return;
+    if (agent.paritySuspended) {
+      const socket = this.playerSockets.get(playerId);
+      if (socket) {
+        socket.emit('ai_arena:queue_fail', { agentId, reason: 'parity_suspended' });
+      }
+      return;
+    }
     if (Date.now() < (agent._declineUntil || 0)) {
       const socket = this.playerSockets.get(playerId);
       if (socket) {
@@ -290,14 +303,31 @@ class AIArenaManager {
   tryMatch() {
     if (this.matchQueue.length < 2) return;
 
-    // Sort by AELO for fair matching
-    this.matchQueue.sort((a, b) => {
-      const agA = this.agents.get(a);
-      const agB = this.agents.get(b);
-      return (agA?.aelo || 0) - (agB?.aelo || 0);
-    });
+    // 同赛道配对（阶段 2）：按 track 分组、组内 AELO 邻近；跨赛道永不交手
+    const byTrack = new Map();
+    for (const id of this.matchQueue) {
+      const ag = this.agents.get(id);
+      if (!ag) continue;
+      const list = byTrack.get(ag.track) || [];
+      list.push(id);
+      byTrack.set(ag.track, list);
+    }
 
-    const matchedIds = this.matchQueue.splice(0, 2);
+    let matchedIds = null;
+    for (const list of byTrack.values()) {
+      if (list.length < 2) continue;
+      // Sort by AELO for fair matching
+      list.sort((a, b) => {
+        const agA = this.agents.get(a);
+        const agB = this.agents.get(b);
+        return (agA?.aelo || 0) - (agB?.aelo || 0);
+      });
+      matchedIds = list.slice(0, 2);
+      break;
+    }
+    if (!matchedIds) return;
+    this.matchQueue = this.matchQueue.filter((id) => !matchedIds.includes(id));
+
     const agentA = this.agents.get(matchedIds[0]);
     const agentB = this.agents.get(matchedIds[1]);
 
@@ -594,8 +624,11 @@ class AIArenaManager {
         spawnA: map.spawnA,
         spawnB: map.spawnB,
       },
+      track: agentA.track, // 三赛道分组（阶段 2）：配对已保证双方同赛道
       saved: Date.now(),
     };
+    // parity 抽查（阶段 2）：采样 + 实测对照申报，审计证据随对局持久化
+    entry.audit = this._auditParity(match, agentA, agentB);
     this.matchHistory.push(entry);
     if (this.matchHistory.length > this.maxHistoryLength) {
       this.matchHistory.shift();
@@ -767,6 +800,7 @@ class AIArenaManager {
       winnerId: match.winner,
       totalTicks: match.totalTicks,
       external: !!match.external,
+      track: match.track || null,
       traceCount: (match.trace || []).length,
       saved: match.saved,
     };
@@ -799,6 +833,99 @@ class AIArenaManager {
     if (rows.length > 0) {
       console.log(`[AI Arena] Restored ${rows.length} archived matches`);
     }
+  }
+
+  // --- 三赛道 + parity 申报抽查（阶段 2，openspec/changes/archive/stage2-tracks-parity）---
+
+  /** 模型规格申报（白皮书 §4.3）：业务校验后覆盖写入；回包 ai_arena:parity_set */
+  setParityDeclaration(playerId, agentId, decl) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return this._replyParity(playerId, agentId, { error: 'forbidden' });
+
+    const model = String(decl.model || '').slice(0, 64);
+    const hardware = String(decl.hardware || '').slice(0, 64);
+    const tokensPerDecision = Number(decl.tokensPerDecision);
+    const latencyBudgetMs = Number(decl.latencyBudgetMs);
+    if (!model || !hardware) return this._replyParity(playerId, agentId, { error: 'invalid_declaration' });
+    if (!Number.isInteger(tokensPerDecision) || tokensPerDecision < 1 ||
+        tokensPerDecision > BOT_PROTOCOL.TOKEN_BUDGET_DEFAULT) return this._replyParity(playerId, agentId, { error: 'invalid_declaration' });
+    if (!Number.isInteger(latencyBudgetMs) || latencyBudgetMs < 1 ||
+        latencyBudgetMs > BOT_PROTOCOL.DECISION_DEADLINE_MS) return this._replyParity(playerId, agentId, { error: 'invalid_declaration' });
+
+    // spec 扩展位白名单（weightsHash 开源 / apiVersion 闭源 / params / quantization）
+    const specIn = decl.spec && typeof decl.spec === 'object' ? decl.spec : {};
+    const spec = {};
+    for (const key of ['weightsHash', 'apiVersion', 'params', 'quantization']) {
+      if (specIn[key] != null) spec[key] = String(specIn[key]).slice(0, 128);
+    }
+
+    agent.parityDeclaration = { model, hardware, tokensPerDecision, latencyBudgetMs, spec, at: Date.now() };
+    return this._replyParity(playerId, agentId, { declaration: agent.parityDeclaration });
+  }
+
+  /** 本人 agent 的申报 + 审计状态查询 */
+  getParityStatus(playerId, agentId) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return { error: 'forbidden' };
+    return {
+      agentId,
+      track: agent.track,
+      declaration: agent.parityDeclaration,
+      parityFlags: agent.parityFlags,
+      paritySuspended: agent.paritySuspended,
+    };
+  }
+
+  /** 查询并回包 ai_arena:parity_status（get_parity 事件的推送出口） */
+  sendParityStatus(playerId, agentId) {
+    return this._replyParity(playerId, agentId, this.getParityStatus(playerId, agentId), EVENTS.AI_ARENA_PARITY_STATUS);
+  }
+
+  _replyParity(playerId, agentId, result, event = EVENTS.AI_ARENA_PARITY_SET) {
+    const socket = this.playerSockets.get(playerId);
+    if (socket) socket.emit(event, { agentId, ...result });
+    return result;
+  }
+
+  /**
+   * 终局抽查（白皮书 §4.3 申报制 + 抽查）：按 AUDIT_SAMPLE_RATE 采样，
+   * 以该场 stats 实测值对照申报值；违规累计进 agent.parityFlags，
+   * 达 VIOLATION_LIMIT 禁赛（出队 + 入队拒绝）。返回审计记录数组（未抽中 = null）。
+   */
+  _auditParity(match, agentA, agentB) {
+    const rng = this._rng || Math.random;
+    if (rng() >= PARITY.AUDIT_SAMPLE_RATE) return null;
+
+    const audits = [];
+    for (const [side, agent] of [['A', agentA], ['B', agentB]]) {
+      const stats = match.stats && match.stats[side];
+      if (!stats) continue; // 内置对局无 stats → 不可审计
+      const checks = [];
+      const violations = [];
+      const decl = agent.parityDeclaration;
+      if (!decl) {
+        checks.push('undeclared'); // 提示而非违规（申报非门槛，见 design D5）
+      } else {
+        const perDecision = stats.decisions > 0 ? stats.tokensUsed / stats.decisions : 0;
+        checks.push({ item: 'tokensPerDecision', declared: decl.tokensPerDecision, measured: perDecision });
+        if (perDecision > decl.tokensPerDecision) violations.push('tokensPerDecision');
+
+        const p99 = stats.latencyP99Ms || 0;
+        checks.push({ item: 'latencyP99', declared: decl.latencyBudgetMs, measured: p99 });
+        if (p99 > decl.latencyBudgetMs * PARITY.LATENCY_TOLERANCE) violations.push('latencyP99');
+      }
+
+      if (violations.length > 0) {
+        agent.parityFlags += violations.length;
+        if (agent.parityFlags >= PARITY.VIOLATION_LIMIT && !agent.paritySuspended) {
+          agent.paritySuspended = true;
+          this.leaveQueue(agent.id);
+          console.log(`[AI Arena] Parity suspended: ${agent.name} (${agent.id.slice(0, 8)}), flags=${agent.parityFlags}`);
+        }
+      }
+      audits.push({ agentId: agent.id, side, checks, violations, at: Date.now() });
+    }
+    return audits;
   }
 
   // --- 遥测 trace 查询（阶段 2a，REST /api/ai-arena）---
@@ -1081,10 +1208,11 @@ class AIArenaManager {
     this.io.emit(event, data);
   }
 
-  sendLeaderboard(playerId) {
-    const board = this.getLeaderboard(20);
+  sendLeaderboard(playerId, { track } = {}) {
+    const t = track && TRACKS_BY_ID[track] ? track : null; // 非法赛道值按全量处理
+    const board = this.getLeaderboard(20, t);
     const socket = this.playerSockets.get(playerId);
-    if (socket) socket.emit('ai_arena:leaderboard', { entries: board });
+    if (socket) socket.emit('ai_arena:leaderboard', { entries: board, track: t });
   }
 
   // --- Admin / Query Methods ---
@@ -1099,8 +1227,9 @@ class AIArenaManager {
     return agents.find(a => a.deployed) || null;
   }
 
-  getLeaderboard(limit = 20) {
+  getLeaderboard(limit = 20, track = null) {
     const sorted = Array.from(this.agents.values())
+      .filter(a => !track || a.track === track) // 三赛道分组（阶段 2）：缺省全量
       .sort((a, b) => b.aelo - a.aelo)
       .slice(0, limit);
     return sorted.map(a => ({
@@ -1111,6 +1240,7 @@ class AIArenaManager {
       losses: a.losses,
       level: a.level.stars,
       specialBehavior: a.specialBehavior,
+      track: a.track,
     }));
   }
 
