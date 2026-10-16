@@ -26,7 +26,7 @@ function makePlayerRouter({ store, verifySession }) {
     // Check if already claimed today
     const today = new Date().toDateString();
     if (player.lastDailyClaim === today) {
-      return res.status(400).json({ error: '今日已领取' });
+      return res.status(400).json({ error: 'Daily reward already claimed' });
     }
 
     const amount = 50;

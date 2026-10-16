@@ -36,7 +36,7 @@ class PvEManager {
 
     // Check if already in dungeon
     if (this.playerDungeons.has(playerId)) {
-      socket.emit(EVENTS.ERROR, { message: '已经在副本中', code: 'IN_DUNGEON' });
+      socket.emit(EVENTS.ERROR, { message: 'Already in a dungeon', code: 'IN_DUNGEON' });
       return;
     }
 

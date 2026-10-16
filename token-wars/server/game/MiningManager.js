@@ -57,7 +57,7 @@ class MiningManager {
     const amount = player.pendingMiningTokens;
     if (amount <= 0) {
       const socket = this.playerSockets.get(playerId);
-      if (socket) socket.emit(EVENTS.ERROR, { message: '没有可收集的Token', code: 'MINING_EMPTY' });
+      if (socket) socket.emit(EVENTS.ERROR, { message: 'No tokens to collect', code: 'MINING_EMPTY' });
       return;
     }
 
@@ -83,7 +83,7 @@ class MiningManager {
     const currentLevel = player.miningLevel;
     if (currentLevel >= MINING.LEVELS.length) {
       const socket = this.playerSockets.get(playerId);
-      if (socket) socket.emit(EVENTS.ERROR, { message: '已达到最高等级', code: 'MAX_LEVEL' });
+      if (socket) socket.emit(EVENTS.ERROR, { message: 'Max level reached', code: 'MAX_LEVEL' });
       return;
     }
 
@@ -94,7 +94,7 @@ class MiningManager {
     const matchingTokens = player.stableTokens.filter(t => t.rarity === costRarity);
     if (matchingTokens.length < nextConfig.cost) {
       const socket = this.playerSockets.get(playerId);
-      if (socket) socket.emit(EVENTS.ERROR, { message: 'Token不足', code: 'INSUFFICIENT_TOKENS' });
+      if (socket) socket.emit(EVENTS.ERROR, { message: 'Not enough tokens', code: 'INSUFFICIENT_TOKENS' });
       return;
     }
 
