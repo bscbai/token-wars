@@ -223,6 +223,20 @@ export const messages = {
 
     // In-battle HUD
     'hud.unstable': 'Unstable: {n}',
+
+    // Combat scene
+    'combat.room': 'Room {a} / {b}',
+    'combat.roomN': 'Room {n}',
+    'combat.roomCleared': 'Room {n} cleared!',
+    'combat.defeated': 'You were defeated',
+    'combat.respawnIn': 'Respawning in {s}s...',
+    'combat.lostTokensLine': 'Lost {n} stable tokens',
+    'combat.dungeonComplete': 'Dungeon Complete!',
+    'combat.returnLobby': '[ Return to Lobby ]',
+    'combat.exitDungeon': '< Leave Dungeon',
+    'combat.rewardsTitle': 'Rewards:',
+    'combat.rewardUnstable': '+{n} unstable tokens',
+    'combat.rewardXp': '+{n} XP',
   },
   zh: {
     // Shared
@@ -432,6 +446,20 @@ export const messages = {
 
     // In-battle HUD
     'hud.unstable': '不稳定Token: {n}',
+
+    // Combat scene
+    'combat.room': '房间 {a} / {b}',
+    'combat.roomN': '房间 {n}',
+    'combat.roomCleared': '房间 {n} 清除完毕!',
+    'combat.defeated': '你被击败了',
+    'combat.respawnIn': '{s}秒后重生...',
+    'combat.lostTokensLine': '丢失了 {n} 个稳定Token',
+    'combat.dungeonComplete': '副本完成!',
+    'combat.returnLobby': '[ 返回大厅 ]',
+    'combat.exitDungeon': '< 退出副本',
+    'combat.rewardsTitle': '奖励:',
+    'combat.rewardUnstable': '+{n} 不稳定Token',
+    'combat.rewardXp': '+{n} XP',
   },
 };
 

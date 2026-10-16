@@ -6,6 +6,7 @@ import { Projectile } from '../entities/Projectile.js';
 import { HUD } from '../ui/HUD.js';
 import { SkillBar } from '../ui/SkillBar.js';
 import { MAP_WIDTH, MAP_HEIGHT, TILE, SKILLS } from '../shared.js';
+import { t, onLangChange } from '../i18n.js';
 
 export class CombatScene extends Phaser.Scene {
   constructor() {
@@ -69,17 +70,21 @@ export class CombatScene extends Phaser.Scene {
 
     // Room info
     const roomIdx = this.dungeonData.roomIndex || 0;
-    const totalRooms = 4; // from template
-    this.hud.setStatus(`房间 ${roomIdx + 1} / ${totalRooms}`);
+    this.totalRooms = 4; // from template
+    this.roomNum = roomIdx + 1;
+    this._deathDropped = 0;
+    this._respawnRemaining = 5;
+    this._victoryRewardsData = null;
+    this.hud.setStatus(t('combat.room', { a: this.roomNum, b: this.totalRooms }));
 
     // Death overlay (hidden)
     this.deathOverlay = this.add.container(480, 320);
     this.deathOverlay.setDepth(100);
     const deathBg = this.add.rectangle(0, 0, 400, 200, 0x000000, 0.8);
-    this.deathText = this.add.text(0, -30, '你被击败了', {
+    this.deathText = this.add.text(0, -30, t('combat.defeated'), {
       fontSize: '28px', fontFamily: 'Courier New', color: '#ff4444', fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.respawnText = this.add.text(0, 20, '5秒后重生...', {
+    this.respawnText = this.add.text(0, 20, t('combat.respawnIn', { s: 5 }), {
       fontSize: '16px', fontFamily: 'Courier New', color: '#888888',
     }).setOrigin(0.5);
     this.deathOverlay.add([deathBg, this.deathText, this.respawnText]);
@@ -89,26 +94,55 @@ export class CombatScene extends Phaser.Scene {
     this.victoryOverlay = this.add.container(480, 320);
     this.victoryOverlay.setDepth(100);
     const victoryBg = this.add.rectangle(0, 0, 500, 250, 0x000000, 0.8);
-    this.victoryText = this.add.text(0, -60, '副本完成!', {
+    this.victoryText = this.add.text(0, -60, t('combat.dungeonComplete'), {
       fontSize: '32px', fontFamily: 'Courier New', color: '#00ff88', fontStyle: 'bold',
     }).setOrigin(0.5);
     this.victoryRewards = this.add.text(0, 0, '', {
       fontSize: '16px', fontFamily: 'Courier New', color: '#ffaa00',
     }).setOrigin(0.5);
-    const returnBtn = this.add.text(0, 60, '[ 返回大厅 ]', {
+    this.returnBtn = this.add.text(0, 60, t('combat.returnLobby'), {
       fontSize: '18px', fontFamily: 'Courier New', color: '#00ff88',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    returnBtn.on('pointerdown', () => {
+    this.returnBtn.on('pointerdown', () => {
       this.scene.start('LobbyScene', { player: this.playerData });
     });
-    this.victoryOverlay.add([victoryBg, this.victoryText, this.victoryRewards, returnBtn]);
+    this.victoryOverlay.add([victoryBg, this.victoryText, this.victoryRewards, this.returnBtn]);
     this.victoryOverlay.setVisible(false);
 
     // Back button
-    this.add.text(20, 620, '< 退出副本', {
+    this.exitText = this.add.text(20, 620, t('combat.exitDungeon'), {
       fontSize: '12px', fontFamily: 'Courier New', color: '#666',
     }).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.scene.start('LobbyScene', { player: this.playerData }));
+
+    // Live language switching: overlay/exit labels re-render instantly
+    this._offLang = onLangChange(() => this.applyLang());
+    this.events.once('shutdown', () => { if (this._offLang) this._offLang(); });
+  }
+
+  applyLang() {
+    this.deathText.setText(t('combat.defeated'));
+    this.respawnText.setText(this.deathRespawnText());
+    this.victoryText.setText(t('combat.dungeonComplete'));
+    this.returnBtn.setText(t('combat.returnLobby'));
+    this.exitText.setText(t('combat.exitDungeon'));
+    if (this._victoryRewardsData) this.setVictoryRewards(this._victoryRewardsData);
+    // 房间状态条（可能短暂覆盖「清除完毕」瞬态提示，下一条服务端事件会刷新）
+    this.hud.setStatus(t('combat.room', { a: this.roomNum, b: this.totalRooms }));
+  }
+
+  deathRespawnText() {
+    const line = t('combat.lostTokensLine', { n: this._deathDropped });
+    return `${line}\n${t('combat.respawnIn', { s: this._respawnRemaining })}`;
+  }
+
+  setVictoryRewards(r) {
+    this._victoryRewardsData = r;
+    this.victoryRewards.setText([
+      t('combat.rewardsTitle'),
+      t('combat.rewardUnstable', { n: r.unstable }),
+      t('combat.rewardXp', { n: r.xp }),
+    ].join('\n'));
   }
 
   update() {
@@ -253,9 +287,11 @@ export class CombatScene extends Phaser.Scene {
 
     net.on('player:dead', (data) => {
       this.deathOverlay.setVisible(true);
-      this.deathText.setText('你被击败了');
+      this.deathText.setText(t('combat.defeated'));
       const dropped = data.droppedTokens?.length || 0;
-      this.respawnText.setText(`丢失了 ${dropped} 个稳定Token\n5秒后重生...`);
+      this._deathDropped = dropped;
+      this._respawnRemaining = 5;
+      this.respawnText.setText(this.deathRespawnText());
 
       // Countdown
       let countdown = 5;
@@ -264,7 +300,8 @@ export class CombatScene extends Phaser.Scene {
         repeat: 4,
         callback: () => {
           countdown--;
-          this.respawnText.setText(`丢失了 ${dropped} 个稳定Token\n${countdown}秒后重生...`);
+          this._respawnRemaining = countdown;
+          this.respawnText.setText(this.deathRespawnText());
         },
       });
     });
@@ -276,7 +313,7 @@ export class CombatScene extends Phaser.Scene {
     });
 
     net.on('dungeon:room_clear', (data) => {
-      this.hud.setStatus(`房间 ${data.nextRoom + 1} 清除完毕!`);
+      this.hud.setStatus(t('combat.roomCleared', { n: data.nextRoom + 1 }));
     });
 
     net.on('dungeon:start', (data) => {
@@ -299,10 +336,7 @@ export class CombatScene extends Phaser.Scene {
 
     net.on('dungeon:complete', (data) => {
       this.victoryOverlay.setVisible(true);
-      const r = data.rewards;
-      this.victoryRewards.setText(
-        `奖励:\n+${r.unstable} 不稳定Token\n+${r.xp} XP`
-      );
+      this.setVictoryRewards(data.rewards);
     });
 
     net.on('projectile:spawn', (data) => {
@@ -366,7 +400,8 @@ export class CombatScene extends Phaser.Scene {
 
   _spawnNewRoom(data) {
     this.renderMap(data.mapData);
-    this.hud.setStatus(`房间 ${(data.roomIndex || 0) + 1}`);
+    this.roomNum = (data.roomIndex || 0) + 1;
+    this.hud.setStatus(t('combat.roomN', { n: this.roomNum }));
     if (data.monsters) {
       for (const m of data.monsters) {
         const sprite = new MonsterSprite(this, m);

@@ -57,7 +57,15 @@ if (!executablePath) {
   const verdict = await page.evaluate(async () => {
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
     const g = window.__game;
-    const texts = (key) => g.scene.keys[key].children.list.filter(o => o.type === 'Text').map(o => o.text);
+    const gather = (o, acc) => {
+    if (o.type === 'Text') acc.push(o.text);
+    if (Array.isArray(o.list)) for (const c of o.list) gather(c, acc);
+    return acc;
+  };
+  const texts = (key) => {
+    const s = g.scene.keys[key];
+    return s ? s.children.list.reduce((acc, o) => gather(o, acc), []) : [];
+  };
     const has = (arr, pred) => arr.some(x => typeof pred === 'string' ? x === pred : pred(x));
     const lobby = g.scene.keys.LobbyScene;
     const out = { checks: [] };
@@ -150,6 +158,26 @@ if (!executablePath) {
     await toggle();
     const it1 = texts('InventoryScene');
     check('zh inv', has(it1, '🎒 背包 & 技能盘') && has(it1, '稳定Token背包') && has(it1, '[Q] 基础攻击'));
+    await toggle();
+
+    // Combat：以最小 mock 数据直启（覆盖层文本隐藏但仍在 children；mapData 可空）
+    lobby.scene.start('CombatScene', {
+      player: lobby.playerData,
+      dungeonData: { mapData: null, playerPos: { x: 1, y: 1 }, monsters: [] },
+      mode: 'pve',
+    });
+    await sleep(1200);
+    const ct0 = texts('CombatScene');
+    check('en combat room', has(ct0, 'Room 1 / 4'));
+    check('en combat death', has(ct0, 'You were defeated'));
+    check('en combat respawn', has(ct0, 'Respawning in 5s...'));
+    check('en combat victory', has(ct0, 'Dungeon Complete!'));
+    check('en combat return', has(ct0, '[ Return to Lobby ]'));
+    check('en combat exit', has(ct0, '< Leave Dungeon'));
+    check('en combat hud unstable', has(ct0, x => x.startsWith('Unstable:')));
+    await toggle();
+    const ct1 = texts('CombatScene');
+    check('zh combat', has(ct1, '房间 1 / 4') && has(ct1, '你被击败了') && has(ct1, '副本完成!') && has(ct1, '< 退出副本'));
     await toggle();
     return out;
   });
