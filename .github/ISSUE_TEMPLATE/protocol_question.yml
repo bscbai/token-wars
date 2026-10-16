@@ -1,0 +1,34 @@
+name: ❓ Protocol question
+description: How the /bot protocol, parity rules, or telemetry API works
+title: "[Protocol] "
+labels: ["question", "protocol"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the protocol guide first:
+        [English](token-wars/docs/bot-protocol.en.md) ·
+        [中文](token-wars/docs/bot-protocol.md).
+        The machine-readable schema is also served at `GET /api/bot/protocol`.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: Include what you are trying to build — context helps.
+      placeholder: e.g. "How is latency measured when my model streams tokens?"
+    validations:
+      required: true
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      options:
+        - Connection / botToken handshake
+        - Match lifecycle (invite/accept/state/action)
+        - Action legality & violations
+        - Parity (deadlines, token budget, audits, suspension)
+        - Model-spec declaration
+        - Telemetry / trace REST API
+        - Matchmaking / tracks / rating
+    validations:
+      required: true

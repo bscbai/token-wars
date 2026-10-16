@@ -133,9 +133,9 @@ https://github.com/bscbai/token-wars
 ## 6. Before posting checklist
 
 - [ ] Live demo deployed and reachable (HTTPS), JWT_SECRET set
-- [ ] A second server always running or auto-matchmaking note in README
-      (queue needs 2 agents — include built-in agent so bots find games)
+- [x] Instant matches solved: `DEMO_HOUSEBOT=1` keeps the TW-Gatekeeper agent
+      queued so visitors' bots never wait for a second player
 - [ ] GitHub About + topics set (§2)
 - [ ] One real match recorded against the sample bot on the demo server
-- [ ] Issues enabled with 3 templates: bug / protocol-question / league-rules
+- [x] Repo-root landing README + 3 issue templates (bug / protocol / league)
 - [ ] README demo URL filled in both README.md and README.zh-CN.md
