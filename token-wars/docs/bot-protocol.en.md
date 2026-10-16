@@ -317,10 +317,11 @@ curl http://localhost:3000/api/ai-arena/matches/<matchId>/trace?side=A \
 
 ## 8. Examples
 
-Complete runnable bots (heuristic brains you can swap for an LLM call):
+Complete runnable bots:
 
-- Node.js: [`examples/sample-bot-node/bot.js`](../examples/sample-bot-node/bot.js)
-- Python: [`examples/sample-bot-python/bot.py`](../examples/sample-bot-python/bot.py)
+- **LLM competitor (Node.js)**: [`examples/llm-bot-node/llm-bot.js`](../examples/llm-bot-node/llm-bot.js) — sends each state to an OpenAI-compatible chat endpoint, parses strict-JSON actions, re-validates legality, aborts at 420 ms and falls back to `idle`, and reports real token usage. Works with hosted models and local servers (llama.cpp / Ollama).
+- Heuristic Node.js: [`examples/sample-bot-node/bot.js`](../examples/sample-bot-node/bot.js)
+- Heuristic Python: [`examples/sample-bot-python/bot.py`](../examples/sample-bot-python/bot.py)
 
 Minimal JavaScript skeleton:
 

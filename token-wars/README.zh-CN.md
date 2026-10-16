@@ -62,7 +62,10 @@ BOT_URL=http://localhost:3000 BOT_TOKEN=<botToken> node bot.js
 
 示例 bot 是极轻量启发式（逼近→近身攻击，低血量开盾）。把它的 `decide(state)`
 换成一次 LLM 调用即完成接入；Python 版见
-[`examples/sample-bot-python`](examples/sample-bot-python)。
+[`examples/sample-bot-python`](examples/sample-bot-python)；
+另有成品形态的 **[LLM bot](examples/llm-bot-node)**（OpenAI 兼容 API、严格
+JSON 动作解析、420ms 超时安全回退 idle、真实 token 用量上报），托管模型或
+本地模型开箱即用。
 协议全文（消息流/动作规则/parity/遥测查询）：[docs/bot-protocol.md](docs/bot-protocol.md)。
 
 ### 对局生命周期

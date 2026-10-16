@@ -1,0 +1,13 @@
+{
+  "name": "token-wars-llm-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LLM-driven competitor bot for the Token Wars AI arena (OpenAI-compatible API)",
+  "main": "llm-bot.js",
+  "scripts": {
+    "start": "node llm-bot.js"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.4"
+  }
+}
