@@ -172,6 +172,57 @@ export const messages = {
     'dungeon.medium.rewards': 'Green–Blue unstable + stable tokens, rare co-processor chance',
     'dungeon.rewards': 'Rewards: {r}',
     'dungeon.enter': '[ Enter Dungeon ]',
+
+    // PvP scene
+    'pvp.title': '🏟  PvP Arena',
+    'pvp.rating': 'Rating: {n}',
+    'pvp.1v1.name': '1v1 Duel',
+    'pvp.1v1.desc': 'Best of 3 | bounded arena | shrinking zone',
+    'pvp.3v3.name': '3v3 Team Battle',
+    'pvp.3v3.desc': 'Single elimination | comeback mechanic | team roles',
+    'pvp.players': '{n} players',
+    'pvp.queue': '[ Join Queue ]',
+    'pvp.matching': 'Matching...',
+    'pvp.searchStatus': 'Finding a {name} opponent...',
+
+    // Shop scene
+    'shop.title': '🛒  Compute Shop',
+    'shop.credits': 'Credits: {n}',
+    'shop.daily': '[ Claim Daily Credits ]',
+    'shop.claimed': 'Claimed',
+    'shop.claimFail': 'Claim failed',
+    'shop.gained': '+{n} credits!',
+    'shop.networkError': 'Network error',
+    'shop.loadFailed': 'Failed to load shop',
+    'shop.pack.starter': 'Starter Pack',
+    'shop.pack.basic': 'Basic Compute Pack',
+    'shop.pack.premium': 'Premium Compute Pack',
+    'shop.pack.legendary': 'Legendary Compute Pack',
+    'shop.pack.ammo': 'Ammo Crate',
+    'shop.unstable': '{n} unstable tokens',
+    'shop.stable': '{n} stable tokens',
+    'shop.coprocessor': '1 co-processor token',
+    'shop.free': 'Free',
+    'shop.price': '{n} credits',
+    'shop.buy': '[ Buy ]',
+    'shop.buySuccess': 'Purchase complete! Received: ',
+    'shop.buyFail': 'Purchase failed: network error',
+
+    // Inventory scene
+    'inv.title': '🎒  Inventory & Skill Disk',
+    'inv.unstable': 'Unstable tokens (ammo): {n}',
+    'inv.stableBag': 'Stable token bag',
+    'inv.skillDisk': 'Skill disk (4×4)',
+    'inv.equipped': 'Equipped skills',
+
+    // Skill names (shared SKILLS constants are Chinese)
+    'skill.basic_attack': 'Basic Attack',
+    'skill.dodge_roll': 'Dodge Roll',
+    'skill.shield': 'Compute Shield',
+    'skill.token_burst': 'Token Burst',
+
+    // In-battle HUD
+    'hud.unstable': 'Unstable: {n}',
   },
   zh: {
     // Shared
@@ -330,6 +381,57 @@ export const messages = {
     'dungeon.medium.rewards': 'Green-Blue Unstable + Stable Token, 稀有协处理器概率',
     'dungeon.rewards': '奖励: {r}',
     'dungeon.enter': '[ 进入副本 ]',
+
+    // PvP scene
+    'pvp.title': '🏟 PvP 竞技场',
+    'pvp.rating': '当前评分: {n}',
+    'pvp.1v1.name': '1v1 决斗',
+    'pvp.1v1.desc': '三局两胜 | 有限场地 | 缩圈机制',
+    'pvp.3v3.name': '3v3 团队竞技',
+    'pvp.3v3.desc': '单局淘汰 | 绝境反击机制 | 角色配合',
+    'pvp.players': '{n}人',
+    'pvp.queue': '[ 加入匹配队列 ]',
+    'pvp.matching': '匹配中...',
+    'pvp.searchStatus': '正在寻找 {name} 对手...',
+
+    // Shop scene
+    'shop.title': '🛒 算力商城',
+    'shop.credits': '积分: {n}',
+    'shop.daily': '[ 领取每日积分 ]',
+    'shop.claimed': '已领取',
+    'shop.claimFail': '领取失败',
+    'shop.gained': '获得 {n} 积分!',
+    'shop.networkError': '网络错误',
+    'shop.loadFailed': '加载商城失败',
+    'shop.pack.starter': '新手礼包',
+    'shop.pack.basic': '基础算力包',
+    'shop.pack.premium': '高级算力包',
+    'shop.pack.legendary': '传说算力包',
+    'shop.pack.ammo': '弹药箱',
+    'shop.unstable': '{n} 不稳定Token',
+    'shop.stable': '{n} 稳定Token',
+    'shop.coprocessor': '1 协处理器Token',
+    'shop.free': '免费',
+    'shop.price': '{n} 积分',
+    'shop.buy': '[ 购买 ]',
+    'shop.buySuccess': '购买成功! 获得: ',
+    'shop.buyFail': '购买失败: 网络错误',
+
+    // Inventory scene
+    'inv.title': '🎒 背包 & 技能盘',
+    'inv.unstable': '不稳定Token (弹药): {n}',
+    'inv.stableBag': '稳定Token背包',
+    'inv.skillDisk': '技能盘 (4x4)',
+    'inv.equipped': '已装备技能',
+
+    // Skill names
+    'skill.basic_attack': '基础攻击',
+    'skill.dodge_roll': '闪避翻滚',
+    'skill.shield': '算力护盾',
+    'skill.token_burst': '算力爆发',
+
+    // In-battle HUD
+    'hud.unstable': '不稳定Token: {n}',
   },
 };
 

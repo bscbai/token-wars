@@ -108,6 +108,49 @@ if (!executablePath) {
     check('zh dungeon diff', has(dt, '简单') && has(dt, '中等'));
     check('zh dungeon enter', dt.filter(x => x === '[ 进入副本 ]').length === 2);
     await toggle();
+
+    await start('PvPScene');
+    const pt0 = texts('PvPScene');
+    check('en pvp title', has(pt0, '🏟  PvP Arena'));
+    check('en pvp rating', has(pt0, x => x.startsWith('Rating:')));
+    check('en pvp modes', has(pt0, '1v1 Duel') && has(pt0, '3v3 Team Battle'));
+    check('en pvp desc', has(pt0, 'Best of 3 | bounded arena | shrinking zone'));
+    check('en pvp players', has(pt0, '2 players') && has(pt0, '6 players'));
+    check('en pvp queue', pt0.filter(x => x === '[ Join Queue ]').length === 2);
+    await toggle();
+    const pt1 = texts('PvPScene');
+    check('zh pvp', has(pt1, '🏟 PvP 竞技场') && has(pt1, '1v1 决斗') && pt1.filter(x => x === '[ 加入匹配队列 ]').length === 2);
+    await toggle();
+
+    await start('ShopScene');
+    // 商品包异步加载
+    for (let i = 0; i < 25; i++) {
+      if (texts('ShopScene').some(x => x === '[ Buy ]')) break;
+      await sleep(200);
+    }
+    const st0 = texts('ShopScene');
+    check('en shop title', has(st0, '🛒  Compute Shop'));
+    check('en shop credits', has(st0, x => x.startsWith('Credits:')));
+    check('en shop daily', has(st0, '[ Claim Daily Credits ]'));
+    check('en shop pack names', has(st0, 'Starter Pack') && has(st0, 'Ammo Crate'));
+    check('en shop buy buttons', st0.filter(x => x === '[ Buy ]').length >= 4);
+    check('en shop free', has(st0, 'Free'));
+    await toggle();
+    const st1 = texts('ShopScene');
+    check('zh shop', has(st1, '🛒 算力商城') && has(st1, '新手礼包') && has(st1, '[ 购买 ]'));
+    await toggle();
+
+    await start('InventoryScene');
+    const it0 = texts('InventoryScene');
+    check('en inv title', has(it0, '🎒  Inventory & Skill Disk'));
+    check('en inv bag', has(it0, 'Stable token bag'));
+    check('en inv disk', has(it0, 'Skill disk (4×4)'));
+    check('en inv skills', has(it0, 'Equipped skills') && has(it0, '[Q] Basic Attack') && has(it0, '[E] Compute Shield'));
+    check('en inv unstable', has(it0, x => x.startsWith('Unstable tokens (ammo):')));
+    await toggle();
+    const it1 = texts('InventoryScene');
+    check('zh inv', has(it1, '🎒 背包 & 技能盘') && has(it1, '稳定Token背包') && has(it1, '[Q] 基础攻击'));
+    await toggle();
     return out;
   });
 

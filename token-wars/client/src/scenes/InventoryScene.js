@@ -1,5 +1,14 @@
 import net from '../systems/NetworkManager.js';
 import { RARITY_CONFIG, SKILLS } from '../shared.js';
+import { t, onLangChange } from '../i18n.js';
+
+// SKILLS 常量展示名为中文；按协议 id 映射 i18n
+const SKILL_VIEWS = [
+  { skill: SKILLS.BASIC_ATTACK, id: 'basic_attack', key: 'Q' },
+  { skill: SKILLS.DODGE_ROLL, id: 'dodge_roll', key: 'W' },
+  { skill: SKILLS.SHIELD, id: 'shield', key: 'E' },
+  { skill: SKILLS.TOKEN_BURST, id: 'token_burst', key: 'R' },
+];
 
 export class InventoryScene extends Phaser.Scene {
   constructor() {
@@ -13,7 +22,7 @@ export class InventoryScene extends Phaser.Scene {
   create() {
     const cx = 480;
 
-    this.add.text(cx, 30, '🎒 背包 & 技能盘', {
+    this.add.text(cx, 30, t('inv.title'), {
       fontSize: '28px', fontFamily: 'Courier New', color: '#44ffaa', fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -24,7 +33,7 @@ export class InventoryScene extends Phaser.Scene {
     this.drawSkillDisk(640, 80);
 
     // Token counts
-    this.add.text(160, 500, `不稳定Token (弹药): ${this.playerData.unstableTokens}`, {
+    this.add.text(160, 500, t('inv.unstable', { n: this.playerData.unstableTokens }), {
       fontSize: '14px', fontFamily: 'Courier New', color: '#ffaa00',
     });
 
@@ -32,14 +41,25 @@ export class InventoryScene extends Phaser.Scene {
     this.drawSkillList(640, 460);
 
     // Back button
-    this.add.text(50, 620, '< 返回大厅', {
+    this.add.text(50, 620, t('common.back'), {
       fontSize: '16px', fontFamily: 'Courier New', color: '#666666',
     }).setOrigin(0, 1).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.scene.start('LobbyScene', { player: this.playerData }));
+
+    // 纯静态布局；语言切换用 restart 重绘（拖拽监听随场景销毁，无泄漏）
+    this._offLang = onLangChange(() => this.scene.restart({ player: this.playerData }));
+    this.events.once('shutdown', () => { if (this._offLang) this._offLang(); });
+  }
+
+  /** 稀有度短标签走 i18n（白/绿/蓝/紫/橙 ↔ 颜色英文名） */
+  rarityLabel(rarity) {
+    const key = `rarity.${rarity}`;
+    const v = t(key);
+    return v === key ? '?' : v;
   }
 
   drawTokenInventory(startX, startY) {
-    this.add.text(startX, startY, '稳定Token背包', {
+    this.add.text(startX, startY, t('inv.stableBag'), {
       fontSize: '16px', fontFamily: 'Courier New', color: '#44ffaa', fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -62,8 +82,7 @@ export class InventoryScene extends Phaser.Scene {
         cell.setStrokeStyle(1, rarityColor);
 
         // Rarity label
-        const label = RARITY_CONFIG[token.rarity]?.label || '?';
-        this.add.text(x, y, label, {
+        this.add.text(x, y, this.rarityLabel(token.rarity), {
           fontSize: '14px', fontFamily: 'Courier New',
           color: `#${rarityColor.toString(16).padStart(6, '0')}`,
         }).setOrigin(0.5);
@@ -80,13 +99,13 @@ export class InventoryScene extends Phaser.Scene {
 
     // Token count by rarity
     const counts = {};
-    for (const t of tokens) {
-      counts[t.rarity] = (counts[t.rarity] || 0) + 1;
+    for (const tok of tokens) {
+      counts[tok.rarity] = (counts[tok.rarity] || 0) + 1;
     }
     let countStr = '';
-    for (const [rarity, config] of Object.entries(RARITY_CONFIG)) {
+    for (const rarity of Object.keys(RARITY_CONFIG)) {
       if (counts[rarity]) {
-        countStr += `${config.label}${counts[rarity]}  `;
+        countStr += `${this.rarityLabel(rarity)}${counts[rarity]}  `;
       }
     }
     if (countStr) {
@@ -97,7 +116,7 @@ export class InventoryScene extends Phaser.Scene {
   }
 
   drawSkillDisk(centerX, startY) {
-    this.add.text(centerX, startY, '技能盘 (4x4)', {
+    this.add.text(centerX, startY, t('inv.skillDisk'), {
       fontSize: '16px', fontFamily: 'Courier New', color: '#44ffaa', fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -125,8 +144,7 @@ export class InventoryScene extends Phaser.Scene {
           if (token) {
             const rarityColor = RARITY_CONFIG[token.rarity]?.color || 0x888888;
             cell.setFillStyle(rarityColor, 0.2);
-            const label = RARITY_CONFIG[token.rarity]?.label || '?';
-            this.add.text(x, y, label, {
+            this.add.text(x, y, this.rarityLabel(token.rarity), {
               fontSize: '14px', fontFamily: 'Courier New',
               color: `#${rarityColor.toString(16).padStart(6, '0')}`,
             }).setOrigin(0.5);
@@ -166,8 +184,7 @@ export class InventoryScene extends Phaser.Scene {
             // Optimistic update: move token to slot visually
             const rarityColor = RARITY_CONFIG[token.rarity]?.color || 0x888888;
             slot.cell.setFillStyle(rarityColor, 0.2);
-            const label = RARITY_CONFIG[token.rarity]?.label || '?';
-            this.add.text(slot.x, slot.y, label, {
+            this.add.text(slot.x, slot.y, this.rarityLabel(token.rarity), {
               fontSize: '14px', fontFamily: 'Courier New',
               color: `#${rarityColor.toString(16).padStart(6, '0')}`,
             }).setOrigin(0.5);
@@ -187,22 +204,14 @@ export class InventoryScene extends Phaser.Scene {
   }
 
   drawSkillList(centerX, startY) {
-    this.add.text(centerX, startY, '已装备技能', {
+    this.add.text(centerX, startY, t('inv.equipped'), {
       fontSize: '14px', fontFamily: 'Courier New', color: '#44ffaa',
     }).setOrigin(0.5);
 
-    const skills = [
-      SKILLS.BASIC_ATTACK,
-      SKILLS.DODGE_ROLL,
-      SKILLS.SHIELD,
-      SKILLS.TOKEN_BURST,
-    ];
-    const keyLabels = ['Q', 'W', 'E', 'R'];
-
-    skills.forEach((skill, i) => {
+    SKILL_VIEWS.forEach(({ skill, id, key }, i) => {
       const y = startY + 25 + i * 25;
       const costStr = skill.tokenCost > 0 ? `${skill.tokenCost}T` : 'FREE';
-      this.add.text(centerX - 120, y, `[${keyLabels[i]}] ${skill.name}`, {
+      this.add.text(centerX - 120, y, `[${key}] ${t(`skill.${id}`)}`, {
         fontSize: '12px', fontFamily: 'Courier New', color: '#aaa',
       });
       this.add.text(centerX + 80, y, costStr, {

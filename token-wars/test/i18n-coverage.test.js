@@ -38,10 +38,22 @@ const DYNAMIC_EXPANSIONS = [
   { pattern: /arena\.buff\.\$\{[^}]+\}\.name/g, keys: ['quantum_awaken', 'shadow_protocol', 'entropy_crisis'].map((id) => `arena.buff.${id}.name`) },
   { pattern: /arena\.buff\.\$\{[^}]+\}\.desc/g, keys: ['quantum_awaken', 'shadow_protocol', 'entropy_crisis'].map((id) => `arena.buff.${id}.desc`) },
   { pattern: /rarity\.\$\{[^}]+\}/g, keys: ['common', 'uncommon', 'rare', 'epic', 'legendary'].map((id) => `rarity.${id}`) },
-  ...['name', 'diff', 'desc', 'rewards'].map((suffix) => ({
+  {
+    pattern: /\$\{[^}]+\}\.name/g,
+    keys: ['easy', 'medium'].map((p) => `dungeon.${p}.name`)
+      .concat(['1v1', '3v3'].map((p) => `pvp.${p}.name`)),
+  },
+  {
+    pattern: /\$\{[^}]+\}\.desc/g,
+    keys: ['easy', 'medium'].map((p) => `dungeon.${p}.desc`)
+      .concat(['1v1', '3v3'].map((p) => `pvp.${p}.desc`)),
+  },
+  ...['diff', 'rewards'].map((suffix) => ({
     pattern: new RegExp(`\\$\\{[^}]+\\}\\.${suffix}`, 'g'),
     keys: ['easy', 'medium'].map((p) => `dungeon.${p}.${suffix}`),
   })),
+  { pattern: /shop\.pack\.\$\{[^}]+\}/g, keys: ['starter', 'basic', 'premium', 'legendary', 'ammo'].map((id) => `shop.pack.${id}`) },
+  { pattern: /skill\.\$\{[^}]+\}/g, keys: ['basic_attack', 'dodge_roll', 'shield', 'token_burst'].map((id) => `skill.${id}`) },
 ];
 
 describe('客户端 t() 键覆盖', () => {

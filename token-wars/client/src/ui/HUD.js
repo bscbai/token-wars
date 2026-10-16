@@ -1,3 +1,5 @@
+import { t } from '../i18n.js';
+
 export class HUD {
   constructor(scene, playerData) {
     this.scene = scene;
@@ -19,7 +21,7 @@ export class HUD {
     });
 
     // Token count
-    this.tokenText = scene.add.text(880, 10, `不稳定Token: ${playerData.unstableTokens}`, {
+    this.tokenText = scene.add.text(880, 10, t('hud.unstable', { n: playerData.unstableTokens }), {
       fontSize: '14px', fontFamily: 'Courier New', color: '#ffaa00',
     }).setOrigin(1, 0);
 
@@ -49,7 +51,7 @@ export class HUD {
   }
 
   updateTokens(unstable) {
-    this.tokenText.setText(`不稳定Token: ${unstable}`);
+    this.tokenText.setText(t('hud.unstable', { n: unstable }));
   }
 
   setStatus(text) {
