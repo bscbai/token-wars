@@ -37,6 +37,11 @@ const DYNAMIC_EXPANSIONS = [
   { pattern: /arena\.week\$\{[^}]+\}/g, keys: [1, 2, 3, 4].map((w) => `arena.week${w}`) },
   { pattern: /arena\.buff\.\$\{[^}]+\}\.name/g, keys: ['quantum_awaken', 'shadow_protocol', 'entropy_crisis'].map((id) => `arena.buff.${id}.name`) },
   { pattern: /arena\.buff\.\$\{[^}]+\}\.desc/g, keys: ['quantum_awaken', 'shadow_protocol', 'entropy_crisis'].map((id) => `arena.buff.${id}.desc`) },
+  { pattern: /rarity\.\$\{[^}]+\}/g, keys: ['common', 'uncommon', 'rare', 'epic', 'legendary'].map((id) => `rarity.${id}`) },
+  ...['name', 'diff', 'desc', 'rewards'].map((suffix) => ({
+    pattern: new RegExp(`\\$\\{[^}]+\\}\\.${suffix}`, 'g'),
+    keys: ['easy', 'medium'].map((p) => `dungeon.${p}.${suffix}`),
+  })),
 ];
 
 describe('客户端 t() 键覆盖', () => {

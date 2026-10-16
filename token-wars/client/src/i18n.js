@@ -16,6 +16,9 @@ export const STORAGE_KEY = 'tw-lang';
 
 export const messages = {
   en: {
+    // Shared
+    'common.back': '< Back to Lobby',
+
     // Login scene
     'login.subtitle': 'Compute Odyssey',
     'login.username': 'Username',
@@ -137,8 +140,43 @@ export const messages = {
     'arena.tourRound': 'Round {round}/{total} started! {n} agents remaining',
     'arena.tourChampion': 'Tournament champion: {name}!',
     'arena.close': '[ Close ]',
+
+    // Rarity (RARITY_CONFIG short labels are color names)
+    'rarity.common': 'White',
+    'rarity.uncommon': 'Green',
+    'rarity.rare': 'Blue',
+    'rarity.epic': 'Purple',
+    'rarity.legendary': 'Orange',
+
+    // Mining scene
+    'mining.title': '⛏  Idle Mining',
+    'mining.level': 'Mining Level: Lv.{n}',
+    'mining.rate': 'Rate: 1 Token every {s}s',
+    'mining.capacity': 'Storage cap: {n} Tokens',
+    'mining.pending': 'Pending: {n} Tokens',
+    'mining.collect': '[ Collect Tokens ]',
+    'mining.upgrade': '[ Upgrade to Lv.{n} — {cost} {rarity} Tokens ]',
+    'mining.maxLevel': 'Max level reached!',
+    'mining.collected': 'Collected {n} unstable tokens!',
+    'mining.upgraded': 'Mining upgraded to Lv.{n}!',
+
+    // Dungeon select scene
+    'dungeon.title': '⚔  PvE Dungeons',
+    'dungeon.easy.name': 'Novice Data Mine',
+    'dungeon.easy.desc': 'Solo | 3 monster waves + Boss',
+    'dungeon.easy.diff': 'Easy',
+    'dungeon.easy.rewards': 'Common unstable tokens, chance at blue stable tokens',
+    'dungeon.medium.name': 'Mid Compute Vault',
+    'dungeon.medium.desc': '3–5 players | 3 monster waves + Boss',
+    'dungeon.medium.diff': 'Medium',
+    'dungeon.medium.rewards': 'Green–Blue unstable + stable tokens, rare co-processor chance',
+    'dungeon.rewards': 'Rewards: {r}',
+    'dungeon.enter': '[ Enter Dungeon ]',
   },
   zh: {
+    // Shared
+    'common.back': '< 返回大厅',
+
     // Login scene
     'login.subtitle': '算力征途',
     'login.username': '用户名:',
@@ -260,6 +298,38 @@ export const messages = {
     'arena.tourRound': '第{round}/{total}轮开始! 剩余{n}名选手',
     'arena.tourChampion': '巅峰赛冠军: {name}!',
     'arena.close': '[ 关闭 ]',
+
+    // Rarity
+    'rarity.common': '白',
+    'rarity.uncommon': '绿',
+    'rarity.rare': '蓝',
+    'rarity.epic': '紫',
+    'rarity.legendary': '橙',
+
+    // Mining scene
+    'mining.title': '⛏ 挂机挖矿',
+    'mining.level': '挖矿等级: Lv.{n}',
+    'mining.rate': '产出速率: 每 {s} 秒 1 Token',
+    'mining.capacity': '存储上限: {n} Tokens',
+    'mining.pending': '待收集: {n} Tokens',
+    'mining.collect': '[ 收集 Tokens ]',
+    'mining.upgrade': '[ 升级到 Lv.{n} — 需要 {cost} {rarity}Token ]',
+    'mining.maxLevel': '已达到最高等级!',
+    'mining.collected': '收集了 {n} 个不稳定Token!',
+    'mining.upgraded': '挖矿升级到 Lv.{n}!',
+
+    // Dungeon select scene
+    'dungeon.title': '⚔ PvE 副本选择',
+    'dungeon.easy.name': '初级数据矿洞',
+    'dungeon.easy.desc': '单人副本 | 3波怪物 + Boss',
+    'dungeon.easy.diff': '简单',
+    'dungeon.easy.rewards': 'Common-Unstable Token, 蓝色稳定Token概率',
+    'dungeon.medium.name': '中级算力仓库',
+    'dungeon.medium.desc': '3-5人副本 | 3波怪物 + Boss',
+    'dungeon.medium.diff': '中等',
+    'dungeon.medium.rewards': 'Green-Blue Unstable + Stable Token, 稀有协处理器概率',
+    'dungeon.rewards': '奖励: {r}',
+    'dungeon.enter': '[ 进入副本 ]',
   },
 };
 

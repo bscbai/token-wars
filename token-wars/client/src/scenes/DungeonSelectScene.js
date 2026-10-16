@@ -1,4 +1,12 @@
 import net from '../systems/NetworkManager.js';
+import { t, onLangChange } from '../i18n.js';
+
+// 副本静态目录（与 server/models/Dungeon.js DUNGEON_TEMPLATES 前两项对应）；
+// 展示文案走 i18n 键，服务端只认 id
+const DUNGEONS = [
+  { id: 'solo_easy', keyPrefix: 'dungeon.easy', color: '#44ff44' },
+  { id: 'group_medium', keyPrefix: 'dungeon.medium', color: '#ffaa00' },
+];
 
 export class DungeonSelectScene extends Phaser.Scene {
   constructor() {
@@ -12,30 +20,11 @@ export class DungeonSelectScene extends Phaser.Scene {
   create() {
     const cx = 480;
 
-    this.add.text(cx, 40, '⚔ PvE 副本选择', {
+    this.add.text(cx, 40, t('dungeon.title'), {
       fontSize: '28px', fontFamily: 'Courier New', color: '#ff4444', fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const dungeons = [
-      {
-        id: 'solo_easy',
-        name: '初级数据矿洞',
-        desc: '单人副本 | 3波怪物 + Boss',
-        diff: '简单',
-        color: '#44ff44',
-        rewards: 'Common-Unstable Token, 蓝色稳定Token概率',
-      },
-      {
-        id: 'group_medium',
-        name: '中级算力仓库',
-        desc: '3-5人副本 | 3波怪物 + Boss',
-        diff: '中等',
-        color: '#ffaa00',
-        rewards: 'Green-Blue Unstable + Stable Token, 稀有协处理器概率',
-      },
-    ];
-
-    dungeons.forEach((d, i) => {
+    DUNGEONS.forEach((d, i) => {
       const y = 150 + i * 180;
 
       // Card background
@@ -43,27 +32,27 @@ export class DungeonSelectScene extends Phaser.Scene {
         .setStrokeStyle(2, Phaser.Display.Color.HexStringToColor(d.color.replace('#', '')).color);
 
       // Name
-      this.add.text(cx - 230, y, d.name, {
+      this.add.text(cx - 230, y, t(`${d.keyPrefix}.name`), {
         fontSize: '22px', fontFamily: 'Courier New', color: d.color, fontStyle: 'bold',
       });
 
       // Difficulty
-      this.add.text(cx + 230, y, d.diff, {
+      this.add.text(cx + 230, y, t(`${d.keyPrefix}.diff`), {
         fontSize: '16px', fontFamily: 'Courier New', color: d.color,
       }).setOrigin(1, 0);
 
       // Description
-      this.add.text(cx - 230, y + 30, d.desc, {
+      this.add.text(cx - 230, y + 30, t(`${d.keyPrefix}.desc`), {
         fontSize: '14px', fontFamily: 'Courier New', color: '#888888',
       });
 
       // Rewards
-      this.add.text(cx - 230, y + 55, `奖励: ${d.rewards}`, {
+      this.add.text(cx - 230, y + 55, t('dungeon.rewards', { r: t(`${d.keyPrefix}.rewards`) }), {
         fontSize: '13px', fontFamily: 'Courier New', color: '#666666',
       });
 
       // Enter button
-      const btn = this.add.text(cx, y + 110, '[ 进入副本 ]', {
+      const btn = this.add.text(cx, y + 110, t('dungeon.enter'), {
         fontSize: '18px', fontFamily: 'Courier New', color: d.color, fontStyle: 'bold',
         backgroundColor: '#1a1a2e', padding: { x: 20, y: 5 },
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -95,9 +84,13 @@ export class DungeonSelectScene extends Phaser.Scene {
     });
 
     // Back button
-    this.add.text(50, 600, '< 返回大厅', {
+    this.add.text(50, 600, t('common.back'), {
       fontSize: '16px', fontFamily: 'Courier New', color: '#666666',
     }).setOrigin(0, 1).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.scene.start('LobbyScene', { player: this.playerData }));
+
+    // Live language switching: static card list — restart 是最简的正确重绘
+    this._offLang = onLangChange(() => this.scene.restart({ player: this.playerData }));
+    this.events.once('shutdown', () => { if (this._offLang) this._offLang(); });
   }
 }
