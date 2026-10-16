@@ -28,3 +28,6 @@ const game = new Phaser.Game(config);
 // 全局语言切换按钮（DOM 悬浮层，独立于 Phaser 场景生命周期）
 mountLangToggle();
 
+// 调试/自动化验证入口（生产无副作用，仅暴露实例引用）
+if (typeof window !== 'undefined') window.__game = game;
+

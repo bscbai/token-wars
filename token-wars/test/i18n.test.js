@@ -122,31 +122,29 @@ describe('detectLang 探测', () => {
 });
 
 describe('字典完备性', () => {
-  const KEYS = [
-    'login.subtitle', 'login.username', 'login.usernamePlaceholder', 'login.password',
-    'login.passwordPlaceholder', 'login.login', 'login.register', 'login.toRegister',
-    'login.toLogin', 'login.success', 'login.successEntering', 'login.authFail',
-    'login.enterBoth', 'login.usernameMin', 'login.passwordMin', 'login.registering',
-    'login.loggingIn', 'login.requestFailed', 'login.connectFailed',
-    'lobby.title', 'lobby.errNoPlayer', 'lobby.renderError', 'lobby.comingSoon',
-    'lobby.mining', 'lobby.pve', 'lobby.pvp', 'lobby.aiarena', 'lobby.shop',
-    'lobby.inventory', 'lobby.stable', 'lobby.unstable', 'lobby.credits',
-  ];
-
   it('SUPPORTED_LANGS 恰为 en/zh', async () => {
     const i18n = await freshModule({ storage: undefined, nav: { language: 'en-US' } });
     expect([...i18n.SUPPORTED_LANGS].sort()).toEqual(['en', 'zh']);
   });
 
-  it('全部已知键在 en/zh 下均有非空翻译（未回退到 key 本身）', async () => {
+  it('en/zh 字典键集合完全一致（导出字典直接比对，漏翻/拼错立即可见）', async () => {
     const i18n = await freshModule({ storage: undefined, nav: { language: 'en-US' } });
-    for (const lang of ['en', 'zh']) {
-      i18n.setLang(lang);
-      for (const key of KEYS) {
-        const val = i18n.t(key);
-        expect(val, `${lang}:${key}`).not.toBe(key);
-        expect(val.length, `${lang}:${key}`).toBeGreaterThan(0);
-      }
+    const enKeys = Object.keys(i18n.messages.en).sort();
+    const zhKeys = Object.keys(i18n.messages.zh).sort();
+    expect(zhKeys).toEqual(enKeys);
+  });
+
+  it('每个键在 en/zh 下均为非空字符串；占位符集合一致（防插值漏变量）', async () => {
+    const i18n = await freshModule({ storage: undefined, nav: { language: 'en-US' } });
+    const placeholders = (s) => (s.match(/\{(\w+)\}/g) || []).sort();
+    for (const key of Object.keys(i18n.messages.en)) {
+      const en = i18n.messages.en[key];
+      const zh = i18n.messages.zh[key];
+      expect(typeof en, `${key} en`).toBe('string');
+      expect(typeof zh, `${key} zh`).toBe('string');
+      expect(en.length, `${key} en empty`).toBeGreaterThan(0);
+      expect(zh.length, `${key} zh empty`).toBeGreaterThan(0);
+      expect(placeholders(zh), `${key} 占位符不一致`).toEqual(placeholders(en));
     }
   });
 });

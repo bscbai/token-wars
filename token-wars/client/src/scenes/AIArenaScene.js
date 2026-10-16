@@ -1,10 +1,14 @@
 import net from '../systems/NetworkManager.js';
+import { t, onLangChange } from '../i18n.js';
 
 // Grid replay constants
 const GRID_OFFSET_X = 355;
 const GRID_OFFSET_Y = 80;
 const CELL_SIZE = 18;
 const MAP_MAX_DISPLAY = 20;
+
+// Special behaviors (ids are protocol-stable; display via i18n)
+const BEHAVIOR_IDS = ['berserker', 'perfect_defense', 'greedy_algorithm', 'dodge_master'];
 
 export class AIArenaScene extends Phaser.Scene {
   constructor() {
@@ -22,18 +26,21 @@ export class AIArenaScene extends Phaser.Scene {
     this.replayPlaying = false;
     this.showReplay = false;
     this.showMatchHistory = false;
+    this._lastHistory = null;
+    this._lastSeason = null;
+    this._lastTournament = null;
   }
 
   create() {
     const cx = 480;
 
     // Title
-    this.add.text(cx, 25, 'AI 傀儡竞技场', {
+    this.titleText = this.add.text(cx, 25, t('arena.title'), {
       fontSize: '26px', fontFamily: 'Courier New', color: '#44ffaa', fontStyle: 'bold',
     }).setOrigin(0.5);
 
     // Subtitle
-    this.add.text(cx, 50, '训练 AI 代理，让它替你战斗', {
+    this.subtitleText = this.add.text(cx, 50, t('arena.subtitle'), {
       fontSize: '12px', fontFamily: 'Courier New', color: '#666',
     }).setOrigin(0.5);
 
@@ -41,12 +48,12 @@ export class AIArenaScene extends Phaser.Scene {
     this.drawAgentListPanel();
 
     // Detail panel (right) - initially empty
-    this.add.text(cx, 80, '选择左侧代理查看详情', {
+    this.hintText = this.add.text(cx, 80, t('arena.selectHint'), {
       fontSize: '13px', fontFamily: 'Courier New', color: '#555',
     }).setOrigin(0.5, 0);
 
     // Deploy button
-    this.deployBtn = this.add.text(cx, 560, '[ 部署 AI 代理（使用当前装备的 Token）]', {
+    this.deployBtn = this.add.text(cx, 560, t('arena.deploy'), {
       fontSize: '14px', fontFamily: 'Courier New', color: '#44ffaa',
       backgroundColor: '#1a2a1a', padding: { x: 20, y: 10 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -60,20 +67,46 @@ export class AIArenaScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Back button
-    this.add.text(50, 620, '< 返回大厅', {
+    this.backText = this.add.text(50, 620, t('arena.back'), {
       fontSize: '15px', fontFamily: 'Courier New', color: '#666',
     }).setOrigin(0, 1).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.scene.start('LobbyScene', { player: this.playerData }));
 
+    // Keyboard listener registered once (rename flow references current selection)
+    this.input.keyboard.on('keydown', (event) => this.handleRenameKey(event));
+
+    // Live language switching: re-render every visible surface
+    this._offLang = onLangChange(() => this.applyLang());
+    this.events.once('shutdown', () => { if (this._offLang) this._offLang(); });
+
     this.setupNetwork();
     net.emit('ai_arena:get_agents', {});
+  }
+
+  applyLang() {
+    this.titleText.setText(t('arena.title'));
+    this.subtitleText.setText(t('arena.subtitle'));
+    this.hintText.setText(t('arena.selectHint'));
+    this.deployBtn.setText(t('arena.deploy'));
+    this.backText.setText(t('arena.back'));
+    this.refreshAgentList();
+    if (this.selectedAgent) this.redrawDetailPanel();
+    if (this._lastHistory) this.drawMatchHistory(this._lastHistory);
+    if (this.replayData) {
+      if (this.replayHeaderText) {
+        this.replayHeaderText.setText(t('arena.replayHeader', { a: this.replayData.agentAName, b: this.replayData.agentBName }));
+      }
+      this.renderReplayStep();
+    }
+    if (this._lastSeason) this.drawSeasonPanel(this._lastSeason);
+    if (this._lastTournament) this.drawTournamentPanel(this._lastTournament);
   }
 
   // ===== LEFT PANEL: AGENT LIST =====
 
   drawAgentListPanel() {
     this.add.rectangle(160, 270, 280, 380, 0x111122, 0.8).setStrokeStyle(1, 0x44ffaa);
-    this.agentListTitle = this.add.text(30, 60, '你的 AI 代理', {
+    this.agentListTitle = this.add.text(30, 60, t('arena.yourAgents', { n: 0 }), {
       fontSize: '14px', fontFamily: 'Courier New', color: '#44ffaa', fontStyle: 'bold',
     });
     this.agentListContainer = [];
@@ -86,14 +119,14 @@ export class AIArenaScene extends Phaser.Scene {
 
     const startY = 90;
     const itemH = 50;
-    this.agentListTitle.setText(`你的 AI (${this.agents.length})`);
+    this.agentListTitle.setText(t('arena.yourAgents', { n: this.agents.length }));
 
     if (this.agents.length === 0) {
-      const t = this.add.text(160, 220, '暂无 AI\n点击下方按钮部署', {
+      const empty = this.add.text(160, 220, t('arena.emptyAgents'), {
         fontSize: '13px', fontFamily: 'Courier New', color: '#555',
         lineSpacing: 6,
       }).setOrigin(0.5);
-      this.agentListContainer.push(t);
+      this.agentListContainer.push(empty);
       return;
     }
 
@@ -137,7 +170,7 @@ export class AIArenaScene extends Phaser.Scene {
 
       // Status badge
       if (agent.deployed) {
-        const badge = this.add.text(250, y + 5, '● 活跃', {
+        const badge = this.add.text(250, y + 5, t('arena.active'), {
           fontSize: '10px', fontFamily: 'Courier New', color: '#00ff44',
         }).setOrigin(1, 0);
         this.agentListContainer.push(badge);
@@ -145,7 +178,7 @@ export class AIArenaScene extends Phaser.Scene {
 
       // Special behavior
       if (agent.specialBehavior) {
-        const spec = this.agentListContainer.push(
+        this.agentListContainer.push(
           this.add.text(250, y + 26, this.getBehaviorName(agent.specialBehavior), {
             fontSize: '10px', fontFamily: 'Courier New', color: '#aa44ff',
           }).setOrigin(1, 0)
@@ -170,6 +203,9 @@ export class AIArenaScene extends Phaser.Scene {
     const cx = 480;
     const a = this.selectedAgent;
     const league = this.getLeague(a.aelo);
+
+    // Rename flow starts inactive on every redraw
+    this._renameActive = false;
 
     // Detail background
     this.detailObjects.push(
@@ -210,14 +246,14 @@ export class AIArenaScene extends Phaser.Scene {
     const btnY = 160;
 
     if (a.deployed) {
-      const recallBtn = this.add.text(cx - 100, btnY, '[ 召回 ]', {
+      const recallBtn = this.add.text(cx - 100, btnY, t('arena.recall'), {
         fontSize: '14px', fontFamily: 'Courier New', color: '#ffaa00',
         backgroundColor: '#2a2a1a', padding: { x: 12, y: 5 },
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       recallBtn.on('pointerdown', () => net.emit('ai_arena:recall', { agentId: a.id }));
       this.detailObjects.push(recallBtn);
     } else {
-      const deployBtn = this.add.text(cx - 100, btnY, '[ 部署 ]', {
+      const deployBtn = this.add.text(cx - 100, btnY, t('arena.deployBtn'), {
         fontSize: '14px', fontFamily: 'Courier New', color: '#00ff88',
         backgroundColor: '#1a2a1a', padding: { x: 12, y: 5 },
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -225,27 +261,27 @@ export class AIArenaScene extends Phaser.Scene {
       this.detailObjects.push(deployBtn);
     }
 
-    const trainBtn = this.add.text(cx + 30, btnY, '[ 训练 ]', {
+    const trainBtn = this.add.text(cx + 30, btnY, t('arena.train'), {
       fontSize: '14px', fontFamily: 'Courier New', color: '#4488ff',
       backgroundColor: '#1a1a2a', padding: { x: 12, y: 5 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    trainBtn.on('pointerdown', () => { net.emit('ai_arena:train', { agentId: a.id }); this.setStatus('#4488ff', '训练中...'); });
+    trainBtn.on('pointerdown', () => { net.emit('ai_arena:train', { agentId: a.id }); this.setStatus('#4488ff', t('arena.training')); });
     this.detailObjects.push(trainBtn);
 
-    const historyBtn = this.add.text(cx + 160, btnY, '[ 历史 ]', {
+    const historyBtn = this.add.text(cx + 160, btnY, t('arena.history'), {
       fontSize: '14px', fontFamily: 'Courier New', color: '#888',
       backgroundColor: '#1a1a1a', padding: { x: 12, y: 5 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     historyBtn.on('pointerdown', () => {
       net.emit('ai_arena:match_history', { agentId: a.id });
-      this.setStatus('#888', '加载对战历史...');
+      this.setStatus('#888', t('arena.loadingHistory'));
     });
     this.detailObjects.push(historyBtn);
 
     // --- Naming ---
     const nameY = btnY + 35;
     this.detailObjects.push(
-      this.add.text(cx, nameY, '名称:', {
+      this.add.text(cx, nameY, t('arena.nameLabel'), {
         fontSize: '12px', fontFamily: 'Courier New', color: '#888',
       }).setOrigin(0.5, 0)
     );
@@ -254,68 +290,44 @@ export class AIArenaScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
     this.detailObjects.push(nameInput);
 
-    // Listen for keyboard to rename
-    let renameActive = false;
-    let renameBuffer = a.name;
-    const renameHint = this.add.text(cx, nameY + 36, '点击名称编辑 (Enter 确认)', {
+    this._renameBuffer = a.name;
+    const renameHint = this.add.text(cx, nameY + 36, t('arena.renameHint1'), {
       fontSize: '9px', fontFamily: 'Courier New', color: '#555',
     }).setOrigin(0.5, 0);
     this.detailObjects.push(renameHint);
+    this._renameHint = renameHint;
+    this._renameNameInput = nameInput;
 
     nameInput.setInteractive({ useHandCursor: true });
     nameInput.on('pointerdown', () => {
-      renameActive = true;
-      renameBuffer = '';
+      this._renameActive = true;
+      this._renameBuffer = '';
       nameInput.setText('|');
-      renameHint.setText('输入新名称，Enter 确认');
-    });
-
-    this.input.keyboard.on('keydown', (event) => {
-      if (!renameActive || !this.selectedAgent || this.selectedAgent.id !== a.id) return;
-      if (event.key === 'Enter') {
-        renameActive = false;
-        const finalName = renameBuffer.slice(0, 12) || a.name;
-        net.emit('ai_arena:name_agent', { agentId: a.id, name: finalName });
-        nameInput.setText(finalName);
-        renameHint.setText('名称已保存');
-      } else if (event.key === 'Backspace') {
-        renameBuffer = renameBuffer.slice(0, -1);
-        nameInput.setText(renameBuffer + '|');
-      } else if (event.key.length === 1 && renameBuffer.length < 12) {
-        renameBuffer += event.key;
-        nameInput.setText(renameBuffer + '|');
-      }
+      renameHint.setText(t('arena.renameHint2'));
     });
 
     // --- Special behavior (if ★★★) ---
     if (a.level >= 3) {
       const specY = nameY + 65;
       this.detailObjects.push(
-        this.add.text(cx, specY, '特殊行为:', {
+        this.add.text(cx, specY, t('arena.specialLabel'), {
           fontSize: '12px', fontFamily: 'Courier New', color: '#aa44ff',
         }).setOrigin(0.5, 0)
       );
 
-      const behaviors = [
-        { id: 'berserker', name: '残血反杀', desc: 'HP<10%: +200%攻击' },
-        { id: 'perfect_defense', name: '完美防御', desc: '护盾+50% CD-2s' },
-        { id: 'greedy_algorithm', name: '贪婪算法', desc: '拾取后+30%伤害' },
-        { id: 'dodge_master', name: '闪避大师', desc: '闪避CD-40% 距离+1' },
-      ];
-
-      behaviors.forEach((b, i) => {
+      BEHAVIOR_IDS.forEach((id, i) => {
         const bx = cx - 140 + i * 93;
-        const active = a.specialBehavior === b.id;
-        const btn = this.add.text(bx, specY + 18, b.name, {
+        const active = a.specialBehavior === id;
+        const btn = this.add.text(bx, specY + 18, t(`arena.beh.${id}.name`), {
           fontSize: '10px', fontFamily: 'Courier New',
           color: active ? '#ff8800' : '#888',
           backgroundColor: active ? '#2a1a0a' : '#1a1a1a',
           padding: { x: 6, y: 3 },
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        btn.on('pointerdown', () => net.emit('ai_arena:set_behavior', { agentId: a.id, behaviorId: b.id }));
+        btn.on('pointerdown', () => net.emit('ai_arena:set_behavior', { agentId: a.id, behaviorId: id }));
         this.detailObjects.push(btn);
         this.detailObjects.push(
-          this.add.text(bx, specY + 34, b.desc, {
+          this.add.text(bx, specY + 34, t(`arena.beh.${id}.desc`), {
             fontSize: '8px', fontFamily: 'Courier New', color: '#666',
           }).setOrigin(0.5, 0)
         );
@@ -323,18 +335,38 @@ export class AIArenaScene extends Phaser.Scene {
     }
   }
 
+  /** 重命名键盘输入（create 时注册一次，引用当前选中 agent） */
+  handleRenameKey(event) {
+    if (!this._renameActive || !this.selectedAgent) return;
+    const a = this.selectedAgent;
+    const nameInput = this._renameNameInput;
+    const renameHint = this._renameHint;
+    if (!nameInput) return;
+    if (event.key === 'Enter') {
+      this._renameActive = false;
+      const finalName = this._renameBuffer.slice(0, 12) || a.name;
+      net.emit('ai_arena:name_agent', { agentId: a.id, name: finalName });
+      nameInput.setText(finalName);
+      renameHint.setText(t('arena.nameSaved'));
+    } else if (event.key === 'Backspace') {
+      this._renameBuffer = this._renameBuffer.slice(0, -1);
+      nameInput.setText(this._renameBuffer + '|');
+    } else if (event.key.length === 1 && this._renameBuffer.length < 12) {
+      this._renameBuffer += event.key;
+      nameInput.setText(this._renameBuffer + '|');
+    }
+  }
+
   getBehaviorName(id) {
-    return {
-      berserker: '残血反杀', perfect_defense: '完美防御',
-      greedy_algorithm: '贪婪算法', dodge_master: '闪避大师',
-    }[id] || id;
+    const v = t(`arena.beh.${id}.name`);
+    return v === `arena.beh.${id}.name` ? id : v;
   }
 
   getLeague(aelo) {
-    if (aelo >= 2000) return { emoji: '◆', name: '大师', color: '#ff8800' };
-    if (aelo >= 1500) return { emoji: '◆', name: '金', color: '#ffaa00' };
-    if (aelo >= 1000) return { emoji: '◆', name: '银', color: '#aaaacc' };
-    return { emoji: '◇', name: '铜', color: '#aa8844' };
+    if (aelo >= 2000) return { emoji: '◆', name: t('arena.league.master'), color: '#ff8800' };
+    if (aelo >= 1500) return { emoji: '◆', name: t('arena.league.gold'), color: '#ffaa00' };
+    if (aelo >= 1000) return { emoji: '◆', name: t('arena.league.silver'), color: '#aaaacc' };
+    return { emoji: '◇', name: t('arena.league.bronze'), color: '#aa8844' };
   }
 
   // ===== NETWORK =====
@@ -348,7 +380,7 @@ export class AIArenaScene extends Phaser.Scene {
     });
 
     evt('deployed', (data) => {
-      this.setStatus('#00ff88', 'AI 已部署!');
+      this.setStatus('#00ff88', t('arena.statusDeployed'));
       if (this.selectedAgent && this.selectedAgent.id === data.agentId) {
         this.selectedAgent.deployed = true;
         this.redrawDetailPanel();
@@ -357,30 +389,33 @@ export class AIArenaScene extends Phaser.Scene {
     });
 
     evt('recalled', () => {
-      this.setStatus('#ffaa00', 'AI 已召回');
+      this.setStatus('#ffaa00', t('arena.statusRecalled'));
       net.emit('ai_arena:get_agents', {});
     });
 
     evt('queue_fail', (data) => {
-      const msg = data.reason === 'daily_cap_reached' ? '今日已达上限(20场)'
-        : `冷却中 ${data.cooldownSeconds}秒`;
+      let msg;
+      if (data.reason === 'daily_cap_reached') msg = t('arena.dailyCap');
+      else if (data.reason === 'parity_suspended') msg = t('arena.paritySuspended');
+      else msg = t('arena.cooldown', { s: data.cooldownSeconds || 0 });
       this.setStatus('#ff8800', msg);
     });
 
     evt('match_result', (data) => {
       const won = data.winnerId !== 'draw' && data.winnerId === data.agentId;
       const isDraw = data.winnerId === 'draw';
-      let msg = '';
-      if (isDraw) msg += '平局!';
-      else if (won) msg += '胜利!';
-      else msg += '失败';
-      msg += ` AELO ${data.aelo} (${data.aeloChange > 0 ? '+' : ''}${data.aeloChange}) ★${data.level}`;
-      this.setStatus(won ? '#00ff44' : isDraw ? '#ffff00' : '#ff4444', msg);
+      const head = isDraw ? t('arena.resultDraw') : won ? t('arena.resultWin') : t('arena.resultLoss');
+      const line = t('arena.aeloLine', {
+        aelo: data.aelo,
+        change: (data.aeloChange > 0 ? '+' : '') + data.aeloChange,
+        level: data.level,
+      });
+      this.setStatus(won ? '#00ff44' : isDraw ? '#ffff00' : '#ff4444', head + line);
       this.time.delayedCall(3000, () => net.emit('ai_arena:get_agents', {}));
     });
 
     evt('replay', (data) => {
-      if (data.error) { this.setStatus('#ff4444', '回放不可用'); return; }
+      if (data.error) { this.setStatus('#ff4444', t('arena.replayUnavailable')); return; }
       this.replayData = data;
       this.replayStep = 0;
       this.replayPlaying = false;
@@ -390,7 +425,8 @@ export class AIArenaScene extends Phaser.Scene {
 
     evt('match_history', (data) => {
       this.showMatchHistory = true;
-      this.drawMatchHistory(data.history || []);
+      this._lastHistory = data.history || [];
+      this.drawMatchHistory(this._lastHistory);
     });
 
     evt('agent_named', (data) => {
@@ -401,15 +437,15 @@ export class AIArenaScene extends Phaser.Scene {
     });
 
     evt('behavior_set', (data) => {
-      if (data.success) this.setStatus('#00ff88', '特殊行为已更新');
+      if (data.success) this.setStatus('#00ff88', t('arena.behaviorUpdated'));
       net.emit('ai_arena:get_agents', {});
     });
 
     // Phase 3: Tournament & Season events
-    evt('season_info', (data) => this.drawSeasonPanel(data));
-    evt('season_update', (data) => this.drawSeasonPanel(data));
-    evt('tournament_state', (data) => this.drawTournamentPanel(data));
-    evt('tournament_start', (data) => { this.setStatus('#ff8800', '巅峰赛已开始!'); this.drawTournamentStartAlert(data); });
+    evt('season_info', (data) => { this._lastSeason = data; this.drawSeasonPanel(data); });
+    evt('season_update', (data) => { this._lastSeason = data; this.drawSeasonPanel(data); });
+    evt('tournament_state', (data) => { this._lastTournament = data; this.drawTournamentPanel(data); });
+    evt('tournament_start', (data) => { this.setStatus('#ff8800', t('arena.tourStart', { n: data.participants?.length || 0 })); this.drawTournamentStartAlert(data); });
     evt('tournament_match', (data) => this.showTournamentMatchAlert(data));
     evt('tournament_round', (data) => this.showTournamentRoundAlert(data));
     evt('tournament_end', (data) => this.showTournamentEnd(data));
@@ -437,11 +473,10 @@ export class AIArenaScene extends Phaser.Scene {
     );
 
     // Header
-    this.detailObjects.push(
-      this.add.text(cx, 80, `回放: ${r.agentAName} vs ${r.agentBName}`, {
-        fontSize: '13px', fontFamily: 'Courier New', color: '#00ff88', fontStyle: 'bold',
-      }).setOrigin(0.5, 0)
-    );
+    this.replayHeaderText = this.add.text(cx, 80, t('arena.replayHeader', { a: r.agentAName, b: r.agentBName }), {
+      fontSize: '13px', fontFamily: 'Courier New', color: '#00ff88', fontStyle: 'bold',
+    }).setOrigin(0.5, 0);
+    this.detailObjects.push(this.replayHeaderText);
 
     const map = r.map;
     const w = map?.width || 20;
@@ -516,7 +551,7 @@ export class AIArenaScene extends Phaser.Scene {
       this.renderReplayStep();
     });
 
-    // Play/Pause
+    // Play/Pause (symbols are language-neutral)
     const playPause = this.add.text(cx, ctrlY, '▶', {
       fontSize: '18px', fontFamily: 'Courier New', color: '#00ff88',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -535,6 +570,8 @@ export class AIArenaScene extends Phaser.Scene {
     const nextBtn = this.add.text(cx + 100, ctrlY, '▶', {
       fontSize: '18px', fontFamily: 'Courier New', color: '#888',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    // Distinguish next-step glyph from play glyph via color (both ▶ in legacy UI too)
+    nextBtn.setColor('#888');
     nextBtn.on('pointerdown', () => {
       this.replayStep = Math.min(this.replayStep + 1, log.length - 1);
       this.renderReplayStep();
@@ -559,6 +596,19 @@ export class AIArenaScene extends Phaser.Scene {
         this.replayPlaying = false;
       }
     });
+  }
+
+  /** 回放动作标签 → i18n key */
+  replayActionKey(action) {
+    const map = {
+      attack: 'arena.act.attack', retreat: 'arena.act.retreat',
+      chase_x: 'arena.act.chase', chase_y: 'arena.act.chase',
+      dash: 'arena.act.dash', shield_retreat: 'arena.act.shieldRetreat',
+      patrol: 'arena.act.patrol',
+      combo: 'arena.act.combo', berserker_combo: 'arena.act.berserkerCombo',
+      move_x: 'arena.act.move', move_y: 'arena.act.move', idle: 'arena.act.idle',
+    };
+    return map[action] || null;
   }
 
   renderReplayStep() {
@@ -593,14 +643,9 @@ export class AIArenaScene extends Phaser.Scene {
     this.replayHpBarB.setVisible(true);
 
     // Action text
-    const actionMap = {
-      attack: '攻击', retreat: '撤退', chase_x: '追击', chase_y: '追击',
-      dash: '闪避突击', shield_retreat: '护盾撤退', patrol: '巡逻',
-      combo: '连招!', berserker_combo: '残血连招!!',
-      move_x: '移动', move_y: '移动', idle: '等待',
-    };
-    const actionName = actionMap[frame.action] || frame.action;
-    this.replayActionText.setText(`t${frame.tick}: ${actionName} (HP: ${frame.hp})`);
+    const key = this.replayActionKey(frame.action);
+    const actionName = key ? t(key) : frame.action;
+    this.replayActionText.setText(t('arena.replayStep', { tick: frame.tick, action: actionName, hp: frame.hp }));
 
     // Progress
     this.replayProgressText.setText(`${this.replayStep + 1} / ${r.log.length}`);
@@ -620,14 +665,14 @@ export class AIArenaScene extends Phaser.Scene {
     );
 
     this.detailObjects.push(
-      this.add.text(cx, 80, '对战历史', {
+      this.add.text(cx, 80, t('arena.matchHistory'), {
         fontSize: '14px', fontFamily: 'Courier New', color: '#44ffaa', fontStyle: 'bold',
       }).setOrigin(0.5, 0)
     );
 
     if (history.length === 0) {
       this.detailObjects.push(
-        this.add.text(cx, 200, '暂无对战记录', {
+        this.add.text(cx, 200, t('arena.noMatches'), {
           fontSize: '13px', fontFamily: 'Courier New', color: '#555',
         }).setOrigin(0.5)
       );
@@ -637,7 +682,8 @@ export class AIArenaScene extends Phaser.Scene {
     history.slice(0, 15).forEach((m, i) => {
       const y = 100 + i * 24;
       const resultColor = m.result === 'win' ? '#00ff44' : m.result === 'draw' ? '#ffff00' : '#ff4444';
-      const resultLabel = m.result === 'win' ? '胜' : m.result === 'draw' ? '平' : '负';
+      const resultKey = m.result === 'win' ? 'arena.res.win' : m.result === 'draw' ? 'arena.res.draw' : 'arena.res.loss';
+      const resultLabel = t(resultKey);
 
       // Result badge
       this.detailObjects.push(
@@ -648,7 +694,7 @@ export class AIArenaScene extends Phaser.Scene {
 
       // Details
       this.detailObjects.push(
-        this.add.text(390, y, `vs ${m.opponent}`, {
+        this.add.text(390, y, t('arena.vs', { name: m.opponent }), {
           fontSize: '12px', fontFamily: 'Courier New', color: '#aaa',
         })
       );
@@ -659,12 +705,12 @@ export class AIArenaScene extends Phaser.Scene {
         })
       );
 
-      const replayBtn = this.add.text(640, y, '[回放]', {
+      const replayBtn = this.add.text(640, y, t('arena.replayBtn'), {
         fontSize: '11px', fontFamily: 'Courier New', color: '#4488ff',
       }).setInteractive({ useHandCursor: true });
       replayBtn.on('pointerdown', () => {
         net.emit('ai_arena:get_replay', { matchId: m.id });
-        this.setStatus('#4488ff', '加载回放...');
+        this.setStatus('#4488ff', t('arena.loadingReplay'));
       });
       this.detailObjects.push(replayBtn);
     });
@@ -682,10 +728,23 @@ export class AIArenaScene extends Phaser.Scene {
       tokenDisk: this.playerData.equippedTokens ||
         (this.playerData.stableTokens || []).slice(0, 16),
     });
-    this.setStatus('#ffff00', '部署中...');
+    this.setStatus('#ffff00', t('arena.deploying'));
   }
 
-  // ===== TOURNAMENT UI =====
+  // ===== SEASON & TOURNAMENT UI =====
+
+  /** 赛季 buff 优先按 id 映射 i18n；未知 buff 回退服务端下发文案 */
+  formatBuff(buff) {
+    if (!buff) return t('arena.season.none');
+    const nameKey = `arena.buff.${buff.id}.name`;
+    const name = t(nameKey);
+    if (name === nameKey) return `${buff.name}: ${buff.description}`;
+    return `${name}: ${t(`arena.buff.${buff.id}.desc`)}`;
+  }
+
+  formatWeekLabel(week) {
+    return t(`arena.week${week}`) === `arena.week${week}` ? '' : t(`arena.week${week}`);
+  }
 
   drawSeasonPanel(data) {
     const cx = 480;
@@ -693,9 +752,9 @@ export class AIArenaScene extends Phaser.Scene {
     // Clear previous
     if (this.seasonPanel) this.seasonPanel.destroy();
     const panel = this.add.container(cx, y);
-    const buff = data.buff ? `${data.buff.name}: ${data.buff.description}` : '无';
-    const weekLabel = data.week === 1 ? '风暴' : data.week === 2 ? '竞赛' : data.week === 3 ? '冲突' : '回顾';
-    panel.add(this.add.text(0, 0, `S${data.week}: 赛季 ${weekLabel}  |  ${buff}`, {
+    const buff = this.formatBuff(data.buff);
+    const weekLabel = this.formatWeekLabel(data.week);
+    panel.add(this.add.text(0, 0, t('arena.seasonLine', { week: data.week, weekLabel, buff }), {
       fontSize: '11px', fontFamily: 'Courier New', color: '#ff8800',
     }).setOrigin(0.5, 0));
     this.seasonPanel = panel;
@@ -707,8 +766,8 @@ export class AIArenaScene extends Phaser.Scene {
     // Clear previous
     if (this.tournamentPanel) this.tournamentPanel.destroy();
     const panel = this.add.container(cx, 75);
-    const statusLabel = data.status === 'running' ? '进行中' : '已结束';
-    panel.add(this.add.text(0, 0, `巅峰赛 ${statusLabel} | 第${data.round}/${data.totalRounds}轮`, {
+    const statusLabel = data.status === 'running' ? t('arena.tourRunning') : t('arena.tourEnded');
+    panel.add(this.add.text(0, 0, t('arena.tourLine', { status: statusLabel, round: data.round, total: data.totalRounds }), {
       fontSize: '12px', fontFamily: 'Courier New', color: '#ff4444',
     }).setOrigin(0.5, 0));
     if (data.history) {
@@ -719,7 +778,7 @@ export class AIArenaScene extends Phaser.Scene {
       });
     }
     if (data.champion) {
-      panel.add(this.add.text(0, 20 + data.history.length * 16, `冠军: ${data.champion.name}!`, {
+      panel.add(this.add.text(0, 20 + (data.history?.length || 0) * 16, t('arena.championLine', { name: data.champion.name }), {
         fontSize: '14px', fontFamily: 'Courier New', color: '#ff8800', fontStyle: 'bold',
       }).setOrigin(0.5, 0));
     }
@@ -727,22 +786,27 @@ export class AIArenaScene extends Phaser.Scene {
   }
 
   drawTournamentStartAlert(data) {
-    this.setStatus('#ff8800', `巅峰赛开始! ${data.participants?.length || 0} 名大师参赛`);
+    const msg = t('arena.tourStart', { n: data.participants?.length || 0 });
+    this.setStatus('#ff8800', msg);
     this.time.delayedCall(5000, () => {
-      if (this.statusText.text.indexOf('巅峰赛') >= 0) this.statusText.setText('');
+      if (this.statusText.text === msg) this.statusText.setText('');
     });
   }
 
   showTournamentMatchAlert(data) {
-    this.setStatus('#ff4444', `R${data.round}/${data.totalRounds}: ${data.agentA.name} vs ${data.agentB.name} → ${data.winner.name} (${data.score})`);
+    this.setStatus('#ff4444', t('arena.tourMatch', {
+      round: data.round, total: data.totalRounds,
+      a: data.agentA.name, b: data.agentB.name,
+      w: data.winner.name, score: data.score,
+    }));
   }
 
   showTournamentRoundAlert(data) {
-    this.setStatus('#ff8800', `第${data.round}/${data.totalRounds}轮开始! 剩余${data.remaining}名选手`);
+    this.setStatus('#ff8800', t('arena.tourRound', { round: data.round, total: data.totalRounds, n: data.remaining }));
   }
 
   showTournamentEnd(data) {
-    this.setStatus('#ff8800', `巅峰赛冠军: ${data.champion?.name || '未知'}!`);
+    this.setStatus('#ff8800', t('arena.tourChampion', { name: data.champion?.name || '?' }));
     if (data.champion) {
       // Full screen champion celebration (simple version)
       const overlay = this.add.rectangle(480, 320, 960, 640, 0x000000, 0.6);
@@ -752,11 +816,12 @@ export class AIArenaScene extends Phaser.Scene {
       const name = this.add.text(480, 280, data.champion.name, {
         fontSize: '22px', fontFamily: 'Courier New', color: '#ffaa00',
       }).setOrigin(0.5);
-      const close = this.add.text(480, 340, '[ 关闭 ]', {
+      const close = this.add.text(480, 340, t('arena.close'), {
         fontSize: '14px', fontFamily: 'Courier New', color: '#fff',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      close.on('pointerdown', () => { overlay.destroy(); title.destroy(); name.destroy(); close.destroy(); });
-      this.time.delayedCall(8000, () => { overlay.destroy(); title.destroy(); name.destroy(); close.destroy(); });
+      const dismiss = () => { overlay.destroy(); title.destroy(); name.destroy(); close.destroy(); };
+      close.on('pointerdown', dismiss);
+      this.time.delayedCall(8000, dismiss);
     }
   }
 }
