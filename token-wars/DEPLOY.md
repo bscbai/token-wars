@@ -12,6 +12,27 @@ fly auth login
 fly launch --name token-wars --no-deploy --region hkg  # hkg = Hong Kong
 ```
 
+### Required secrets & demo options
+```bash
+# JWT secret is mandatory in production (server refuses to boot without it)
+fly secrets set JWT_SECRET="$(openssl rand -hex 32)"
+
+# Recommended for a public demo: always-queued house bot so visitors' agents
+# match instantly without waiting for a second human player
+fly secrets set DEMO_HOUSEBOT=1
+```
+
+### Persistent volume (optional)
+SQLite lives at `/app/server/data/tokenwars.db` in the container. Without a
+volume, players and match archives reset on every deploy:
+```bash
+fly volumes create tokenwars_data --size 1
+# then add to fly.toml:
+#   [mounts]
+#     source = "tokenwars_data"
+#     destination = "/app/server/data"
+```
+
 ### Deploy
 ```bash
 fly deploy

@@ -183,6 +183,17 @@ class AIArenaManager {
     }
 
     console.log(`[AI Arena] Agent deployed: ${agent.name} (${agent.id.slice(0, 8)}), AELO=${agent.aelo}`);
+    return agent;
+  }
+
+  /**
+   * 部署官方陪练 bot（DEMO_HOUSEBOT=1 时由 aiarena 插件在启动时调用）：
+   * 使用系统玩家身份部署一个内置大脑 agent 并常驻车手组队列。
+   */
+  deployHouseBot(player) {
+    const agent = this.deployAgent(player.id, [], DEFAULT_TRACK);
+    if (agent) agent.houseBot = true;
+    return agent;
   }
 
   recallAgent(playerId, agentId) {
@@ -251,6 +262,15 @@ class AIArenaManager {
       if (socket) {
         socket.emit('ai_arena:queue_fail', { agentId, reason: 'parity_suspended' });
       }
+      return;
+    }
+    // 官方陪练 bot（DEMO_HOUSEBOT）：常驻队列，免邀请冷却/每日上限/对局冷却，
+    // 保证任何时刻接入的外部 agent 都能立即匹配到对手。
+    if (agent.houseBot) {
+      if (this.matchQueue.includes(agentId)) return;
+      this.matchQueue.push(agentId);
+      console.log(`[AI Arena] House bot queued: ${agent.name} (${this.matchQueue.length} in queue)`);
+      this.tryMatch();
       return;
     }
     if (Date.now() < (agent._declineUntil || 0)) {
@@ -664,9 +684,9 @@ class AIArenaManager {
       this.processDailyReward(agent);
     }
 
-    // Re-queue agents for next match
+    // Re-queue agents for next match（house bot 无视每日上限）
     for (const agent of [agentA, agentB]) {
-      if (agent.deployed && agent.dailyMatches < AI_DAILY_MATCH_CAP) {
+      if (agent.houseBot || (agent.deployed && agent.dailyMatches < AI_DAILY_MATCH_CAP)) {
         setTimeout(() => {
           this.joinQueue(agent.playerId, agent.id);
         }, 2000); // 2s buffer between matches

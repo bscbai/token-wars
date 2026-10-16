@@ -39,6 +39,19 @@ module.exports = {
       aiarena.unregisterSocket(player.id);
     });
 
+    // 官方陪练 bot（DEMO_HOUSEBOT=1）：创建/复用系统玩家并部署常驻 agent，
+    // 保证公网 demo 任何时刻接入的外部 bot 都能立即匹配到对手。
+    if (process.env.DEMO_HOUSEBOT === '1') {
+      const HOUSEBOT_NAME = 'TW-Gatekeeper';
+      let housePlayer = store.getPlayerByUsername(HOUSEBOT_NAME);
+      if (!housePlayer) {
+        const Player = require('../../models/Player');
+        housePlayer = new Player(HOUSEBOT_NAME);
+        store.addPlayer(housePlayer);
+      }
+      aiarena.deployHouseBot(housePlayer);
+    }
+
     // 玩家级路由（原 AIArenaManager.registerSocket 的 guard.on 迁移，schema 原样）
     const deploySchema   = { tokenDisk: { type: 'any', required: true }, track: { type: 'string', maxLength: 16 } };
     const agentIdSchema  = { agentId: { type: 'string', maxLength: 100, required: true } };
