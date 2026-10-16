@@ -8,6 +8,7 @@ import { PvPScene } from './scenes/PvPScene.js';
 import { ShopScene } from './scenes/ShopScene.js';
 import { InventoryScene } from './scenes/InventoryScene.js';
 import { AIArenaScene } from './scenes/AIArenaScene.js';
+import { mountLangToggle } from './langToggle.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -23,4 +24,7 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+
+// 全局语言切换按钮（DOM 悬浮层，独立于 Phaser 场景生命周期）
+mountLangToggle();
 

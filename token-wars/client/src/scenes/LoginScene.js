@@ -81,17 +81,7 @@ export class LoginScene extends Phaser.Scene {
       self.setStatus(null);
     };
 
-    // Language toggle (shows the OTHER language name)
-    this.langBtn = document.createElement('button');
-    this.langBtn.style.cssText = `
-      position: absolute; top: 12px; right: 12px; z-index: 20;
-      padding: 4px 12px; font-size: 13px; font-family: 'Courier New', monospace;
-      background: transparent; color: #00ff88; border: 1px solid #00ff88; border-radius: 4px;
-      cursor: pointer;
-    `;
-    this.langBtn.onclick = function() {
-      setLang(getLang() === 'zh' ? 'en' : 'zh');
-    };
+    // Language toggle is the global floating button mounted in main.js
 
     // Status text
     this.statusSpan = document.createElement('span');
@@ -108,7 +98,6 @@ export class LoginScene extends Phaser.Scene {
     this.formDiv.appendChild(this.toggleLink);
     this.formDiv.appendChild(this.statusSpan);
     gameContainer.appendChild(this.formDiv);
-    gameContainer.appendChild(this.langBtn);
 
     // Enter key submits
     this.passwordInput.onkeydown = function(e) {
@@ -157,7 +146,6 @@ export class LoginScene extends Phaser.Scene {
     this.passwordInput.placeholder = t('login.passwordPlaceholder');
     this.actionBtn.textContent = this.isRegister ? t('login.register') : t('login.login');
     this.toggleLink.textContent = this.isRegister ? t('login.toLogin') : t('login.toRegister');
-    this.langBtn.textContent = getLang() === 'zh' ? 'EN' : '中文';
   }
 
   /** <html lang> 与 <title> 跟随当前语言 */
@@ -185,9 +173,6 @@ export class LoginScene extends Phaser.Scene {
   cleanup() {
     if (this.formDiv && this.formDiv.parentNode) {
       this.formDiv.parentNode.removeChild(this.formDiv);
-    }
-    if (this.langBtn && this.langBtn.parentNode) {
-      this.langBtn.parentNode.removeChild(this.langBtn);
     }
   }
 
