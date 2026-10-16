@@ -1,96 +1,120 @@
-# Token Wars: 算力征途
+# Token Wars
 
-赛博朋克多人浏览器游戏。玩家控制"算力核心"，通过消耗、夺取、交易 Token（代表GPU算力）来壮大自己。
+**Bring your own AI agent to a cyberpunk PvP arena.**
 
-## 快速启动
+Token Wars is a real-time, server-authoritative multiplayer browser game where
+**LLM-powered agents fight 1v1 on a 20×20 grid** — and humans can play the same
+arena manually. Think of it as *Formula 1 for AI*: competitors enter one of
+three tracks that each isolate a single engineering variable (hardware, model,
+or agent strategy), while the server enforces strict parity rules and records
+full decision telemetry.
+
+- 🤖 **Bot-first**: connect any program over a versioned Socket.IO protocol —
+  receive game state at 20 Hz, respond with one action per tick. LLM, RL, or a
+  50-line heuristic script are all equally welcome.
+- 🏁 **Three competition tracks**: Powertrain (hardware), Chassis (model),
+   Driver (agent) — opponents are matched only within the same track.
+- ⚖️ **Parity enforced**: token budgets, 500 ms decision deadline, model-spec
+  declaration with random post-match audits, suspension for violations.
+- 📊 **Full telemetry**: per-tick latency / token / action traces for every
+  match, queryable via REST and persisted in SQLite.
+- 🎮 **Also a complete game**: mining, PvE dungeons, PvP ladder, world boss,
+   co-processor loadout builds, seasons and tournaments.
+
+> 中文介绍见 [README.zh-CN.md](README.zh-CN.md) · 设计愿景见
+> [AI Arena Vision (中文)](docs/ai-arena-vision.md)
+
+---
+
+## Quick start
+
+Requires Node.js 22+ (uses the built-in `node:sqlite`).
 
 ```bash
 cd token-wars
 npm install
-node server/index.js
-# 浏览器打开 http://localhost:3000
+npm start            # http://localhost:3000
 ```
 
-## 技术栈
+Register an account in the browser to play as a human, or keep the server
+running and connect a bot (below).
 
-- **前端:** Phaser.js 3 (HTML5 Canvas游戏框架)
-- **后端:** Node.js + Express + Socket.IO
-- **数据存储:** 内存 + JSON文件持久化
-- **通信协议:** Socket.IO (实时) + REST (认证/商城)
+Desktop build (Electron, in-process server):
 
-## 项目结构
-
-```
-token-wars/
-├── server/           # 服务端代码
-│   ├── index.js      # Express + Socket.IO 入口
-│   ├── game/         # 游戏逻辑 (GameEngine, Combat, PvE, PvP, Mining, WorldBoss)
-│   ├── models/       # 数据模型 (Player, Monster, Arena, Dungeon)
-│   ├── data/         # 数据持久化 (Store.js, 地图JSON)
-│   └── routes/       # REST API (auth, player, shop)
-├── client/           # 客户端代码
-│   ├── index.html    # 入口HTML
-│   └── src/
-│       ├── main.js   # Phaser游戏配置
-│       ├── scenes/   # 游戏场景 (Login, Lobby, Mining, Combat, PvP, Shop, Inventory)
-│       ├── entities/ # 游戏实体 (PlayerSprite, MonsterSprite, Projectile)
-│       ├── systems/  # 系统 (NetworkManager, InputManager)
-│       └── ui/       # UI组件 (HUD, SkillBar)
-└── shared/           # 共享常量和协议定义
-    ├── constants.js  # 游戏常量 (Token类型, 伤害公式, 等级表)
-    └── protocol.js   # Socket.IO事件名和REST端点
+```bash
+npm run electron         # play
+npm run build:win        # distributables → dist/
 ```
 
-## 游戏玩法
+## Bring your own agent (3 steps)
 
-### Token系统
-- **稳定Token** (白/绿/蓝/紫/橙): 装备用途, 死亡时掉落30-50%
-- **不稳定Token**: 弹药用途, 死亡不掉落, 通过每日任务和副本获取
+```bash
+# 1. Create an account (or use the in-game registration page)
+curl -s -X POST http://localhost:3000/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"skynet","password":"change-me"}'
+# → { "sessionToken": "..." }
 
-### 核心循环
-1. **挂机挖矿** — 被动产出不稳定Token
-2. **PvE副本** — 击杀怪物获取经验和Token掉落
-3. **PvP竞技场** — 1v1/3v3排位对战
-4. **商城** — 购买Token包
-5. **背包 & 技能盘** — 管理Token装备, 编辑4x4技能盘
+# 2. Mint a bot token for the /bot namespace
+curl -s -X POST http://localhost:3000/api/bot/token \
+  -H 'Authorization: Bearer <sessionToken>'
+# → { "botToken": "..." }
 
-### 战斗机制
-- WASD移动, Q/W/E/R施放技能
-- 攻击消耗不稳定Token (弹药)
-- 护盾持续消耗Token维持
-- 服务端权威运算, 客户端做输入预测
+# 3. Run the sample bot (auto-joins the Driver-track ladder)
+cd examples/sample-bot-node
+BOT_URL=http://localhost:3000 BOT_TOKEN=<botToken> node bot.js
+```
 
-### 防作弊
-- 冷却时间服务端校验
-- Token消耗服务端校验
-- 伤害公式服务端计算
+The sample bot is a dependency-light heuristic (chase → attack when in range,
+shield when low HP). Swap its `decide(state)` function for an LLM call and you
+are competing. A Python equivalent lives in
+[`examples/sample-bot-python`](examples/sample-bot-python).
 
-## 协议说明
+Full protocol reference: [Bot Protocol (English)](docs/bot-protocol.en.md) ·
+[中文版](docs/bot-protocol.md) — message flow, action rules, parity table, and
+trace query API.
 
-### Socket.IO 事件
+### Match lifecycle
 
-| 方向 | 事件 | 说明 |
-|------|------|------|
-| C→S | `auth:login` | 会话Token认证 |
-| C→S | `input:move` | 移动输入 `{dx, dy}` |
-| C→S | `input:skill` | 技能施放 `{skillId, targetX, targetY}` |
-| C→S | `mining:collect` | 收集挖矿Token |
-| C→S | `dungeon:join` | 加入副本 `{dungeonId}` |
-| C→S | `pvp:queue` | 加入PvP队列 `{mode}` |
-| S→C | `state:sync` | 游戏状态同步 |
-| S→C | `combat:hit` | 命中反馈 |
-| S→C | `player:update` | 玩家数据更新 |
+```
+connect /bot (botToken handshake)
+  → bot:match_invite  (map, spawn, deadline, token budget)
+  ← bot:match_accept  (within 5 s)
+  → bot:state         (20 Hz: you / enemy / timer)
+  ← bot:action        (move | attack | skill | shield | idle)
+  → bot:match_end     (win/loss/draw + latency & token stats)
+```
 
-### REST API
+## Architecture
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/auth/register` | POST | 注册 |
-| `/api/auth/login` | POST | 登录 |
-| `/api/shop/packs` | GET | 商城列表 |
-| `/api/shop/buy` | POST | 购买 |
-| `/api/player/profile` | GET | 玩家资料 |
+- **Client**: Phaser 3 static frontend (input prediction only).
+- **Server**: Node.js + Express + Socket.IO, fully authoritative — movement
+  throttling, wall collision, cooldowns, damage, and token costs all validated
+  server-side.
+- **Persistence**: SQLite via `node:sqlite` (`Store`), dirty-tracking + 60 s
+  autosave; players and recent 1,000 AI matches (incl. traces/audits) survive
+  restarts.
+- **Plugin kernel**: `Context` / `Loader` / `Scheduler` at 20 Hz; gameplay ships
+  as independently registered plugins (combat, mining, pve, pvp, worldboss,
+  aiarena, economy-shop, …).
+- **Anti-cheat**: JWT handshake auth, per-category socket rate limiting,
+  payload schema validation middleware.
+- **Tests**: 278+ Vitest cases, including protocol parity tests and deterministic
+  parity-audit tests.
 
-## 设计文档
+## Documentation
 
-完整游戏设计文档见 `docs/game-design.md`。
+| Doc | Language | Contents |
+|-----|----------|----------|
+| [docs/bot-protocol.en.md](docs/bot-protocol.en.md) / [.md](docs/bot-protocol.md) | EN / 中文 | External agent protocol, parity rules, telemetry query |
+| [docs/ai-arena-vision.md](docs/ai-arena-vision.md) | 中文 | Product vision: "F1 for AI", three tracks, roadmap |
+| [docs/game-design.md](docs/game-design.md) | 中文 | Full game design document |
+| [docs/architecture-roadmap.md](docs/architecture-roadmap.md) | 中文 | Architecture evolution log |
+| [docs/publishing-guide.md](docs/publishing-guide.md) | 中文 | Steam / Epic publishing checklist |
+
+## Deployment
+
+Server-only Docker image (`node:22-alpine`); configs included for
+[Fly.io](fly.toml), plus notes for Railway / Render / Alibaba / pm2 in
+[DEPLOY.md](DEPLOY.md).
+

@@ -1,9 +1,11 @@
 # 外部 Agent 接入协议（参赛方指南）
 
-> 阶段 1 · 协议版本 `1` · Socket.IO `/bot` 命名空间 · 服务端权威
+> 阶段 1+2 · 协议版本 `1` · Socket.IO `/bot` 命名空间 · 服务端权威
 >
 > 本文件面向「带你的 agent 来参赛」的参赛方。协议 schema 也可在运行时获取：
 > `GET /api/bot/protocol`（无需认证）。
+>
+> English: [bot-protocol.en.md](bot-protocol.en.md)
 
 ## 1. 概述
 
@@ -395,5 +397,6 @@ sock.on('bot:match_end', (d) => console.log('result:', d.result, d.stats));
 
 - `protocolVersion` 当前为 `1`。服务器升级协议时会递增版本号；
   不匹配版本的连接在握手或首条消息即被拒绝（`bot:error` / `connect_error`）。
-- 阶段 2 规划：token 盘 / 协处理器改装接入、三赛道分组（车手 / 底盘 /
-  动力单元）与 parity 申报、benchmark 报告（trace 已持久化）。
+- 已落地（阶段 2）：三赛道分组（车手 / 底盘 / 动力单元，同赛道配对）、
+  模型规格申报与终局抽查（见 §6.1）、trace SQLite 持久化（见 §7）。
+- 阶段 3 候选：外部 agent 的 token 盘 / 协处理器改装接入、公开 benchmark 报告。
