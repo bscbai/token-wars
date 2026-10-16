@@ -1,4 +1,5 @@
 import net from '../systems/NetworkManager.js';
+import { t, getLang, setLang, onLangChange } from '../i18n.js';
 
 export class LoginScene extends Phaser.Scene {
   constructor() {
@@ -22,7 +23,7 @@ export class LoginScene extends Phaser.Scene {
       fontSize: '48px', fontFamily: 'Courier New', color: '#00ff88',
       fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.add.text(cx, 130, '算力征途', {
+    this.subtitleText = this.add.text(cx, 130, t('login.subtitle'), {
       fontSize: '24px', fontFamily: 'Courier New', color: '#008866',
     }).setOrigin(0.5);
 
@@ -39,11 +40,9 @@ export class LoginScene extends Phaser.Scene {
 
     // Username
     const userLabel = document.createElement('label');
-    userLabel.textContent = '用户名:';
     userLabel.style.cssText = 'color: #00ff88; font-size: 14px; align-self: flex-start;';
     this.usernameInput = document.createElement('input');
     this.usernameInput.type = 'text';
-    this.usernameInput.placeholder = '2-16 个字符';
     this.usernameInput.maxLength = 16;
     this.usernameInput.style.cssText = `
       width: 260px; padding: 8px 12px; font-size: 16px; font-family: 'Courier New', monospace;
@@ -53,18 +52,15 @@ export class LoginScene extends Phaser.Scene {
 
     // Password
     const passLabel = document.createElement('label');
-    passLabel.textContent = '密  码:';
     passLabel.style.cssText = 'color: #00ff88; font-size: 14px; align-self: flex-start;';
     this.passwordInput = document.createElement('input');
     this.passwordInput.type = 'password';
-    this.passwordInput.placeholder = '至少 4 个字符';
     this.passwordInput.minLength = 4;
     this.passwordInput.style.cssText = this.usernameInput.style.cssText;
 
     // Action button — use onclick to avoid Phaser event capture issues
     const self = this;
     this.actionBtn = document.createElement('button');
-    this.actionBtn.textContent = '登  录';
     this.actionBtn.style.cssText = `
       width: 260px; padding: 10px; font-size: 20px; font-family: 'Courier New', monospace;
       background: #1a3a2e; color: #00ff88; border: 2px solid #00ff88; border-radius: 4px;
@@ -76,15 +72,25 @@ export class LoginScene extends Phaser.Scene {
 
     // Toggle link
     this.toggleLink = document.createElement('a');
-    this.toggleLink.textContent = '注册新账号';
     this.toggleLink.href = '#';
     this.toggleLink.style.cssText = 'color: #008866; font-size: 13px; margin-top: 4px; text-decoration: none;';
     this.toggleLink.onclick = function(e) {
       e.preventDefault();
       self.isRegister = !self.isRegister;
-      self.actionBtn.textContent = self.isRegister ? '注  册' : '登  录';
-      self.toggleLink.textContent = self.isRegister ? '返回登录' : '注册新账号';
-      self.statusSpan.textContent = '';
+      self.applyLang();
+      self.setStatus(null);
+    };
+
+    // Language toggle (shows the OTHER language name)
+    this.langBtn = document.createElement('button');
+    this.langBtn.style.cssText = `
+      position: absolute; top: 12px; right: 12px; z-index: 20;
+      padding: 4px 12px; font-size: 13px; font-family: 'Courier New', monospace;
+      background: transparent; color: #00ff88; border: 1px solid #00ff88; border-radius: 4px;
+      cursor: pointer;
+    `;
+    this.langBtn.onclick = function() {
+      setLang(getLang() === 'zh' ? 'en' : 'zh');
     };
 
     // Status text
@@ -92,6 +98,8 @@ export class LoginScene extends Phaser.Scene {
     this.statusSpan.style.cssText = 'color: #ff4444; font-size: 13px; margin-top: 4px; min-height: 18px;';
 
     // Assemble form
+    this.userLabelEl = userLabel;
+    this.passLabelEl = passLabel;
     this.formDiv.appendChild(userLabel);
     this.formDiv.appendChild(this.usernameInput);
     this.formDiv.appendChild(passLabel);
@@ -100,6 +108,7 @@ export class LoginScene extends Phaser.Scene {
     this.formDiv.appendChild(this.toggleLink);
     this.formDiv.appendChild(this.statusSpan);
     gameContainer.appendChild(this.formDiv);
+    gameContainer.appendChild(this.langBtn);
 
     // Enter key submits
     this.passwordInput.onkeydown = function(e) {
@@ -112,20 +121,56 @@ export class LoginScene extends Phaser.Scene {
     // Focus username
     this.usernameInput.focus();
 
+    // Static texts (labels / placeholders / buttons / html lang)
+    this.applyLang();
+    this.syncDocumentMeta();
+
+    // Live language switching: refresh canvas + DOM without reload
+    this._offLang = onLangChange(() => {
+      this.subtitleText.setText(t('login.subtitle'));
+      this.applyLang();
+      this.syncDocumentMeta();
+    });
+    this.events.once('shutdown', () => { if (this._offLang) this._offLang(); });
+
     // Listen for auth responses
     net.on('auth:success', (data) => {
-      this.statusSpan.style.color = '#00ff88';
-      this.statusSpan.textContent = '登录成功!';
+      this.setStatus('login.success', null, '#00ff88');
       net.setSession(net.sessionToken, data.playerId);
       this._pendingTransition = data.player;
     });
 
     net.on('auth:fail', (data) => {
+      // Server-provided reason is shown verbatim (server message translation out of scope)
       this.statusSpan.style.color = '#ff4444';
-      this.statusSpan.textContent = data.reason || '认证失败';
+      this.statusSpan.textContent = data.reason || t('login.authFail');
       this.actionBtn.disabled = false;
       this.actionBtn.style.opacity = '1';
     });
+  }
+
+  /** 刷新所有静态文案（含登录/注册模式差异） */
+  applyLang() {
+    this.userLabelEl.textContent = t('login.username');
+    this.usernameInput.placeholder = t('login.usernamePlaceholder');
+    this.passLabelEl.textContent = t('login.password');
+    this.passwordInput.placeholder = t('login.passwordPlaceholder');
+    this.actionBtn.textContent = this.isRegister ? t('login.register') : t('login.login');
+    this.toggleLink.textContent = this.isRegister ? t('login.toLogin') : t('login.toRegister');
+    this.langBtn.textContent = getLang() === 'zh' ? 'EN' : '中文';
+  }
+
+  /** <html lang> 与 <title> 跟随当前语言 */
+  syncDocumentMeta() {
+    const zh = getLang() === 'zh';
+    document.documentElement.lang = zh ? 'zh-CN' : 'en';
+    document.title = zh ? 'Token Wars: 算力征途' : 'Token Wars';
+  }
+
+  /** 状态条：key 为字典键（null 清空）；vars 用于插值 */
+  setStatus(key, vars = null, color = '#ff4444') {
+    this.statusSpan.style.color = color;
+    this.statusSpan.textContent = key ? t(key, vars) : '';
   }
 
   update() {
@@ -141,6 +186,9 @@ export class LoginScene extends Phaser.Scene {
     if (this.formDiv && this.formDiv.parentNode) {
       this.formDiv.parentNode.removeChild(this.formDiv);
     }
+    if (this.langBtn && this.langBtn.parentNode) {
+      this.langBtn.parentNode.removeChild(this.langBtn);
+    }
   }
 
   async submit() {
@@ -148,23 +196,19 @@ export class LoginScene extends Phaser.Scene {
     const password = this.passwordInput.value;
 
     if (!username || !password) {
-      this.statusSpan.style.color = '#ff4444';
-      this.statusSpan.textContent = '请输入用户名和密码';
+      this.setStatus('login.enterBoth');
       return;
     }
     if (username.length < 2) {
-      this.statusSpan.style.color = '#ff4444';
-      this.statusSpan.textContent = '用户名至少 2 个字符';
+      this.setStatus('login.usernameMin');
       return;
     }
     if (password.length < 4) {
-      this.statusSpan.style.color = '#ff4444';
-      this.statusSpan.textContent = '密码至少 4 个字符';
+      this.setStatus('login.passwordMin');
       return;
     }
 
-    this.statusSpan.style.color = '#ffff00';
-    this.statusSpan.textContent = this.isRegister ? '注册中...' : '登录中...';
+    this.setStatus(this.isRegister ? 'login.registering' : 'login.loggingIn', null, '#ffff00');
     this.actionBtn.disabled = true;
     this.actionBtn.style.opacity = '0.6';
 
@@ -180,7 +224,7 @@ export class LoginScene extends Phaser.Scene {
 
       if (!resp.ok) {
         this.statusSpan.style.color = '#ff4444';
-        this.statusSpan.textContent = data.error || '请求失败';
+        this.statusSpan.textContent = data.error || t('login.requestFailed');
         this.actionBtn.disabled = false;
         this.actionBtn.style.opacity = '1';
         return;
@@ -191,11 +235,9 @@ export class LoginScene extends Phaser.Scene {
       // via io.use() middleware and emits auth:success directly.
       net.connect(data.sessionToken);
 
-      this.statusSpan.style.color = '#00ff88';
-      this.statusSpan.textContent = '登录成功! 正在进入...';
+      this.setStatus('login.successEntering', null, '#00ff88');
     } catch (err) {
-      this.statusSpan.style.color = '#ff4444';
-      this.statusSpan.textContent = '连接服务器失败';
+      this.setStatus('login.connectFailed');
       this.actionBtn.disabled = false;
       this.actionBtn.style.opacity = '1';
     }

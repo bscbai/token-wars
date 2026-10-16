@@ -1,4 +1,5 @@
 import net from '../systems/NetworkManager.js';
+import { t, onLangChange } from '../i18n.js';
 
 export class LobbyScene extends Phaser.Scene {
   constructor() {
@@ -13,29 +14,30 @@ export class LobbyScene extends Phaser.Scene {
     try {
       if (!this.playerData) {
         console.error('[Lobby] No player data!');
-        this.add.text(480, 320, '错误: 无玩家数据', { fontSize: '20px', color: '#ff4444' }).setOrigin(0.5);
+        this.add.text(480, 320, t('lobby.errNoPlayer'), { fontSize: '20px', color: '#ff4444' }).setOrigin(0.5);
         return;
       }
 
       const cx = 480;
 
       // Title
-      this.add.text(cx, 40, '算力核心大厅', {
+      this.titleText = this.add.text(cx, 40, t('lobby.title'), {
         fontSize: '32px', fontFamily: 'Courier New', color: '#00ff88', fontStyle: 'bold',
       }).setOrigin(0.5);
 
       // Player info panel
       this.drawPlayerInfo(cx, 100);
 
-      // Navigation buttons
+      // Navigation buttons (labels are i18n keys; re-rendered on language change)
       const buttons = [
-        { label: '⛏  挂机挖矿', scene: 'MiningScene', color: '#00aaff' },
-        { label: '⚔  PvE 副本', scene: 'DungeonSelectScene', color: '#ff4444' },
-        { label: '🏟  PvP 竞技场', scene: 'PvPScene', color: '#ff8800' },
-        { label: '🤖 AI 竞技场', scene: 'AIArenaScene', color: '#44ffaa' },
-        { label: '🛒  算力商城', scene: 'ShopScene', color: '#aa44ff' },
-        { label: '🎒  背包 & 技能盘', scene: 'InventoryScene', color: '#44ffaa' },
+        { key: 'lobby.mining', scene: 'MiningScene', color: '#00aaff' },
+        { key: 'lobby.pve', scene: 'DungeonSelectScene', color: '#ff4444' },
+        { key: 'lobby.pvp', scene: 'PvPScene', color: '#ff8800' },
+        { key: 'lobby.aiarena', scene: 'AIArenaScene', color: '#44ffaa' },
+        { key: 'lobby.shop', scene: 'ShopScene', color: '#aa44ff' },
+        { key: 'lobby.inventory', scene: 'InventoryScene', color: '#44ffaa' },
       ];
+      this.navButtons = [];
 
       buttons.forEach((btn, i) => {
         const y = 280 + i * 60;
@@ -45,9 +47,10 @@ export class LobbyScene extends Phaser.Scene {
           .setStrokeStyle(2, colorInt)
           .setInteractive({ useHandCursor: true });
 
-        const text = this.add.text(cx, y, btn.label, {
+        const text = this.add.text(cx, y, t(btn.key), {
           fontSize: '20px', fontFamily: 'Courier New', color: btn.color, fontStyle: 'bold',
         }).setOrigin(0.5);
+        this.navButtons.push({ text, key: btn.key });
 
         rect.on('pointerover', () => rect.setFillStyle(colorInt, 0.3));
         rect.on('pointerout', () => rect.setFillStyle(colorInt, 0.15));
@@ -55,7 +58,7 @@ export class LobbyScene extends Phaser.Scene {
           if (this.scene.manager.keys[btn.scene]) {
             this.scene.start(btn.scene, { player: this.playerData });
           } else {
-            this.statusText.setText(btn.label + ' — 即将开放');
+            this.statusText.setText(t(btn.key) + t('lobby.comingSoon'));
             this.time.delayedCall(2000, () => this.statusText.setText(''));
           }
         });
@@ -72,11 +75,27 @@ export class LobbyScene extends Phaser.Scene {
         this.refreshPlayerInfo();
       });
 
+      // Live language switching: refresh title / nav / player info
+      this._offLang = onLangChange(() => {
+        this.titleText.setText(t('lobby.title'));
+        for (const { text, key } of this.navButtons) text.setText(t(key));
+        this.refreshPlayerInfo();
+      });
+      this.events.once('shutdown', () => { if (this._offLang) this._offLang(); });
+
       console.log('[Lobby] create() OK');
     } catch (e) {
       console.error('[Lobby] create() error:', e.message, e.stack);
-      this.add.text(480, 320, '渲染错误: ' + e.message, { fontSize: '14px', color: '#ff4444' }).setOrigin(0.5);
+      this.add.text(480, 320, t('lobby.renderError', { msg: e.message }), { fontSize: '14px', color: '#ff4444' }).setOrigin(0.5);
     }
+  }
+
+  /** Token / credits summary line (localized) */
+  formatTokenLine(p) {
+    const stableCount = Array.isArray(p.stableTokens) ? p.stableTokens.length : 0;
+    return t('lobby.stable') + stableCount + '  |  ' +
+      t('lobby.unstable') + (p.unstableTokens || 0) + '  |  ' +
+      t('lobby.credits') + (p.credits || 0);
   }
 
   drawPlayerInfo(cx, y) {
@@ -109,9 +128,7 @@ export class LobbyScene extends Phaser.Scene {
     this.add.text(cx + 120, y + 20, 'DEF: ' + p.def, { fontSize: '14px', color: '#4488ff', fontFamily: 'Courier New' });
 
     // Tokens
-    const stableCount = Array.isArray(p.stableTokens) ? p.stableTokens.length : 0;
-    this.tokenText = this.add.text(cx - 230, y + 75,
-      '稳定Token: ' + stableCount + '  |  不稳定Token: ' + (p.unstableTokens || 0) + '  |  积分: ' + (p.credits || 0), {
+    this.tokenText = this.add.text(cx - 230, y + 75, this.formatTokenLine(p), {
       fontSize: '13px', color: '#aaaaaa', fontFamily: 'Courier New',
     });
 
@@ -137,8 +154,7 @@ export class LobbyScene extends Phaser.Scene {
     const xpPct = Math.min(p.xp / (p.xpToNext || 1), 1);
     this.xpBar.width = 200 * xpPct;
 
-    const stableCount = Array.isArray(p.stableTokens) ? p.stableTokens.length : 0;
-    this.tokenText.setText('稳定Token: ' + stableCount + '  |  不稳定Token: ' + (p.unstableTokens || 0) + '  |  积分: ' + (p.credits || 0));
+    this.tokenText.setText(this.formatTokenLine(p));
     this.pvpText.setText('PvP: ' + (p.pvpRating || 1000));
   }
 }
