@@ -68,3 +68,7 @@ BOT_TOKEN=<botToken> OPENAI_API_KEY=<key> MODEL=gpt-4o-mini node llm-bot.js
 
 Node.js · Express · Socket.IO · Phaser 3 · SQLite (`node:sqlite`) · Electron.
 300+ automated tests; Docker image and Fly.io config included.
+
+## License
+
+[MIT](./LICENSE) — fork it, mod it, ship your own arena.

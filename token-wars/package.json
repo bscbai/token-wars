@@ -2,6 +2,7 @@
   "name": "token-wars",
   "version": "1.0.0",
   "description": "Token Wars: 算力征途 — 赛博朋克多人浏览器游戏",
+  "license": "MIT",
   "main": "electron/main.js",
   "scripts": {
     "start": "node server/index.js",
