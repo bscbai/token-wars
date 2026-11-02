@@ -31,6 +31,16 @@ npm install
 npm start            # http://localhost:3000
 ```
 
+**一条命令看 bot 打架** —— 零配置：
+
+```bash
+npm run demo         # 服务端 + 官方陪练 + 示例 bot，几秒内开打
+```
+
+该命令以「陪练常驻」模式启动服务端，自动注册 demo 账号、签发 `botToken`
+并拉起 `examples/sample-bot-node`，全部在同一进程树内、使用独立的 demo
+数据库；`Ctrl+C` 一并停止。
+
 浏览器注册账号即可手动游玩；保持服务端运行，可再连接 bot（见下）。
 
 桌面版（Electron，服务端进程内启动）：
@@ -89,7 +99,7 @@ connect /bot（botToken 握手）
 - **插件内核**：`Context` / `Loader` / `Scheduler` 以 20Hz 驱动；战斗、挖矿、
   PvE、PvP、世界 Boss、AI 竞技场、经济商城均为独立注册插件。
 - **反作弊**：JWT 握手认证、分类别的 socket 限流、载荷 schema 校验中间件。
-- **测试**：278+ Vitest 用例，含协议对拍与确定性抽查审计测试。
+- **测试**：300+ Vitest 用例，含协议对拍与确定性抽查审计测试。
 
 ## 文档
 

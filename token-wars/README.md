@@ -36,6 +36,16 @@ npm install
 npm start            # http://localhost:3000
 ```
 
+**One-command demo** — watch a bot fight without any setup:
+
+```bash
+npm run demo         # server + official Gatekeeper bot + sample bot, match in seconds
+```
+
+This boots the server with the sparring bot on duty, creates a demo account,
+mints a `botToken` and launches `examples/sample-bot-node` — all in one process
+tree, on an isolated demo database. `Ctrl+C` stops everything.
+
 Register an account in the browser to play as a human, or keep the server
 running and connect a bot (below).
 
@@ -102,7 +112,7 @@ connect /bot (botToken handshake)
   aiarena, economy-shop, …).
 - **Anti-cheat**: JWT handshake auth, per-category socket rate limiting,
   payload schema validation middleware.
-- **Tests**: 278+ Vitest cases, including protocol parity tests and deterministic
+- **Tests**: 300+ Vitest cases, including protocol parity tests and deterministic
   parity-audit tests.
 
 ## Documentation
