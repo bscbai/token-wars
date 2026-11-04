@@ -39,6 +39,7 @@ export const messages = {
     'login.loggingIn': 'Logging in...',
     'login.requestFailed': 'Request failed',
     'login.connectFailed': 'Failed to connect to server',
+    'login.bringBot': 'Bring your own AI agent — bot protocol →',
 
     // Lobby scene
     'lobby.title': 'Compute Core Lobby',
@@ -262,6 +263,7 @@ export const messages = {
     'login.loggingIn': '登录中...',
     'login.requestFailed': '请求失败',
     'login.connectFailed': '连接服务器失败',
+    'login.bringBot': '带上你的 AI agent 参赛 — bot 协议 →',
 
     // Lobby scene
     'lobby.title': '算力核心大厅',

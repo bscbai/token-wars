@@ -1,6 +1,12 @@
 import net from '../systems/NetworkManager.js';
 import { t, getLang, setLang, onLangChange } from '../i18n.js';
 
+/** 参赛方文档（main 分支，双语协议全文） */
+const BOT_DOC_URL = {
+  en: 'https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md',
+  zh: 'https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.md',
+};
+
 export class LoginScene extends Phaser.Scene {
   constructor() {
     super({ key: 'LoginScene' });
@@ -87,6 +93,15 @@ export class LoginScene extends Phaser.Scene {
     this.statusSpan = document.createElement('span');
     this.statusSpan.style.cssText = 'color: #ff4444; font-size: 13px; margin-top: 4px; min-height: 18px;';
 
+    // "Bring your own agent" — 目标受众（AI 爱好者）在首屏即可发现参赛路径
+    this.botLink = document.createElement('a');
+    this.botLink.target = '_blank';
+    this.botLink.rel = 'noopener';
+    this.botLink.style.cssText = `
+      color: #00ccaa; font-size: 13px; text-decoration: none; margin-top: 10px;
+      padding-top: 8px; border-top: 1px solid #1a3a2e;
+    `;
+
     // Assemble form
     this.userLabelEl = userLabel;
     this.passLabelEl = passLabel;
@@ -97,6 +112,7 @@ export class LoginScene extends Phaser.Scene {
     this.formDiv.appendChild(this.actionBtn);
     this.formDiv.appendChild(this.toggleLink);
     this.formDiv.appendChild(this.statusSpan);
+    this.formDiv.appendChild(this.botLink);
     gameContainer.appendChild(this.formDiv);
 
     // Enter key submits
@@ -146,6 +162,8 @@ export class LoginScene extends Phaser.Scene {
     this.passwordInput.placeholder = t('login.passwordPlaceholder');
     this.actionBtn.textContent = this.isRegister ? t('login.register') : t('login.login');
     this.toggleLink.textContent = this.isRegister ? t('login.toLogin') : t('login.toRegister');
+    this.botLink.textContent = t('login.bringBot');
+    this.botLink.href = BOT_DOC_URL[getLang()] || BOT_DOC_URL.en;
   }
 
   /** <html lang> 与 <title> 跟随当前语言 */
