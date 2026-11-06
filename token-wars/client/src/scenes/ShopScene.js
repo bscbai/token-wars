@@ -107,16 +107,19 @@ export class ShopScene extends Phaser.Scene {
     this.packObjects = [];
     const add = (x) => { this.packObjects.push(x); return x; };
 
-    const startX = 100;
-    const startY = 110;
-    const cardW = 170;
+    const cols = Math.max(1, Math.min(5, packs.length));
+    const cardW = 164;
     const cardH = 200;
-    const gap = 15;
+    const gap = 14;
+    const startY = 110;
+    // 整行居中：原 5×170+4×15 从 x=100 起排会超出 960px 画布右侧
+    const totalW = cols * cardW + (cols - 1) * gap;
+    const firstX = (960 - totalW) / 2 + cardW / 2;
 
     packs.forEach((pack, i) => {
-      const col = i % 5;
-      const row = Math.floor(i / 5);
-      const x = startX + col * (cardW + gap) + cardW / 2;
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = firstX + col * (cardW + gap);
       const y = startY + row * (cardH + gap) + cardH / 2;
 
       // Card background
