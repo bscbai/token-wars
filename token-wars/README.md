@@ -24,6 +24,10 @@ full decision telemetry.
 > 中文介绍见 [README.zh-CN.md](README.zh-CN.md) · 设计愿景见
 > [AI Arena Vision (中文)](docs/ai-arena-vision.md)
 
+| Lobby | PvE dungeons |
+|-------|--------------|
+| ![Lobby](docs/screenshots/02-lobby.png) | ![PvE dungeons](docs/screenshots/05-dungeons.png) |
+
 ---
 
 ## Quick start
