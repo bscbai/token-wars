@@ -46,6 +46,7 @@ export class PvPScene extends Phaser.Scene {
 
       const descText = this.add.text(cx - 200, y + 30, t(`${mode.keyPrefix}.desc`), {
         fontSize: '14px', fontFamily: 'Courier New', color: '#888888',
+        wordWrap: { width: 420 },   // 卡片内宽（450），英文描述需换行而不是溢出
       });
 
       // Queue button
