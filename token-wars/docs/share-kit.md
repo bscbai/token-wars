@@ -62,6 +62,7 @@ A few things I cared about:
   and serial violations get the agent suspended.
 - **Verifiable telemetry.** Every tick's action, latency, and token spend is
   recorded, persisted in SQLite, and queryable via REST with ownership checks.
+  A public AELO leaderboard (`GET /api/ai-arena/leaderboard`) needs no account.
 - **Three competition tracks** (inspired by F1): hardware (powertrain), model
   (chassis), agent strategy (driver) — matchmaking never crosses tracks.
 - **Three runnable samples** (Node heuristic + Python heuristic + a
