@@ -1,5 +1,8 @@
 # Token Wars — Quick Deploy
 
+> The app lives in `token-wars/` inside the repo (repo root is the landing README).
+> Every command below must run **from `token-wars/`**.
+
 ## Option 1: Fly.io (recommended — free, global edge)
 
 ### One-time setup
@@ -7,7 +10,7 @@
 # Install flyctl (from https://fly.io/docs/flyctl/install/)
 powershell -Command "iwr https://fly.io/install.ps1 -UseBasicParsing | iex"
 
-# Login and create app
+cd token-wars                      # fly.toml and Dockerfile live here
 fly auth login
 fly launch --name token-wars --no-deploy --region hkg  # hkg = Hong Kong
 ```
@@ -22,9 +25,10 @@ fly secrets set JWT_SECRET="$(openssl rand -hex 32)"
 fly secrets set DEMO_HOUSEBOT=1
 ```
 
-### Persistent volume (optional)
+### Persistent volume (recommended)
 SQLite lives at `/app/server/data/tokenwars.db` in the container. Without a
-volume, players and match archives reset on every deploy:
+volume, players and match archives reset on every deploy — fine for a throwaway
+demo, wrong for a real league:
 ```bash
 fly volumes create tokenwars_data --size 1
 # then add to fly.toml:
@@ -50,8 +54,10 @@ fly scale vm shared-cpu-1x --memory 512  # adjust as needed
 
 1. Go to https://railway.app
 2. Connect your GitHub → select `bscbai/token-wars`
-3. Railway auto-detects the Dockerfile and deploys
-4. Set env: `PORT=3000`
+3. **Set the service Root Directory to `token-wars`** (the Dockerfile is not at
+   the repo root)
+4. Set env: `PORT=3000`, `NODE_ENV=production`, `JWT_SECRET=<random 32+ bytes>`,
+   `DEMO_HOUSEBOT=1` (recommended for a public demo)
 5. Get URL from dashboard
 
 ---
@@ -60,9 +66,11 @@ fly scale vm shared-cpu-1x --memory 512  # adjust as needed
 
 1. Go to https://render.com
 2. New Web Service → connect `bscbai/token-wars`
-3. Build command: _leave blank (uses Dockerfile)_
-4. Start command: _leave blank (uses Dockerfile CMD)_
-5. Set env: `NODE_ENV=production`, `PORT=3000`
+3. **Root Directory: `token-wars`**; Dockerfile path: `token-wars/Dockerfile`
+4. Build command: _leave blank (uses Dockerfile)_
+5. Start command: _leave blank (uses Dockerfile CMD)_
+6. Set env: `NODE_ENV=production`, `PORT=3000`, `JWT_SECRET=<random 32+ bytes>`,
+   `DEMO_HOUSEBOT=1`
 
 ---
 
@@ -71,13 +79,14 @@ fly scale vm shared-cpu-1x --memory 512  # adjust as needed
 ```bash
 # On your Alibaba Cloud server
 git clone https://github.com/bscbai/token-wars.git
-cd token-wars
+cd token-wars/token-wars          # app directory inside the repo
 npm install
-NODE_ENV=production node server/index.js &
+JWT_SECRET=<random 32+ bytes> NODE_ENV=production DEMO_HOUSEBOT=1 node server/index.js &
 
 # Or with pm2 for auto-restart
 npm install -g pm2
-pm2 start server/index.js --name token-wars
+JWT_SECRET=<random 32+ bytes> NODE_ENV=production DEMO_HOUSEBOT=1 \
+  pm2 start server/index.js --name token-wars
 pm2 save
 ```
 
@@ -85,7 +94,16 @@ pm2 save
 
 ## Docker (any platform)
 
+Build from the app directory — the Dockerfile's build context is `token-wars/`:
+
 ```bash
+cd token-wars
 docker build -t token-wars .
-docker run -d -p 3000:3000 --name token-wars-server token-wars
+docker run -d -p 3000:3000 -e JWT_SECRET=<random 32+ bytes> \
+  -e NODE_ENV=production -e DEMO_HOUSEBOT=1 \
+  -v "$(pwd)/.data:/app/server/data" \
+  --name token-wars-server token-wars
 ```
+
+Mount a host directory (or a named volume) at `/app/server/data`, otherwise
+SQLite resets on every container recreation.
