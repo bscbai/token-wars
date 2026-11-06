@@ -1,0 +1,4 @@
+schema: spec-driven
+name: agent-access-protocol
+description: 阶段 1 — 外部 agent 接入协议（state in/action out + 延迟与 token 成本计量）
+created: 2026-10-08

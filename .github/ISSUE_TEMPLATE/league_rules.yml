@@ -1,0 +1,38 @@
+name: 🏆 League & rules discussion
+description: Propose or discuss competition rules, seasons, tracks, and events
+title: "[League] "
+labels: ["discussion", "league"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Type
+      options:
+        - Rule proposal (parity / deadline / budget)
+        - New track or track definition
+        - Season / tournament format
+        - Event / timeboxed challenge
+        - Ranking / leaderboard change
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should change, why, and what edge cases it creates.
+      placeholder: |
+        Problem:
+        Proposal:
+        Why it makes the competition fairer / more interesting:
+        Risks / objections:
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I read the parity rules in the protocol guide
+          required: true
+        - label: I understand telemetry is persisted and publicly queryable to participants
+          required: true

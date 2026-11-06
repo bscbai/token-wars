@@ -1,0 +1,1277 @@
+const { AIAgent, AI_LEVELS, AI_DECISIONS } = require('../models/AIAgent');
+const { SKILLS, MAP_WIDTH, MAP_HEIGHT, TILE, PVP, BOT_PROTOCOL, AI_ARENA_TIMING, TRACKS, DEFAULT_TRACK, PARITY } = require('../../shared/constants');
+const { EVENTS } = require('../../shared/protocol');
+const BuiltinBrain = require('./BuiltinBrain');
+const ExternalMatchRunner = require('./ExternalMatchRunner');
+
+// 三赛道 id 索引（阶段 2）：TRACKS 枚举的 KEY 形态 → 以 id 快速校验
+const TRACKS_BY_ID = Object.values(TRACKS).reduce((acc, t) => { acc[t.id] = t; return acc; }, {});
+
+// AI Arena constants
+const AI_MATCH_TICK_MS = AI_ARENA_TIMING.MATCH_TICK_MS; // Simulate at 20Hz
+const AI_MATCH_MAX_TIME_MS = AI_ARENA_TIMING.MATCH_MAX_TIME_MS; // 120 seconds max
+const AI_MATCH_COOLDOWN_MS = 5 * 60 * 1000; // 5 min cooldown
+const AI_DAILY_MATCH_CAP = 20;
+const AI_AELO_K = 20;
+
+// Season AI Buffs (applied to all agents during specific season weeks)
+const SEASON_BUFFS = {
+  QUANTUM_AWAKEN: {
+    id: 'quantum_awaken',
+    name: '量子觉醒',
+    attackWeightBonus: 0.15,
+    description: 'AI攻击倾向 +15%',
+  },
+  SHADOW_PROTOCOL: {
+    id: 'shadow_protocol',
+    name: '暗影协议',
+    dodgeWeightBonus: 0.15,
+    description: 'AI闪避倾向 +15%',
+  },
+  ENTROPY_CRISIS: {
+    id: 'entropy_crisis',
+    name: '熵增危机',
+    counterChance: 0.20,
+    description: 'AI受伤时反击概率 +20%',
+  },
+};
+
+// Tournament constants
+const TOURNAMENT_TOP_N = 16; // Top 16 enter elimination bracket
+const TOURNAMENT_MATCH_INTERVAL_MS = 30000; // 30s between tournament match broadcasts
+
+// AI Arena maps
+const AI_MAPS = {
+  DATA_MINE: {
+    id: 'data_mine',
+    name: '数据矿洞',
+    width: 20,
+    height: 20,
+    obstacles: [
+      [4, 4], [4, 15], [15, 4], [15, 15],
+      [7, 7], [7, 12], [12, 7], [12, 12],
+      [10, 8], [6, 10], [13, 10],
+    ],
+    weightMods: { mobility: 0.15, attack: -0.10 },
+    spawnA: { x: 1, y: 1 },
+    spawnB: { x: 18, y: 18 },
+  },
+  COMPUTE_SQUARE: {
+    id: 'compute_square',
+    name: '算力广场',
+    width: 20,
+    height: 20,
+    obstacles: [
+      [9, 9], [10, 9], [9, 10], [10, 10], // Center block
+    ],
+    weightMods: { attack: 0.15, mobility: -0.05 },
+    spawnA: { x: 1, y: 10 },
+    spawnB: { x: 18, y: 10 },
+  },
+  CACHE_MAZE: {
+    id: 'cache_maze',
+    name: '缓存迷宫',
+    width: 20,
+    height: 20,
+    obstacles: [
+      [3, 3], [3, 5], [3, 7], [3, 9], [3, 11],
+      [16, 3], [16, 5], [16, 7], [16, 9], [16, 11],
+      [8, 5], [8, 14], [11, 5], [11, 14],
+    ],
+    weightMods: { mobility: 0.20, defense: 0.10 },
+    spawnA: { x: 1, y: 1 },
+    spawnB: { x: 18, y: 18 },
+  },
+  ARENA_DOME: {
+    id: 'arena_dome',
+    name: '竞技穹顶',
+    width: 20,
+    height: 20,
+    obstacles: [[5, 5], [14, 5], [5, 14], [14, 14]],
+    weightMods: {},
+    spawnA: { x: 1, y: 1 },
+    spawnB: { x: 18, y: 18 },
+  },
+  DATA_TORRENT: {
+    id: 'data_torrent',
+    name: '数据洪流',
+    width: 20,
+    height: 20,
+    obstacles: [[5, 9], [14, 9]],
+    weightMods: { mobility: 0.25, economy: -0.10 },
+    spawnA: { x: 1, y: 1 },
+    spawnB: { x: 18, y: 18 },
+  },
+};
+
+class AIArenaManager {
+  constructor(io, store, combatSystem, options = {}) {
+    this.io = io;
+    this.store = store;
+    this.combat = combatSystem;
+    // 决策 brain：内置对局走权重脚本（BuiltinBrain）；可注入以支持对拍测试
+    this.brain = options.brain || new BuiltinBrain();
+    this._rng = options.rng || null; // parity 抽查采样器（可注入以测试确定性）
+    this.agents = new Map(); // agentId -> AIAgent
+    this.playerAgents = new Map(); // playerId -> [agentIds]
+    this.playerSockets = new Map(); // playerId -> socket
+    this.matchQueue = []; // agentIds waiting for match
+    this.activeMatches = new Map(); // matchId -> match state
+    this.matchHistory = []; // recent matches for replay
+    this.maxHistoryLength = 1000;
+
+    // Season & tournament state
+    this.currentSeason = { buff: null, week: 1 };
+    this.tournament = null; // active tournament bracket
+    this.tournamentTimer = null; // interval for match broadcasts
+
+    // 对局归档（阶段 2b trace 持久化）：恢复最近对局，重启后 trace 查询不中断
+    this._restoreMatches();
+  }
+
+  // --- Socket Registration ---
+
+  registerSocket(playerId, socket) {
+    this.playerSockets.set(playerId, socket);
+    // M4: 11 个 ai_arena:* 监听已迁至 aiarena 插件的 ctx.socket 注册
+
+    // Send existing agents on connect
+    this.sendAgentList(playerId);
+  }
+
+  unregisterSocket(playerId) {
+    this.playerSockets.delete(playerId);
+  }
+
+  // --- Agent Lifecycle ---
+
+  deployAgent(playerId, tokenDisk, track = null) {
+    const player = this.store.getPlayerById(playerId);
+    if (!player) return;
+
+    // 赛道（阶段 2）：缺省车手组；非法值回退默认
+    const trackId = track && TRACKS_BY_ID[track] ? track : DEFAULT_TRACK;
+    const agent = new AIAgent(playerId, tokenDisk, player.username, trackId);
+    this.agents.set(agent.id, agent);
+
+    if (!this.playerAgents.has(playerId)) {
+      this.playerAgents.set(playerId, []);
+    }
+    this.playerAgents.get(playerId).push(agent.id);
+
+    // Deploy: move tokens from player to agent
+    agent.deployed = true;
+    agent.deployedAt = Date.now();
+
+    // Reset daily counter if needed
+    const today = new Date().toDateString();
+    if (agent.dailyResetDate !== today) {
+      agent.dailyMatches = 0;
+      agent.dailyResetDate = today;
+    }
+
+    // Auto-join queue
+    this.joinQueue(playerId, agent.id);
+
+    // Notify player
+    const socket = this.playerSockets.get(playerId);
+    if (socket) {
+      socket.emit('ai_arena:deployed', {
+        agent: agent.serializeFull(),
+        dailyMatchesLeft: AI_DAILY_MATCH_CAP - agent.dailyMatches,
+      });
+    }
+
+    console.log(`[AI Arena] Agent deployed: ${agent.name} (${agent.id.slice(0, 8)}), AELO=${agent.aelo}`);
+    return agent;
+  }
+
+  /**
+   * 部署官方陪练 bot（DEMO_HOUSEBOT=1 时由 aiarena 插件在启动时调用）：
+   * 使用系统玩家身份部署一个内置大脑 agent 并常驻车手组队列。
+   */
+  deployHouseBot(player) {
+    const agent = this.deployAgent(player.id, [], DEFAULT_TRACK);
+    if (agent) agent.houseBot = true;
+    return agent;
+  }
+
+  recallAgent(playerId, agentId) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return;
+
+    this.leaveQueue(agentId);
+    agent.deployed = false;
+
+    // Return tokens to player
+    const socket = this.playerSockets.get(playerId);
+    if (socket) {
+      socket.emit('ai_arena:recalled', { agentId });
+    }
+  }
+
+  setAgentBehavior(playerId, agentId, behaviorId) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return;
+
+    const result = agent.setSpecialBehavior(behaviorId);
+
+    const socket = this.playerSockets.get(playerId);
+    if (socket) {
+      socket.emit('ai_arena:behavior_set', {
+        agentId,
+        specialBehavior: agent.specialBehavior,
+        success: result,
+      });
+    }
+  }
+
+  nameAgent(playerId, agentId, name) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return;
+    if (name.length > 12) name = name.slice(0, 12);
+    agent.name = name;
+
+    const socket = this.playerSockets.get(playerId);
+    if (socket) {
+      socket.emit('ai_arena:agent_named', { agentId, name });
+      this.sendAgentList(playerId);
+    }
+  }
+
+  sendAgentList(playerId) {
+    const agentIds = this.playerAgents.get(playerId) || [];
+    const list = agentIds
+      .map(id => this.agents.get(id))
+      .filter(a => a)
+      .map(a => a.serialize());
+
+    const socket = this.playerSockets.get(playerId);
+    if (socket) {
+      socket.emit('ai_arena:agent_list', { agents: list });
+    }
+  }
+
+  // --- Queue & Matching ---
+
+  joinQueue(playerId, agentId) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.inMatch) return;
+    if (agent.paritySuspended) {
+      const socket = this.playerSockets.get(playerId);
+      if (socket) {
+        socket.emit('ai_arena:queue_fail', { agentId, reason: 'parity_suspended' });
+      }
+      return;
+    }
+    // 官方陪练 bot（DEMO_HOUSEBOT）：常驻队列，免邀请冷却/每日上限/对局冷却，
+    // 保证任何时刻接入的外部 agent 都能立即匹配到对手。
+    if (agent.houseBot) {
+      if (this.matchQueue.includes(agentId)) return;
+      this.matchQueue.push(agentId);
+      console.log(`[AI Arena] House bot queued: ${agent.name} (${this.matchQueue.length} in queue)`);
+      this.tryMatch();
+      return;
+    }
+    if (Date.now() < (agent._declineUntil || 0)) {
+      const socket = this.playerSockets.get(playerId);
+      if (socket) {
+        socket.emit('ai_arena:queue_fail', {
+          agentId,
+          reason: 'decline_cooldown',
+          cooldownSeconds: Math.ceil((agent._declineUntil - Date.now()) / 1000),
+        });
+      }
+      return;
+    }
+    if (agent.dailyMatches >= AI_DAILY_MATCH_CAP) {
+      const socket = this.playerSockets.get(playerId);
+      if (socket) {
+        socket.emit('ai_arena:queue_fail', {
+          agentId,
+          reason: 'daily_cap_reached',
+        });
+      }
+      return;
+    }
+    if (Date.now() - agent.lastMatchTime < AI_MATCH_COOLDOWN_MS) {
+      const remaining = Math.ceil((AI_MATCH_COOLDOWN_MS - (Date.now() - agent.lastMatchTime)) / 1000);
+      const socket = this.playerSockets.get(playerId);
+      if (socket) {
+        socket.emit('ai_arena:queue_fail', {
+          agentId,
+          reason: 'cooldown',
+          cooldownSeconds: remaining,
+        });
+      }
+      return;
+    }
+
+    if (this.matchQueue.includes(agentId)) return;
+    this.matchQueue.push(agentId);
+
+    console.log(`[AI Arena] Agent queued: ${agent.name} (${this.matchQueue.length} in queue)`);
+
+    // Try to match immediately
+    this.tryMatch();
+  }
+
+  leaveQueue(agentId) {
+    this.matchQueue = this.matchQueue.filter(id => id !== agentId);
+  }
+
+  tryMatch() {
+    if (this.matchQueue.length < 2) return;
+
+    // 同赛道配对（阶段 2）：按 track 分组、组内 AELO 邻近；跨赛道永不交手
+    const byTrack = new Map();
+    for (const id of this.matchQueue) {
+      const ag = this.agents.get(id);
+      if (!ag) continue;
+      const list = byTrack.get(ag.track) || [];
+      list.push(id);
+      byTrack.set(ag.track, list);
+    }
+
+    let matchedIds = null;
+    for (const list of byTrack.values()) {
+      if (list.length < 2) continue;
+      // Sort by AELO for fair matching
+      list.sort((a, b) => {
+        const agA = this.agents.get(a);
+        const agB = this.agents.get(b);
+        return (agA?.aelo || 0) - (agB?.aelo || 0);
+      });
+      matchedIds = list.slice(0, 2);
+      break;
+    }
+    if (!matchedIds) return;
+    this.matchQueue = this.matchQueue.filter((id) => !matchedIds.includes(id));
+
+    const agentA = this.agents.get(matchedIds[0]);
+    const agentB = this.agents.get(matchedIds[1]);
+
+    if (!agentA || !agentB) return;
+
+    // Pick a random map
+    const mapKeys = Object.keys(AI_MAPS);
+    const map = AI_MAPS[mapKeys[Math.floor(Math.random() * mapKeys.length)]];
+
+    // 双轨：任一方 external → 异步 runner；否则同步瞬时模拟
+    if (agentA.external || agentB.external) {
+      this.startExternalMatch(agentA, agentB, map);
+    } else {
+      this.startMatch(agentA, agentB, map);
+    }
+  }
+
+  // --- Match Simulation ---
+
+  startMatch(agentA, agentB, map) {
+    agentA.inMatch = true;
+    agentB.inMatch = true;
+
+    // Reset combat state
+    for (const agent of [agentA, agentB]) {
+      agent.hp = agent.maxHp;
+      agent.alive = true;
+      agent.shield = 0;
+      agent.shieldActive = false;
+      agent.buffs = [];
+      for (const skill of agent.skills) {
+        skill.lastUsed = 0;
+      }
+    }
+
+    // Position on map
+    agentA.x = map.spawnA.x;
+    agentA.y = map.spawnA.y;
+    agentB.x = map.spawnB.x;
+    agentB.y = map.spawnB.y;
+
+    const match = {
+      id: `${agentA.id}-${agentB.id}-${Date.now()}`,
+      agentA: agentA.id,
+      agentB: agentB.id,
+      map: map.id,
+      startTime: Date.now(),
+      tickCount: 0,
+      log: [], // key frames for replay
+      winner: null,
+    };
+
+    this.activeMatches.set(match.id, match);
+
+    // Simulate the entire match
+    this.simulateMatch(match, agentA, agentB, map);
+
+    // Resolve
+    this.resolveMatch(match, agentA, agentB, map);
+  }
+
+  simulateMatch(match, agentA, agentB, map) {
+    let tick = 0;
+    let elapsed = 0;
+
+    // Helper: is position walkable
+    const isWalkable = (x, y) => {
+      if (x < 0 || x >= map.width || y < 0 || y >= map.height) return false;
+      return !map.obstacles.some(([ox, oy]) => ox === x && oy === y);
+    };
+
+    while (elapsed < AI_MATCH_MAX_TIME_MS && agentA.alive && agentB.alive) {
+      tick++;
+      elapsed = tick * AI_MATCH_TICK_MS;
+      const now = match.startTime + elapsed;
+
+      // Process each agent's turn（决策经 brain 抽象；内置走 BuiltinBrain 权重脚本）
+      [agentA, agentB].forEach((agent, agentIdx) => {
+        if (!agent.alive) return;
+        const enemy = agentIdx === 0 ? agentB : agentA;
+
+        const result = this.brain.decide(agent, enemy, { now, map, isWalkable });
+        if (result.log) {
+          match.log.push({ tick, agent: agent.id, ...result.log });
+        }
+
+        tick++;
+        elapsed = tick * AI_MATCH_TICK_MS;
+      });
+    }
+
+    match.totalTicks = tick;
+    match.totalTimeMs = elapsed;
+  }
+
+  // --- External Agent（阶段 1：外部 agent 接入协议）---
+
+  /**
+   * 注册外部 agent（/bot 命名空间连接时调用）。
+   * 阶段 1 外部 agent 使用基础属性（空 token 盘），token 盘/协处理器改装
+   * 集成留待阶段 2。重连时复用已有 external agent 仅替换 brain。
+   * @returns {AIAgent|null}
+   */
+  registerExternalAgent(playerId, brain) {
+    const player = this.store.getPlayerById(playerId);
+    if (!player) return null;
+
+    const existing = this.getExternalAgent(playerId);
+
+    if (existing) {
+      existing.brain?.destroy?.();
+      existing.brain = brain;
+      existing.deployed = true;
+      this.joinQueue(playerId, existing.id);
+      return existing;
+    }
+
+    const agent = new AIAgent(playerId, [], player.username);
+    agent.external = true;
+    agent.brain = brain;
+    agent.deployed = true;
+    agent.deployedAt = Date.now();
+
+    this.agents.set(agent.id, agent);
+    if (!this.playerAgents.has(playerId)) {
+      this.playerAgents.set(playerId, []);
+    }
+    this.playerAgents.get(playerId).push(agent.id);
+
+    console.log(`[AI Arena] External agent registered: ${agent.name} (${agent.id.slice(0, 8)})`);
+    this.joinQueue(playerId, agent.id);
+    return agent;
+  }
+
+  /** 取该玩家当前的外部 agent（无则 null） */
+  getExternalAgent(playerId) {
+    return (this.playerAgents.get(playerId) || [])
+      .map((id) => this.agents.get(id))
+      .find((a) => a && a.external) || null;
+  }
+
+  /** 外部 agent 断开：离队 + 停用（不删 agent，保留 AELO 历史） */
+  recallExternalAgent(playerId) {
+    const agent = this.getExternalAgent(playerId);
+    if (!agent) return;
+    this.leaveQueue(agent.id);
+    agent.deployed = false;
+    agent.brain?.destroy?.();
+    agent.brain = null;
+  }
+
+  /**
+   * 含外部 agent 的对局：邀请阶段 → ExternalMatchRunner 异步模拟 →
+   * 终局复用 resolveMatch。decline/未应答不扣分：decline 方 30s 冷却，
+   * 对手 2s 后重新排队。
+   */
+  async startExternalMatch(agentA, agentB, map) {
+    agentA.inMatch = true;
+    agentB.inMatch = true;
+
+    for (const agent of [agentA, agentB]) {
+      agent.hp = agent.maxHp;
+      agent.alive = true;
+      agent.shield = 0;
+      agent.shieldActive = false;
+      agent.buffs = [];
+      for (const skill of agent.skills) skill.lastUsed = 0;
+    }
+    agentA.x = map.spawnA.x; agentA.y = map.spawnA.y;
+    agentB.x = map.spawnB.x; agentB.y = map.spawnB.y;
+
+    const match = {
+      id: `ext-${agentA.id}-${agentB.id}-${Date.now()}`,
+      agentA: agentA.id,
+      agentB: agentB.id,
+      map: map.id,
+      startTime: Date.now(),
+      tickCount: 0,
+      log: [],
+      trace: [],
+      external: true,
+      winner: null,
+    };
+    this.activeMatches.set(match.id, match);
+
+    const brains = {
+      A: agentA.external ? agentA.brain : this.brain,
+      B: agentB.external ? agentB.brain : this.brain,
+    };
+
+    const runner = new ExternalMatchRunner(this, { match, agentA, agentB, map, brains });
+    const result = await runner.start();
+
+    if (!result.started) {
+      // 邀请被拒/超时：不计场次、不扣分
+      const declined = result.declinedBy === 'A' ? agentA : agentB;
+      const other = result.declinedBy === 'A' ? agentB : agentA;
+      declined._declineUntil = Date.now() + BOT_PROTOCOL.DECLINE_COOLDOWN_MS;
+      agentA.inMatch = false;
+      agentB.inMatch = false;
+      this.activeMatches.delete(match.id);
+      console.log(`[AI Arena] External invite declined/timeout by side ${result.declinedBy}; opponent re-queued`);
+      setTimeout(() => this.joinQueue(other.playerId, other.id), 2000);
+    }
+  }
+
+  resolveMatch(match, agentA, agentB, map) {
+    agentA.inMatch = false;
+    agentB.inMatch = false;
+    agentA.lastMatchTime = Date.now();
+    agentB.lastMatchTime = Date.now();
+    agentA.dailyMatches++;
+    agentB.dailyMatches++;
+
+    let winner = null;
+    let loser = null;
+    let isDraw = false;
+
+    if (!agentA.alive && !agentB.alive) {
+      // Both dead simultaneously — draw
+      isDraw = true;
+      winner = agentB; loser = agentA; // arbitrary for rating calc
+    } else if (!agentA.alive) {
+      winner = agentB; loser = agentA;
+    } else if (!agentB.alive) {
+      winner = agentA; loser = agentB;
+    } else {
+      // Timeout — compare HP percentage
+      const hpPctA = agentA.hp / agentA.maxHp;
+      const hpPctB = agentB.hp / agentB.maxHp;
+      if (Math.abs(hpPctA - hpPctB) < 0.05) {
+        isDraw = true;
+      } else if (hpPctA > hpPctB) {
+        winner = agentA; loser = agentB;
+      } else {
+        winner = agentB; loser = agentA;
+      }
+    }
+
+    // Calculate AELO changes
+    if (winner && loser) {
+      const expected = 1 / (1 + Math.pow(10, (loser.aelo - winner.aelo) / 400));
+      const ratingDiff = Math.round(AI_AELO_K * (1 - expected));
+      winner.aelo += ratingDiff;
+      loser.aelo = Math.max(0, loser.aelo - ratingDiff);
+
+      if (isDraw) {
+        winner.draws++;
+        loser.draws++;
+        // Halve the rating change for draws
+        winner.aelo = winner.aelo - Math.round(ratingDiff / 2);
+        loser.aelo = loser.aelo + Math.round(ratingDiff / 2);
+      } else {
+        winner.wins++;
+        winner.currentStreak++;
+        if (winner.currentStreak > winner.highestStreak) {
+          winner.highestStreak = winner.currentStreak;
+        }
+        loser.losses++;
+        loser.currentStreak = 0;
+      }
+
+      // Training XP
+      if (isDraw) {
+        winner.addExp(5);
+        loser.addExp(5);
+      } else {
+        winner.addExp(10);
+        loser.addExp(3);
+      }
+    }
+
+    match.winner = winner?.id || 'draw';
+    match.winnerAelo = winner?.aelo || null;
+    match.loserAelo = loser?.aelo || null;
+
+    // Save to history for replays
+    const entry = {
+      ...match,
+      agentAName: agentA.name,
+      agentBName: agentB.name,
+      agentAAelo: agentA.aelo,
+      agentBAelo: agentB.aelo,
+      // 遥测 trace 查询的归属基础（agent 可能被删/替换，不能反查玩家）；
+      // 训练对局对手 playerId 为 'system'
+      agentAPlayerId: agentA.playerId,
+      agentBPlayerId: agentB.playerId,
+      mapData: {
+        id: map.id,
+        name: map.name,
+        width: map.width,
+        height: map.height,
+        obstacles: map.obstacles,
+        spawnA: map.spawnA,
+        spawnB: map.spawnB,
+      },
+      track: agentA.track, // 三赛道分组（阶段 2）：配对已保证双方同赛道
+      saved: Date.now(),
+    };
+    // parity 抽查（阶段 2）：采样 + 实测对照申报，审计证据随对局持久化
+    entry.audit = this._auditParity(match, agentA, agentB);
+    this.matchHistory.push(entry);
+    if (this.matchHistory.length > this.maxHistoryLength) {
+      this.matchHistory.shift();
+    }
+
+    // 对局归档（阶段 2b trace 持久化）：终局 write-through + 按同一 cap 裁剪旧行
+    this.store.saveMatch(entry);
+    this.store.pruneMatches(this.maxHistoryLength);
+
+    // Notify both players
+    for (const agent of [agentA, agentB]) {
+      const socket = this.playerSockets.get(agent.playerId);
+      if (socket) {
+        socket.emit('ai_arena:match_result', {
+          matchId: match.id,
+          agentId: agent.id,
+          aelo: agent.aelo,
+          aeloChange: agent === winner ? AI_AELO_K : -AI_AELO_K,
+          exp: agent.exp,
+          level: agent.level.stars,
+          wins: agent.wins,
+          losses: agent.losses,
+          draws: agent.draws,
+          streak: agent.currentStreak,
+          winnerId: match.winner,
+          totalTicks: match.totalTicks,
+        });
+      }
+    }
+
+    // Daily rewards
+    for (const agent of [agentA, agentB]) {
+      this.processDailyReward(agent);
+    }
+
+    // Re-queue agents for next match（house bot 无视每日上限）
+    for (const agent of [agentA, agentB]) {
+      if (agent.houseBot || (agent.deployed && agent.dailyMatches < AI_DAILY_MATCH_CAP)) {
+        setTimeout(() => {
+          this.joinQueue(agent.playerId, agent.id);
+        }, 2000); // 2s buffer between matches
+      }
+    }
+
+    // Clean up
+    this.activeMatches.delete(match.id);
+
+    console.log(
+      `[AI Arena] Match complete: ${agentA.name} vs ${agentB.name} -> ` +
+      (isDraw ? 'DRAW' : `${winner?.name} wins`) +
+      ` (${match.totalTicks} ticks, ${match.totalTimeMs}ms)`
+    );
+
+    // Try next match
+    this.tryMatch();
+  }
+
+  processDailyReward(agent) {
+    const league = this.getLeague(agent.aelo);
+    const rewards = {
+      bronze: { unstable: 20, expMult: 1.0, coprocessorChance: 0 },
+      silver: { unstable: 50, expMult: 1.5, coprocessorChance: 0 },
+      gold: { unstable: 100, expMult: 2.0, coprocessorChance: 0.1 },
+      master: { unstable: 200, expMult: 3.0, coprocessorChance: 0.2 },
+    };
+
+    const reward = rewards[league.id] || rewards.bronze;
+
+    // Accumulate daily reward (paid at reset or when agent is recalled)
+    if (!agent._dailyReward) {
+      agent._dailyReward = { unstable: 0, coprocessorFragments: 0 };
+    }
+    agent._dailyReward.unstable += Math.floor(reward.unstable / AI_DAILY_MATCH_CAP);
+    if (Math.random() < reward.coprocessorChance / AI_DAILY_MATCH_CAP) {
+      agent._dailyReward.coprocessorFragments++;
+    }
+  }
+
+  getLeague(aelo) {
+    if (aelo >= 2000) return { id: 'master', name: '大师' };
+    if (aelo >= 1500) return { id: 'gold', name: '金' };
+    if (aelo >= 1000) return { id: 'silver', name: '银' };
+    return { id: 'bronze', name: '铜' };
+  }
+
+  // --- Training Mode ---
+
+  startTrainingMatch(playerId, agentId) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return;
+
+    // Create a dummy opponent at similar AELO
+    const opponent = new AIAgent('system', agent.tokenDisk, 'TRAINER');
+    opponent.aelo = agent.aelo + Math.floor(Math.random() * 100) - 50;
+
+    // Use a fixed map
+    const map = AI_MAPS.ARENA_DOME;
+
+    const match = {
+      id: `train-${agent.id}-${Date.now()}`,
+      agentA: agent.id,
+      agentB: opponent.id,
+      map: map.id,
+      startTime: Date.now(),
+      tickCount: 0,
+      log: [],
+      winner: null,
+      isTraining: true,
+    };
+
+    this.activeMatches.set(match.id, match);
+    this.agents.set(opponent.id, opponent);
+    agent.inMatch = true;
+    opponent.inMatch = true;
+
+    this.simulateMatch(match, agent, opponent, map);
+    this.resolveMatch(match, agent, opponent, map);
+
+    agent.dailyMatches--; // Training matches don't count against daily cap
+    agent.inMatch = false;
+    this.agents.delete(opponent.id);
+  }
+
+  // --- Replay ---
+
+  /** 对局归属校验：仅参赛双方玩家可读（history 条目带 playerId） */
+  _ownsMatch(match, playerId) {
+    return match.agentAPlayerId === playerId || match.agentBPlayerId === playerId;
+  }
+
+  sendReplay(playerId, matchId) {
+    const match = this.matchHistory.find(m => m.id === matchId);
+    const socket = this.playerSockets.get(playerId);
+    if (!match) {
+      if (socket) socket.emit('ai_arena:replay', { error: 'match_not_found' });
+      return;
+    }
+    if (!this._ownsMatch(match, playerId)) {
+      if (socket) socket.emit('ai_arena:replay', { error: 'forbidden' });
+      return;
+    }
+
+    const playerAgentId = match.agentAPlayerId === playerId ? match.agentA : match.agentB;
+
+    if (socket) {
+      socket.emit('ai_arena:replay', {
+        matchId: match.id,
+        agentAName: match.agentAName,
+        agentBName: match.agentBName,
+        winnerId: match.winner,
+        playerAgentId,
+        map: match.mapData,
+        totalTicks: match.totalTicks,
+        log: match.log,
+        // 遥测 trace（阶段 2a）：external 对局非空；内置/训练对局为空数组
+        trace: match.trace || [],
+        stats: match.stats || null,
+      });
+    }
+  }
+
+  /** 对局摘要（sendMatchHistory 与 REST list 共用；含 trace 可得性） */
+  _summarizeMatchFor(match, agentId) {
+    return {
+      id: match.id,
+      opponent: match.agentA === agentId ? match.agentBName : match.agentAName,
+      map: match.mapData?.name || 'unknown',
+      result: match.winner === 'draw' ? 'draw' : (match.winner === agentId ? 'win' : 'loss'),
+      winnerId: match.winner,
+      totalTicks: match.totalTicks,
+      external: !!match.external,
+      track: match.track || null,
+      traceCount: (match.trace || []).length,
+      saved: match.saved,
+    };
+  }
+
+  sendMatchHistory(playerId, agentId) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return;
+
+    const history = this.matchHistory
+      .filter(m => m.agentA === agentId || m.agentB === agentId)
+      .slice(-20)
+      .reverse()
+      .map(m => this._summarizeMatchFor(m, agentId));
+
+    const socket = this.playerSockets.get(playerId);
+    if (socket) {
+      socket.emit('ai_arena:match_history', { agentId, history });
+    }
+  }
+
+  // --- 对局归档（阶段 2b trace 持久化）---
+
+  /** 构造时从库恢复最近 maxHistoryLength 场（loadMatches 新→旧，倒序入 history 保持旧→新） */
+  _restoreMatches() {
+    const rows = this.store.loadMatches(this.maxHistoryLength);
+    for (let i = rows.length - 1; i >= 0; i--) {
+      this.matchHistory.push(rows[i]);
+    }
+    if (rows.length > 0) {
+      console.log(`[AI Arena] Restored ${rows.length} archived matches`);
+    }
+  }
+
+  // --- 三赛道 + parity 申报抽查（阶段 2，openspec/changes/archive/stage2-tracks-parity）---
+
+  /** 模型规格申报（白皮书 §4.3）：业务校验后覆盖写入；回包 ai_arena:parity_set */
+  setParityDeclaration(playerId, agentId, decl) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return this._replyParity(playerId, agentId, { error: 'forbidden' });
+
+    const model = String(decl.model || '').slice(0, 64);
+    const hardware = String(decl.hardware || '').slice(0, 64);
+    const tokensPerDecision = Number(decl.tokensPerDecision);
+    const latencyBudgetMs = Number(decl.latencyBudgetMs);
+    if (!model || !hardware) return this._replyParity(playerId, agentId, { error: 'invalid_declaration' });
+    if (!Number.isInteger(tokensPerDecision) || tokensPerDecision < 1 ||
+        tokensPerDecision > BOT_PROTOCOL.TOKEN_BUDGET_DEFAULT) return this._replyParity(playerId, agentId, { error: 'invalid_declaration' });
+    if (!Number.isInteger(latencyBudgetMs) || latencyBudgetMs < 1 ||
+        latencyBudgetMs > BOT_PROTOCOL.DECISION_DEADLINE_MS) return this._replyParity(playerId, agentId, { error: 'invalid_declaration' });
+
+    // spec 扩展位白名单（weightsHash 开源 / apiVersion 闭源 / params / quantization）
+    const specIn = decl.spec && typeof decl.spec === 'object' ? decl.spec : {};
+    const spec = {};
+    for (const key of ['weightsHash', 'apiVersion', 'params', 'quantization']) {
+      if (specIn[key] != null) spec[key] = String(specIn[key]).slice(0, 128);
+    }
+
+    agent.parityDeclaration = { model, hardware, tokensPerDecision, latencyBudgetMs, spec, at: Date.now() };
+    return this._replyParity(playerId, agentId, { declaration: agent.parityDeclaration });
+  }
+
+  /** 本人 agent 的申报 + 审计状态查询 */
+  getParityStatus(playerId, agentId) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return { error: 'forbidden' };
+    return {
+      agentId,
+      track: agent.track,
+      declaration: agent.parityDeclaration,
+      parityFlags: agent.parityFlags,
+      paritySuspended: agent.paritySuspended,
+    };
+  }
+
+  /** 查询并回包 ai_arena:parity_status（get_parity 事件的推送出口） */
+  sendParityStatus(playerId, agentId) {
+    return this._replyParity(playerId, agentId, this.getParityStatus(playerId, agentId), EVENTS.AI_ARENA_PARITY_STATUS);
+  }
+
+  _replyParity(playerId, agentId, result, event = EVENTS.AI_ARENA_PARITY_SET) {
+    const socket = this.playerSockets.get(playerId);
+    if (socket) socket.emit(event, { agentId, ...result });
+    return result;
+  }
+
+  /**
+   * 终局抽查（白皮书 §4.3 申报制 + 抽查）：按 AUDIT_SAMPLE_RATE 采样，
+   * 以该场 stats 实测值对照申报值；违规累计进 agent.parityFlags，
+   * 达 VIOLATION_LIMIT 禁赛（出队 + 入队拒绝）。返回审计记录数组（未抽中 = null）。
+   */
+  _auditParity(match, agentA, agentB) {
+    const rng = this._rng || Math.random;
+    if (rng() >= PARITY.AUDIT_SAMPLE_RATE) return null;
+
+    const audits = [];
+    for (const [side, agent] of [['A', agentA], ['B', agentB]]) {
+      const stats = match.stats && match.stats[side];
+      if (!stats) continue; // 内置对局无 stats → 不可审计
+      const checks = [];
+      const violations = [];
+      const decl = agent.parityDeclaration;
+      if (!decl) {
+        checks.push('undeclared'); // 提示而非违规（申报非门槛，见 design D5）
+      } else {
+        const perDecision = stats.decisions > 0 ? stats.tokensUsed / stats.decisions : 0;
+        checks.push({ item: 'tokensPerDecision', declared: decl.tokensPerDecision, measured: perDecision });
+        if (perDecision > decl.tokensPerDecision) violations.push('tokensPerDecision');
+
+        const p99 = stats.latencyP99Ms || 0;
+        checks.push({ item: 'latencyP99', declared: decl.latencyBudgetMs, measured: p99 });
+        if (p99 > decl.latencyBudgetMs * PARITY.LATENCY_TOLERANCE) violations.push('latencyP99');
+      }
+
+      if (violations.length > 0) {
+        agent.parityFlags += violations.length;
+        if (agent.parityFlags >= PARITY.VIOLATION_LIMIT && !agent.paritySuspended) {
+          agent.paritySuspended = true;
+          this.leaveQueue(agent.id);
+          console.log(`[AI Arena] Parity suspended: ${agent.name} (${agent.id.slice(0, 8)}), flags=${agent.parityFlags}`);
+        }
+      }
+      audits.push({ agentId: agent.id, side, checks, violations, at: Date.now() });
+    }
+    return audits;
+  }
+
+  // --- 遥测 trace 查询（阶段 2a，REST /api/ai-arena）---
+
+  /** 某 agent 的近期对局列表（含 trace 条目数与本人 stats）；仅 agent 主人可查 */
+  getAgentMatches(playerId, agentId) {
+    const agent = this.agents.get(agentId);
+    if (!agent || agent.playerId !== playerId) return { error: 'forbidden' };
+
+    const matches = this.matchHistory
+      .filter(m => m.agentA === agentId || m.agentB === agentId)
+      .slice(-20)
+      .reverse()
+      .map(m => ({
+        ...this._summarizeMatchFor(m, agentId),
+        stats: m.stats ? m.stats[m.agentA === agentId ? 'A' : 'B'] : null,
+      }));
+
+    return { agentId, matches };
+  }
+
+  /**
+   * 完整遥测 trace 查询；仅参赛双方玩家可查。
+   * @returns {{ error:'match_not_found'|'forbidden' } | { matchId, external, result, stats, traceCount, trace }}
+   */
+  getMatchTrace(playerId, matchId, { side } = {}) {
+    const match = this.matchHistory.find(m => m.id === matchId);
+    if (!match) return { error: 'match_not_found' };
+    if (!this._ownsMatch(match, playerId)) return { error: 'forbidden' };
+
+    const playerSide = match.agentAPlayerId === playerId ? 'A' : 'B';
+    const playerAgentId = playerSide === 'A' ? match.agentA : match.agentB;
+    const result = match.winner === 'draw' ? 'draw' : (match.winner === playerAgentId ? 'win' : 'loss');
+
+    let trace = match.trace || [];
+    if (side === 'A' || side === 'B') trace = trace.filter(t => t.side === side);
+
+    return {
+      matchId: match.id,
+      external: !!match.external,
+      result,
+      stats: match.stats ? match.stats[playerSide] : null,
+      traceCount: trace.length,
+      trace,
+    };
+  }
+
+  // --- Tick (called periodically by GameEngine) ---
+
+  tick(now) {
+    // Try to match agents in queue
+    if (this.matchQueue.length >= 2) {
+      this.tryMatch();
+    }
+
+    const today = new Date().toDateString();
+    for (const [agentId, agent] of this.agents) {
+      if (agent.dailyResetDate !== today) {
+        this._settleDailyReward(agent);
+        agent.dailyMatches = 0;
+        agent.dailyResetDate = today;
+      }
+      this._applySeasonBuff(agent, now);
+    }
+
+    if (this.tournament && this.tournament.status === 'running') {
+      this._tournamentTick(now);
+    }
+  }
+
+  _settleDailyReward(agent) {
+    if (agent._dailyReward) {
+      const player = this.store.getPlayerById(agent.playerId);
+      if (player) {
+        player.addUnstableTokens(agent._dailyReward.unstable);
+        if (agent._dailyReward.coprocessorFragments > 0) {
+          player.coprocessorFragments = (player.coprocessorFragments || 0) + agent._dailyReward.coprocessorFragments;
+        }
+        // Transaction point: daily AI arena settlement.
+        this.store.persist(player);
+      }
+      agent._dailyReward = { unstable: 0, coprocessorFragments: 0 };
+    }
+  }
+
+  _applySeasonBuff(agent, now) {
+    if (!this.currentSeason.buff) return;
+    const buff = this.currentSeason.buff;
+    if (buff.attackWeightBonus) agent._seasonAttackBonus = buff.attackWeightBonus;
+    if (buff.dodgeWeightBonus) agent._seasonDodgeBonus = buff.dodgeWeightBonus;
+    if (buff.counterChance) agent._seasonCounter = buff.counterChance;
+  }
+
+  // ===== SEASON SYSTEM =====
+
+  setSeasonBuff(buffId) {
+    const buff = Object.values(SEASON_BUFFS).find(b => b.id === buffId);
+    if (!buff) return false;
+    this.currentSeason.buff = buff;
+    this.broadcast('ai_arena:season_update', {
+      buff: { id: buff.id, name: buff.name, description: buff.description },
+      week: this.currentSeason.week,
+    });
+    console.log(`[AI Arena] Season buff active: ${buff.name}`);
+    return true;
+  }
+
+  advanceSeasonWeek() {
+    this.currentSeason.week++;
+    if (this.currentSeason.week === 3 && !this.tournament) {
+      this._startPeakTournament();
+    }
+    this.broadcast('ai_arena:season_update', {
+      buff: this.currentSeason.buff ? {
+        id: this.currentSeason.buff.id,
+        name: this.currentSeason.buff.name,
+        description: this.currentSeason.buff.description,
+      } : null,
+      week: this.currentSeason.week,
+    });
+  }
+
+  sendSeasonInfo(playerId) {
+    const socket = this.playerSockets.get(playerId);
+    if (socket) {
+      socket.emit('ai_arena:season_info', {
+        buff: this.currentSeason.buff ? {
+          id: this.currentSeason.buff.id,
+          name: this.currentSeason.buff.name,
+          description: this.currentSeason.buff.description,
+        } : null,
+        week: this.currentSeason.week,
+        tournament: this.tournament ? {
+          status: this.tournament.status,
+          round: this.tournament.currentRound,
+          totalRounds: this.tournament.totalRounds,
+          remaining: this.tournament.remaining,
+        } : null,
+      });
+    }
+  }
+
+  // ===== PEAK TOURNAMENT =====
+
+  _startPeakTournament() {
+    if (this.tournament) return;
+    const masters = Array.from(this.agents.values())
+      .filter(a => a.aelo >= 2000 && a.deployed)
+      .sort((a, b) => b.aelo - a.aelo)
+      .slice(0, TOURNAMENT_TOP_N);
+
+    if (masters.length < 4) {
+      console.log('[Tournament] Not enough master agents (min 4)');
+      return;
+    }
+
+    const bracket = this._buildBracket(masters);
+    this.tournament = {
+      status: 'running',
+      bracket,
+      currentRound: 1,
+      totalRounds: Math.ceil(Math.log2(bracket.seeds.length)),
+      remaining: bracket.seeds.length / 2,
+      winners: [],
+      history: [],
+      startedAt: Date.now(),
+    };
+
+    console.log(`[Tournament] Started: ${masters.length} agents, ${this.tournament.totalRounds} rounds`);
+    this.broadcast('ai_arena:tournament_start', {
+      totalRounds: this.tournament.totalRounds,
+      participants: masters.map(a => ({
+        id: a.id, name: a.name, playerName: a.playerName, aelo: a.aelo,
+      })),
+    });
+  }
+
+  _buildBracket(agents) {
+    const seeds = agents.map((a, i) => ({ agentId: a.id, name: a.name, seed: i + 1, score: 0 }));
+    const matches = [];
+    const n = seeds.length;
+    for (let i = 0; i < Math.floor(n / 2); i++) {
+      matches.push({ seedA: i, seedB: n - 1 - i, winner: null });
+    }
+    return { seeds, matches };
+  }
+
+  _tournamentTick(now) {
+    const t = this.tournament;
+    if (!t || t.status !== 'running') return;
+
+    const match = t.bracket.matches.find(m => !m.winner);
+    if (!match) {
+      if (t.bracket.matches.every(m => m.winner !== null)) {
+        this._advanceTournamentRound();
+      }
+      return;
+    }
+
+    const agentA = this.agents.get(t.bracket.seeds[match.seedA]?.agentId);
+    const agentB = this.agents.get(t.bracket.seeds[match.seedB]?.agentId);
+    if (!agentA || !agentB) { match.winner = null; return; }
+
+    const map = AI_MAPS.ARENA_DOME;
+    let winsA = 0, winsB = 0;
+    for (let r = 0; r < 3 && winsA < 2 && winsB < 2; r++) {
+      const subMatch = { id: `tour-${agentA.id}-${agentB.id}-r${r}`, agentA: agentA.id, agentB: agentB.id, map: map.id, startTime: now, tickCount: 0, log: [], winner: null };
+      agentA.inMatch = true; agentB.inMatch = true;
+      this._resetAgentForMatch(agentA); this._resetAgentForMatch(agentB);
+      agentA.x = map.spawnA.x; agentA.y = map.spawnA.y;
+      agentB.x = map.spawnB.x; agentB.y = map.spawnB.y;
+      this.simulateMatch(subMatch, agentA, agentB, map);
+      if (!agentA.alive) winsB++;
+      else if (!agentB.alive) winsA++;
+      else { const pa = agentA.hp / agentA.maxHp, pb = agentB.hp / agentB.maxHp; if (pa > pb) winsA++; else winsB++; }
+      agentA.inMatch = false; agentB.inMatch = false;
+    }
+
+    match.winner = winsA > winsB ? match.seedA : match.seedB;
+    const winner = match.winner === match.seedA ? agentA : agentB;
+    const loser = match.winner === match.seedA ? agentB : agentA;
+    t.winners.push({ agentId: winner.id, name: winner.name, round: t.currentRound });
+    t.history.push({ round: t.currentRound, match: `${agentA.name} vs ${agentB.name}`, winner: winner.name, score: `${winsA}-${winsB}` });
+
+    this.broadcast('ai_arena:tournament_match', {
+      round: t.currentRound, totalRounds: t.totalRounds,
+      agentA: { name: agentA.name, playerName: agentA.playerName },
+      agentB: { name: agentB.name, playerName: agentB.playerName },
+      winner: { name: winner.name, playerName: winner.playerName },
+      score: `${winsA}-${winsB}`,
+      remaining: t.bracket.matches.filter(m => !m.winner).length,
+    });
+  }
+
+  _advanceTournamentRound() {
+    const t = this.tournament;
+    t.currentRound++;
+    const prevWinners = t.winners.filter(w => w.round === t.currentRound - 1);
+    if (prevWinners.length <= 1) {
+      t.status = 'complete';
+      t.champion = prevWinners[0];
+      this.broadcast('ai_arena:tournament_end', {
+        champion: t.champion,
+        history: t.history,
+      });
+      console.log(`[Tournament] Champion: ${t.champion?.name}!`);
+      return;
+    }
+    const seeds = prevWinners.map((w, i) => ({ agentId: w.agentId, name: w.name, seed: i + 1, score: 0 }));
+    const matches = [];
+    for (let i = 0; i < seeds.length / 2; i++) {
+      matches.push({ seedA: i, seedB: seeds.length - 1 - i, winner: null });
+    }
+    t.bracket = { seeds, matches };
+    t.remaining = seeds.length / 2;
+    t.winners = t.winners.filter(w => w.round !== t.currentRound - 1);
+    console.log(`[Tournament] Round ${t.currentRound}: ${seeds.length} agents left`);
+    this.broadcast('ai_arena:tournament_round', { round: t.currentRound, totalRounds: t.totalRounds, remaining: seeds.length });
+  }
+
+  _resetAgentForMatch(agent) {
+    agent.hp = agent.maxHp; agent.alive = true;
+    agent.shield = 0; agent.shieldActive = false;
+    agent.buffs = []; agent.x = 0; agent.y = 0;
+    for (const skill of agent.skills) skill.lastUsed = 0;
+  }
+
+  sendTournamentState(playerId) {
+    const socket = this.playerSockets.get(playerId);
+    if (!socket) return;
+    const t = this.tournament;
+    if (!t) { socket.emit('ai_arena:tournament_state', { status: 'none' }); return; }
+    socket.emit('ai_arena:tournament_state', {
+      status: t.status, round: t.currentRound, totalRounds: t.totalRounds,
+      history: t.history, champion: t.champion,
+    });
+  }
+
+  broadcast(event, data) {
+    this.io.emit(event, data);
+  }
+
+  sendLeaderboard(playerId, { track } = {}) {
+    const t = track && TRACKS_BY_ID[track] ? track : null; // 非法赛道值按全量处理
+    const board = this.getLeaderboard(20, t);
+    const socket = this.playerSockets.get(playerId);
+    if (socket) socket.emit('ai_arena:leaderboard', { entries: board, track: t });
+  }
+
+  // --- Admin / Query Methods ---
+
+  getAgentsByPlayer(playerId) {
+    const agentIds = this.playerAgents.get(playerId) || [];
+    return agentIds.map(id => this.agents.get(id)).filter(a => a);
+  }
+
+  getActiveAgent(playerId) {
+    const agents = this.getAgentsByPlayer(playerId);
+    return agents.find(a => a.deployed) || null;
+  }
+
+  getLeaderboard(limit = 20, track = null) {
+    const sorted = Array.from(this.agents.values())
+      .filter(a => !track || a.track === track) // 三赛道分组（阶段 2）：缺省全量
+      .sort((a, b) => b.aelo - a.aelo)
+      .slice(0, limit);
+    return sorted.map(a => ({
+      name: a.name,
+      playerName: a.playerName,
+      aelo: a.aelo,
+      wins: a.wins,
+      losses: a.losses,
+      level: a.level.stars,
+      specialBehavior: a.specialBehavior,
+      track: a.track,
+    }));
+  }
+
+  getLeagueDistribution() {
+    const leagues = { bronze: 0, silver: 0, gold: 0, master: 0 };
+    for (const [, agent] of this.agents) {
+      const league = this.getLeague(agent.aelo);
+      leagues[league.id]++;
+    }
+    return leagues;
+  }
+}
+
+module.exports = AIArenaManager;

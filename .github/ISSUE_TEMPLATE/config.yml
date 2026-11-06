@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Bot protocol guide
+    url: https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md
+    about: Message flow, action rules, parity table, and trace query API.

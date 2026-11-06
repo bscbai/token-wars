@@ -1,0 +1,4 @@
+schema: spec-driven
+name: coprocessor-effects
+description: M6.1/M6.2/M6.3 协处理器剩余 12 效果执行（防御/机动/经济）
+created: 2026-10-03

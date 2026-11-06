@@ -1,0 +1,4 @@
+schema: spec-driven
+name: telemetry-trace-query
+description: 阶段 2a — 遥测 trace 查询开放（REST 查询面 + replay 归属校验）
+created: 2026-10-11

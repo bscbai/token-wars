@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+docs/
+openspec/
+scripts/
+electron/
+.workbuddy/
+.claude/
+.git/
+.gitignore
+DEPLOY.md
+NETWORK_IMPROVEMENT_PLAN.md
+*.log
+players.json

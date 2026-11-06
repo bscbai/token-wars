@@ -1,0 +1,57 @@
+name: 🐛 Bug report
+description: Something in the game, server, or bot protocol is broken
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. For bot/protocol issues, including a match
+        id and (if possible) the output of
+        `GET /api/ai-arena/matches/:matchId/trace` makes this much faster.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Bot protocol (/bot namespace)
+        - Server / matchmaking / parity
+        - Web client (UI)
+        - Sample / LLM example bots
+        - Deployment / Docker
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect to happen, and what actually happened?
+      placeholder: Describe the observed vs expected behavior.
+    validations:
+      required: true
+  - type: input
+    id: match-id
+    attributes:
+      label: Match id (if relevant)
+      placeholder: ext-...
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit / version
+      placeholder: git SHA or deployed date
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / error output
+      render: shell

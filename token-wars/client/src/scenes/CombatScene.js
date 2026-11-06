@@ -1,0 +1,412 @@
+import net from '../systems/NetworkManager.js';
+import { InputManager } from '../systems/InputManager.js';
+import { PlayerSprite } from '../entities/PlayerSprite.js';
+import { MonsterSprite } from '../entities/MonsterSprite.js';
+import { Projectile } from '../entities/Projectile.js';
+import { HUD } from '../ui/HUD.js';
+import { SkillBar } from '../ui/SkillBar.js';
+import { MAP_WIDTH, MAP_HEIGHT, TILE, SKILLS } from '../shared.js';
+import { t, onLangChange } from '../i18n.js';
+
+export class CombatScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'CombatScene' });
+  }
+
+  init(data) {
+    this.playerData = data.player;
+    this.dungeonData = data.dungeonData;
+    this.mode = data.mode || 'pve'; // 'pve' or 'pvp'
+  }
+
+  create() {
+    // Camera setup
+    this.cameras.main.setBackgroundColor('#0a0a1a');
+
+    // Tilemap layer
+    this.mapGroup = this.add.group();
+    this.renderMap(this.dungeonData.mapData);
+
+    // Entity sprites
+    this.playerSprites = new Map();
+    this.monsterSprites = new Map();
+    this.projectiles = new Map();
+
+    // Create local player sprite
+    const localPlayer = {
+      id: net.playerId || this.playerData.id,
+      username: this.playerData.username,
+      hp: this.playerData.hp,
+      maxHp: this.playerData.maxHp,
+    };
+    const startX = this.dungeonData.playerPos?.x || 15;
+    const startY = this.dungeonData.playerPos?.y || 28;
+    this.localPlayerSprite = new PlayerSprite(this, startX, startY, localPlayer, true);
+    this.playerSprites.set(localPlayer.id, this.localPlayerSprite);
+
+    // Input
+    this.inputManager = new InputManager(this);
+
+    // UI
+    this.hud = new HUD(this, this.playerData);
+    const skillList = [
+      SKILLS.BASIC_ATTACK,
+      SKILLS.DODGE_ROLL,
+      SKILLS.SHIELD,
+      SKILLS.TOKEN_BURST,
+    ];
+    this.skillBar = new SkillBar(this, skillList);
+
+    // Spawn monster sprites from dungeon data
+    if (this.dungeonData.monsters) {
+      for (const m of this.dungeonData.monsters) {
+        const sprite = new MonsterSprite(this, m);
+        this.monsterSprites.set(m.id, sprite);
+      }
+    }
+
+    // Network listeners
+    this.setupNetworkListeners();
+
+    // Room info
+    const roomIdx = this.dungeonData.roomIndex || 0;
+    this.totalRooms = 4; // from template
+    this.roomNum = roomIdx + 1;
+    this._deathDropped = 0;
+    this._respawnRemaining = 5;
+    this._victoryRewardsData = null;
+    this.hud.setStatus(t('combat.room', { a: this.roomNum, b: this.totalRooms }));
+
+    // Death overlay (hidden)
+    this.deathOverlay = this.add.container(480, 320);
+    this.deathOverlay.setDepth(100);
+    const deathBg = this.add.rectangle(0, 0, 400, 200, 0x000000, 0.8);
+    this.deathText = this.add.text(0, -30, t('combat.defeated'), {
+      fontSize: '28px', fontFamily: 'Courier New', color: '#ff4444', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    this.respawnText = this.add.text(0, 20, t('combat.respawnIn', { s: 5 }), {
+      fontSize: '16px', fontFamily: 'Courier New', color: '#888888',
+    }).setOrigin(0.5);
+    this.deathOverlay.add([deathBg, this.deathText, this.respawnText]);
+    this.deathOverlay.setVisible(false);
+
+    // Victory overlay (hidden)
+    this.victoryOverlay = this.add.container(480, 320);
+    this.victoryOverlay.setDepth(100);
+    const victoryBg = this.add.rectangle(0, 0, 500, 250, 0x000000, 0.8);
+    this.victoryText = this.add.text(0, -60, t('combat.dungeonComplete'), {
+      fontSize: '32px', fontFamily: 'Courier New', color: '#00ff88', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    this.victoryRewards = this.add.text(0, 0, '', {
+      fontSize: '16px', fontFamily: 'Courier New', color: '#ffaa00',
+    }).setOrigin(0.5);
+    this.returnBtn = this.add.text(0, 60, t('combat.returnLobby'), {
+      fontSize: '18px', fontFamily: 'Courier New', color: '#00ff88',
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this.returnBtn.on('pointerdown', () => {
+      this.scene.start('LobbyScene', { player: this.playerData });
+    });
+    this.victoryOverlay.add([victoryBg, this.victoryText, this.victoryRewards, this.returnBtn]);
+    this.victoryOverlay.setVisible(false);
+
+    // Back button
+    this.exitText = this.add.text(20, 620, t('combat.exitDungeon'), {
+      fontSize: '12px', fontFamily: 'Courier New', color: '#666',
+    }).setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.scene.start('LobbyScene', { player: this.playerData }));
+
+    // Live language switching: overlay/exit labels re-render instantly
+    this._offLang = onLangChange(() => this.applyLang());
+    this.events.once('shutdown', () => { if (this._offLang) this._offLang(); });
+  }
+
+  applyLang() {
+    this.deathText.setText(t('combat.defeated'));
+    this.respawnText.setText(this.deathRespawnText());
+    this.victoryText.setText(t('combat.dungeonComplete'));
+    this.returnBtn.setText(t('combat.returnLobby'));
+    this.exitText.setText(t('combat.exitDungeon'));
+    if (this._victoryRewardsData) this.setVictoryRewards(this._victoryRewardsData);
+    // 房间状态条（可能短暂覆盖「清除完毕」瞬态提示，下一条服务端事件会刷新）
+    this.hud.setStatus(t('combat.room', { a: this.roomNum, b: this.totalRooms }));
+  }
+
+  deathRespawnText() {
+    const line = t('combat.lostTokensLine', { n: this._deathDropped });
+    return `${line}\n${t('combat.respawnIn', { s: this._respawnRemaining })}`;
+  }
+
+  setVictoryRewards(r) {
+    this._victoryRewardsData = r;
+    this.victoryRewards.setText([
+      t('combat.rewardsTitle'),
+      t('combat.rewardUnstable', { n: r.unstable }),
+      t('combat.rewardXp', { n: r.xp }),
+    ].join('\n'));
+  }
+
+  update() {
+    // Process input
+    const move = this.inputManager.getMovement();
+    if (move) {
+      net.emit('input:move', move);
+      // Client-side prediction
+      const local = this.localPlayerSprite;
+      if (local) {
+        local.updatePosition(local.targetX + move.dx, local.targetY + move.dy);
+      }
+    }
+
+    const skillInput = this.inputManager.getSkillInput();
+    if (skillInput) {
+      const target = skillInput.target;
+      net.emit('input:skill', {
+        skillId: skillInput.skillIndex,
+        targetX: target?.x,
+        targetY: target?.y,
+      });
+      this.skillBar.highlightSlot(skillInput.skillIndex);
+    }
+  }
+
+  renderMap(mapData) {
+    this.mapGroup.clear(true, true);
+    if (!mapData) return;
+
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      for (let x = 0; x < MAP_WIDTH; x++) {
+        const tile = mapData[y]?.[x] ?? TILE.FLOOR;
+        let texture = 'tile_floor';
+        if (tile === TILE.WALL) texture = 'tile_wall';
+        else if (tile === TILE.HAZARD) texture = 'tile_hazard';
+
+        const img = this.add.image(x * 32 + 16, y * 32 + 16, texture);
+        this.mapGroup.add(img);
+      }
+    }
+  }
+
+  setupNetworkListeners() {
+    net.on('state:sync', (data) => {
+      const localId = net.playerId || this.playerData.id;
+
+      // Update monster positions
+      if (data.monsters) {
+        for (const mData of data.monsters) {
+          let sprite = this.monsterSprites.get(mData.id);
+          if (!sprite) {
+            sprite = new MonsterSprite(this, mData);
+            this.monsterSprites.set(mData.id, sprite);
+          }
+          sprite.updatePosition(mData.x, mData.y);
+          sprite.updateHp(mData.hp, mData.maxHp);
+        }
+      }
+
+      // Update all players (local + remote for PvP)
+      if (data.players) {
+        for (const pData of data.players) {
+          if (pData.id === localId) {
+            // Server position overrides client prediction for local player
+            this.localPlayerSprite.updatePosition(pData.x, pData.y);
+          } else {
+            // Remote player — create or update sprite
+            let remoteSprite = this.playerSprites.get(pData.id);
+            if (!remoteSprite) {
+              remoteSprite = new PlayerSprite(this, pData.x, pData.y, {
+                id: pData.id,
+                username: pData.username || '?',
+                hp: pData.hp || 100,
+                maxHp: pData.maxHp || 100,
+              }, false);
+              this.playerSprites.set(pData.id, remoteSprite);
+            }
+            remoteSprite.updatePosition(pData.x, pData.y);
+            if (pData.hp != null) remoteSprite.updateHp(pData.hp, pData.maxHp);
+          }
+        }
+      }
+    });
+
+    net.on('combat:hit', (data) => {
+      // Show damage number
+      const targetSprite = this.monsterSprites.get(data.targetId) ||
+                           this.playerSprites.get(data.targetId);
+      if (targetSprite) {
+        const worldX = targetSprite.sprite.x;
+        const worldY = targetSprite.sprite.y;
+        const dmgText = this.add.text(worldX, worldY - 20, `-${data.damage}`, {
+          fontSize: '14px', fontFamily: 'Courier New',
+          color: data.isCrit ? '#ffff00' : '#ff4444',
+          fontStyle: data.isCrit ? 'bold' : 'normal',
+        }).setOrigin(0.5);
+        this.tweens.add({
+          targets: dmgText,
+          y: worldY - 50,
+          alpha: 0,
+          duration: 800,
+          onComplete: () => dmgText.destroy(),
+        });
+
+        if (targetSprite.flashDamage) targetSprite.flashDamage();
+      }
+    });
+
+    net.on('combat:death', (data) => {
+      const monsterSprite = this.monsterSprites.get(data.entityId);
+      if (monsterSprite) {
+        this.playDeathAnimation(monsterSprite, () => {
+          this.monsterSprites.delete(data.entityId);
+        });
+        return;
+      }
+      // Check for player death (PvP)
+      const playerSprite = this.playerSprites.get(data.entityId);
+      if (playerSprite && data.entityId !== (net.playerId || this.playerData.id)) {
+        this.playDeathAnimation(playerSprite, () => {
+          this.playerSprites.delete(data.entityId);
+        });
+      }
+    });
+
+    net.on('combat:shield', (data) => {
+      if (data.playerId === (net.playerId || this.playerData.id)) {
+        this.hud.updateShield(data.active, data.absorbRemaining);
+        this.localPlayerSprite.setShield(data.active);
+      }
+    });
+
+    net.on('player:update', (data) => {
+      if (data.id === (net.playerId || this.playerData.id)) {
+        this.hud.updateHp(data.hp, data.maxHp);
+        this.hud.updateTokens(data.unstableTokens);
+        this.localPlayerSprite.updateHp(data.hp, data.maxHp);
+        this.playerData = { ...this.playerData, ...data };
+      }
+    });
+
+    net.on('player:dead', (data) => {
+      this.deathOverlay.setVisible(true);
+      this.deathText.setText(t('combat.defeated'));
+      const dropped = data.droppedTokens?.length || 0;
+      this._deathDropped = dropped;
+      this._respawnRemaining = 5;
+      this.respawnText.setText(this.deathRespawnText());
+
+      // Countdown
+      let countdown = 5;
+      this.time.addEvent({
+        delay: 1000,
+        repeat: 4,
+        callback: () => {
+          countdown--;
+          this._respawnRemaining = countdown;
+          this.respawnText.setText(this.deathRespawnText());
+        },
+      });
+    });
+
+    net.on('player:respawn', (data) => {
+      this.deathOverlay.setVisible(false);
+      this.localPlayerSprite.updatePosition(data.x, data.y);
+      this.hud.updateHp(this.playerData.maxHp, this.playerData.maxHp);
+    });
+
+    net.on('dungeon:room_clear', (data) => {
+      this.hud.setStatus(t('combat.roomCleared', { n: data.nextRoom + 1 }));
+    });
+
+    net.on('dungeon:start', (data) => {
+      // New room — animate old monsters out first, then destroy
+      const oldMonsters = [...this.monsterSprites.values()];
+      let completed = 0;
+      const total = oldMonsters.length;
+      if (total === 0) {
+        this._spawnNewRoom(data);
+        return;
+      }
+      for (const sprite of oldMonsters) {
+        this.playDeathAnimation(sprite, () => {
+          completed++;
+          if (completed >= total) this._spawnNewRoom(data);
+        });
+      }
+      this.monsterSprites.clear();
+    });
+
+    net.on('dungeon:complete', (data) => {
+      this.victoryOverlay.setVisible(true);
+      this.setVictoryRewards(data.rewards);
+    });
+
+    net.on('projectile:spawn', (data) => {
+      const p = new Projectile(this, data);
+      this.projectiles.set(data.id, p);
+    });
+
+    net.on('projectile:hit', (data) => {
+      const p = this.projectiles.get(data.id);
+      if (p) {
+        // Impact flash at target
+        const hitX = data.targetX * 32 + 16;
+        const hitY = data.targetY * 32 + 16;
+        const flash = this.add.circle(hitX, hitY, 6, 0xffff00, 0.8);
+        this.tweens.add({
+          targets: flash, alpha: 0, scaleX: 2, scaleY: 2, duration: 200,
+          onComplete: () => flash.destroy(),
+        });
+        p.destroy();
+        this.projectiles.delete(data.id);
+      }
+    });
+
+    net.on('projectile:destroy', (data) => {
+      const p = this.projectiles.get(data.id);
+      if (p) { p.destroy(); this.projectiles.delete(data.id); }
+    });
+
+    // Update skill cooldowns each frame
+    this.time.addEvent({
+      delay: 100,
+      loop: true,
+      callback: () => {
+        this.skillBar.updateCooldowns([
+          { lastUsed: this.playerData.skills?.[0]?.lastUsed || 0, cooldown: SKILLS.BASIC_ATTACK.cooldown },
+          { lastUsed: this.playerData.skills?.[1]?.lastUsed || 0, cooldown: SKILLS.DODGE_ROLL.cooldown },
+          { lastUsed: this.playerData.skills?.[2]?.lastUsed || 0, cooldown: SKILLS.SHIELD.cooldown },
+          { lastUsed: this.playerData.skills?.[3]?.lastUsed || 0, cooldown: SKILLS.TOKEN_BURST.cooldown },
+        ]);
+      },
+    });
+  }
+
+  // ===== HELPERS =====
+
+  playDeathAnimation(sprite, onComplete) {
+    const target = sprite.sprite || sprite;
+    this.tweens.add({
+      targets: target,
+      alpha: 0,
+      scaleX: 0,
+      scaleY: 0,
+      duration: 300,
+      ease: 'Back.easeIn',
+      onComplete: () => {
+        sprite.destroy();
+        if (onComplete) onComplete();
+      },
+    });
+  }
+
+  _spawnNewRoom(data) {
+    this.renderMap(data.mapData);
+    this.roomNum = (data.roomIndex || 0) + 1;
+    this.hud.setStatus(t('combat.roomN', { n: this.roomNum }));
+    if (data.monsters) {
+      for (const m of data.monsters) {
+        const sprite = new MonsterSprite(this, m);
+        this.monsterSprites.set(m.id, sprite);
+      }
+    }
+  }
+}

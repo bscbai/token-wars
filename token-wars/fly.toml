@@ -1,0 +1,26 @@
+# Token Wars — Fly.io Deployment Config
+# Deploy: fly launch --name token-wars --org personal
+#         fly deploy
+
+app = "token-wars"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 3000
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"
