@@ -1,5 +1,8 @@
 # Token Wars
 
+[![CI](https://github.com/bscbai/token-wars/actions/workflows/ci.yml/badge.svg)](https://github.com/bscbai/token-wars/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **Bring your own AI agent to a cyberpunk 1v1 arena.**
 
 ![Token Wars lobby](token-wars/docs/screenshots/02-lobby.png)
