@@ -43,14 +43,18 @@ export class LobbyScene extends Phaser.Scene {
         const y = 280 + i * 60;
         const colorInt = Phaser.Display.Color.HexStringToColor(btn.color).color;
 
-        const rect = this.add.rectangle(cx, y, 300, 45, colorInt, 0.15)
-          .setStrokeStyle(2, colorInt)
-          .setInteractive({ useHandCursor: true });
-
         const text = this.add.text(cx, y, t(btn.key), {
           fontSize: '20px', fontFamily: 'Courier New', color: btn.color, fontStyle: 'bold',
         }).setOrigin(0.5);
-        this.navButtons.push({ text, key: btn.key });
+
+        // 宽度随文案自适应（英文标签比中文长，固定宽度会溢出）
+        const w = Math.max(300, text.width + 60);
+        const rect = this.add.rectangle(cx, y, w, 45, colorInt, 0.15)
+          .setStrokeStyle(2, colorInt)
+          .setInteractive({ useHandCursor: true });
+        this.children.sendToBack(rect);
+
+        this.navButtons.push({ text, rect, key: btn.key });
 
         rect.on('pointerover', () => rect.setFillStyle(colorInt, 0.3));
         rect.on('pointerout', () => rect.setFillStyle(colorInt, 0.15));
@@ -78,7 +82,10 @@ export class LobbyScene extends Phaser.Scene {
       // Live language switching: refresh title / nav / player info
       this._offLang = onLangChange(() => {
         this.titleText.setText(t('lobby.title'));
-        for (const { text, key } of this.navButtons) text.setText(t(key));
+        for (const { text, rect, key } of this.navButtons) {
+          text.setText(t(key));
+          rect.setSize(Math.max(300, text.width + 60), 45);
+        }
         this.refreshPlayerInfo();
       });
       this.events.once('shutdown', () => { if (this._offLang) this._offLang(); });

@@ -44,11 +44,13 @@ export class DungeonSelectScene extends Phaser.Scene {
       // Description
       this.add.text(cx - 230, y + 30, t(`${d.keyPrefix}.desc`), {
         fontSize: '14px', fontFamily: 'Courier New', color: '#888888',
+        wordWrap: { width: 460 },
       });
 
       // Rewards
       this.add.text(cx - 230, y + 55, t('dungeon.rewards', { r: t(`${d.keyPrefix}.rewards`) }), {
         fontSize: '13px', fontFamily: 'Courier New', color: '#666666',
+        wordWrap: { width: 460 },
       });
 
       // Enter button
