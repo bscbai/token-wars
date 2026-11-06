@@ -221,6 +221,17 @@ export const messages = {
     'skill.dodge_roll': 'Dodge Roll',
     'skill.shield': 'Compute Shield',
     'skill.token_burst': 'Token Burst',
+    // Combat skill bar (56px slots)
+    'skill.basic_attack.short': 'ATK',
+    'skill.dodge_roll.short': 'DODGE',
+    'skill.shield.short': 'SHLD',
+    'skill.token_burst.short': 'BURST',
+
+    // Monsters (server templates are Chinese)
+    'monster.drone': 'Data Drone',
+    'monster.crawler': 'Compute Crawler',
+    'monster.elite_guard': 'Elite Guard',
+    'monster.boss_cache_controller': 'Cache Controller',
 
     // In-battle HUD
     'hud.unstable': 'Unstable: {n}',
@@ -445,6 +456,17 @@ export const messages = {
     'skill.dodge_roll': '闪避翻滚',
     'skill.shield': '算力护盾',
     'skill.token_burst': '算力爆发',
+    // 战斗技能栏（56px 槽位）
+    'skill.basic_attack.short': '基础攻',
+    'skill.dodge_roll.short': '闪避',
+    'skill.shield.short': '护盾',
+    'skill.token_burst.short': '爆发',
+
+    // 怪物（服务端模板名为中文）
+    'monster.drone': '数据无人机',
+    'monster.crawler': '算力爬虫',
+    'monster.elite_guard': '精英守卫',
+    'monster.boss_cache_controller': '缓存控制器',
 
     // In-battle HUD
     'hud.unstable': '不稳定Token: {n}',

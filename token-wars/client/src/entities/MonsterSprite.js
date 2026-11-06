@@ -1,8 +1,19 @@
+import { t } from '../i18n.js';
+
+/** 怪物名：优先 i18n（按 templateId），缺失回退服务端中文名 */
+function monsterName(monsterData) {
+  const key = `monster.${monsterData.templateId}`;
+  const v = t(key);
+  return v === key ? monsterData.name : v;
+}
+
 export class MonsterSprite {
   constructor(scene, monsterData) {
     this.scene = scene;
     this.id = monsterData.id;
-    this.name = monsterData.name;
+    this.templateId = monsterData.templateId;
+    this.rawName = monsterData.name;
+    this.name = monsterName(monsterData);
 
     const worldX = monsterData.x * 32 + 16;
     const worldY = monsterData.y * 32 + 16;
@@ -19,7 +30,7 @@ export class MonsterSprite {
     this.hpBar.setOrigin(0, 0.5);
 
     // Name
-    this.nameLabel = scene.add.text(worldX, worldY - radius - 16, monsterData.name, {
+    this.nameLabel = scene.add.text(worldX, worldY - radius - 16, this.name, {
       fontSize: '10px', fontFamily: 'Courier New', color: '#ff8888',
     }).setOrigin(0.5);
 
@@ -36,6 +47,12 @@ export class MonsterSprite {
 
     // Telegraph (danger zone indicator)
     this.telegraph = null;
+  }
+
+  /** 语言切换后刷新名字标签 */
+  refreshName() {
+    this.name = monsterName({ templateId: this.templateId, name: this.rawName });
+    this.nameLabel.setText(this.name);
   }
 
   updatePosition(x, y) {

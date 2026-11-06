@@ -53,13 +53,22 @@ const DYNAMIC_EXPANSIONS = [
     keys: ['easy', 'medium'].map((p) => `dungeon.${p}.${suffix}`),
   })),
   { pattern: /shop\.pack\.\$\{[^}]+\}/g, keys: ['starter', 'basic', 'premium', 'legendary', 'ammo'].map((id) => `shop.pack.${id}`) },
-  { pattern: /skill\.\$\{[^}]+\}/g, keys: ['basic_attack', 'dodge_roll', 'shield', 'token_burst'].map((id) => `skill.${id}`) },
+  {
+    pattern: /skill\.\$\{[^}]+\}/g,
+    keys: ['basic_attack', 'dodge_roll', 'shield', 'token_burst']
+      .flatMap((id) => [`skill.${id}`, `skill.${id}.short`]),
+  },
+  {
+    pattern: /monster\.\$\{[^}]+\}/g,
+    keys: ['drone', 'crawler', 'elite_guard', 'boss_cache_controller'].map((id) => `monster.${id}`),
+  },
 ];
 
 describe('客户端 t() 键覆盖', () => {
   const files = walkJs(CLIENT_SRC);
   const staticKeys = new Set();
   const dynamicLiterals = [];
+  const seenDynamic = new Set();
 
   it('扫描到客户端源码文件', () => {
     expect(files.length).toBeGreaterThan(5);
@@ -75,7 +84,13 @@ describe('客户端 t() 键覆盖', () => {
     }
     // 动态：t(`...${...}...`)
     for (const m of src.matchAll(/\bt\(\s*`([^`]+)`/g)) {
-      dynamicLiterals.push({ rel, expr: m[1] });
+      if (!seenDynamic.has(m[1])) { seenDynamic.add(m[1]); dynamicLiterals.push({ rel, expr: m[1] }); }
+    }
+    // 动态（间接）：先存进变量再 t(key) 的模板串，例如
+    //   const key = `monster.${monsterData.templateId}`; t(key)
+    // 仅扫描已知 i18n 命名空间，避免误伤其它模板字符串
+    for (const m of src.matchAll(/`((?:arena|skill|monster|shop|dungeon|pvp|rarity|inv|combat)\.\$\{[^`]+)`/g)) {
+      if (!seenDynamic.has(m[1])) { seenDynamic.add(m[1]); dynamicLiterals.push({ rel, expr: m[1] }); }
     }
     // 间接引用：非 i18n 模块中所有 arena./login./lobby. 前缀的字符串字面量
     //（如 replayActionKey 的 action→key 映射、resultKey 等）

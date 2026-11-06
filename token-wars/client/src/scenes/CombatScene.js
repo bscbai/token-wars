@@ -127,6 +127,10 @@ export class CombatScene extends Phaser.Scene {
     this.returnBtn.setText(t('combat.returnLobby'));
     this.exitText.setText(t('combat.exitDungeon'));
     if (this._victoryRewardsData) this.setVictoryRewards(this._victoryRewardsData);
+    if (this.skillBar) this.skillBar.applyLang();
+    for (const sprite of this.monsterSprites.values()) {
+      if (sprite.refreshName) sprite.refreshName();
+    }
     // 房间状态条（可能短暂覆盖「清除完毕」瞬态提示，下一条服务端事件会刷新）
     this.hud.setStatus(t('combat.room', { a: this.roomNum, b: this.totalRooms }));
   }
