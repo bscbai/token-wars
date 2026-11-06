@@ -1,6 +1,7 @@
 /**
- * aiarena 路由 — 遥测 trace 查询（阶段 2a，openspec/changes/telemetry-trace-query）
+ * aiarena 路由 — 遥测 trace 查询 + 公开排行榜
  *
+ *   GET /api/ai-arena/leaderboard?track=agent&limit=20   公开（无需登录）
  *   GET /api/ai-arena/agents/:agentId/matches   某 agent 近期对局列表（仅本人）
  *   GET /api/ai-arena/matches/:matchId/trace    完整 trace + stats（仅参赛双方，?side=A|B 过滤）
  *
@@ -11,6 +12,9 @@
 'use strict';
 
 const express = require('express');
+const { TRACKS } = require('../../shared/constants');
+
+const TRACK_IDS = Object.values(TRACKS).map((t) => t.id);
 
 function makeAiarenaRouter({ aiarena, verifySession }) {
   const router = express.Router();
@@ -22,6 +26,19 @@ function makeAiarenaRouter({ aiarena, verifySession }) {
     if (!player) return { status: 401, body: { error: 'Invalid session' } };
     return { player };
   };
+
+  // GET /api/ai-arena/leaderboard — 公开榜单（分享用，无需登录）
+  router.get('/leaderboard', (req, res) => {
+    const track = TRACK_IDS.includes(req.query.track) ? req.query.track : null;
+    const parsed = parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 100) : 20;
+    res.json({
+      track,
+      tracks: TRACK_IDS,
+      entries: aiarena.getLeaderboard(limit, track),
+      generatedAt: new Date().toISOString(),
+    });
+  });
 
   // GET /api/ai-arena/agents/:agentId/matches
   router.get('/agents/:agentId/matches', (req, res) => {
