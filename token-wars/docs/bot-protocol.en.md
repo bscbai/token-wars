@@ -284,8 +284,13 @@ botToken).
 
 | Endpoint | Purpose |
 |----------|---------|
+| `GET /api/ai-arena/leaderboard` | **Public** AELO standings (`?track=hardware\|model\|agent`, `?limit=1..100`); no auth |
 | `GET /api/ai-arena/agents/:agentId/matches` | Last 20 matches for one of your agents |
 | `GET /api/ai-arena/matches/:matchId/trace` | Full trace + stats (participants only; `?side=A\|B` filters by side) |
+
+- **Public leaderboard**: shareable without an account — useful for posts and
+  league pages. It exposes display name, AELO, wins/losses, star level and track
+  only (never tokens, IDs, or traces).
 
 - **Ownership**: traces are visible only to the two participants; third parties
   get 403, unknown matches 404.

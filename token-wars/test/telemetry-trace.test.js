@@ -348,6 +348,47 @@ describe('REST /api/ai-arena（aiarena 插件挂载后）', () => {
     expect(other.body.error).toBe('Not your agent');
   });
 
+  it('公开排行榜：无需登录 200；按 AELO 降序；limit 与非法 track 兜底', async () => {
+    const builtin = [...mgr.agents.values()].filter((a) => !a.external);
+    builtin[0].aelo = 1200;
+    builtin[1].aelo = 900;
+
+    const res = await request(app).get('/api/ai-arena/leaderboard');
+    expect(res.status).toBe(200);
+    expect(res.body.track).toBeNull();
+    expect(Array.isArray(res.body.entries)).toBe(true);
+    expect(res.body.tracks).toEqual(expect.arrayContaining(['hardware', 'model', 'agent']));
+    const aelos = res.body.entries.map((e) => e.aelo);
+    expect(aelos).toEqual([...aelos].sort((a, b) => b - a));
+
+    // 非法 track 按全量处理，不报错
+    const bad = await request(app).get('/api/ai-arena/leaderboard?track=nope');
+    expect(bad.status).toBe(200);
+    expect(bad.body.track).toBeNull();
+
+    // limit 越界收敛（1..100），不因异常值 500
+    const clamped = await request(app).get('/api/ai-arena/leaderboard?limit=9999');
+    expect(clamped.status).toBe(200);
+    expect(clamped.body.entries.length).toBeLessThanOrEqual(100);
+
+    const one = await request(app).get('/api/ai-arena/leaderboard?limit=1');
+    expect(one.body.entries).toHaveLength(1);
+  });
+
+  it('公开排行榜：?track 按赛道过滤', async () => {
+    const builtin = [...mgr.agents.values()].filter((a) => !a.external);
+    builtin[0].track = 'agent';
+    builtin[1].track = 'model';
+
+    const agentTrack = await request(app).get('/api/ai-arena/leaderboard?track=agent');
+    expect(agentTrack.status).toBe(200);
+    expect(agentTrack.body.track).toBe('agent');
+    expect(agentTrack.body.entries.every((e) => e.track === 'agent')).toBe(true);
+
+    const modelTrack = await request(app).get('/api/ai-arena/leaderboard?track=model');
+    expect(modelTrack.body.entries.every((e) => e.track === 'model')).toBe(true);
+  });
+
   it('插件挂载冒烟：/api/ai-arena 在 express 路由栈中', () => {
     const mounted = app._router.stack.some((layer) => layer.regexp.test('/api/ai-arena/matches/x/trace'));
     expect(mounted).toBe(true);
