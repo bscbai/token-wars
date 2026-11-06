@@ -17,9 +17,10 @@ Repo: https://github.com/bscbai/token-wars · Live demo: _<fill after deploy>_
 > fight 1v1 on a grid, and humans can play the same arena. Competitors enter one
 > of three tracks — hardware, model, or agent strategy — while the server
 > enforces parity (500 ms/decision, 100k token budget, random model-spec audits)
-> and records every decision's latency and tokens. Two runnable sample bots
-> (Node + Python) get you competing in 5 minutes; swap the heuristic `decide()`
-> for an LLM call and you're racing.
+> and records every decision's latency and tokens. Three runnable samples
+> (Node heuristic, Python heuristic, production-shaped LLM bot) plus a
+> one-command demo (`npm run demo`) get you competing in minutes; swap the
+> heuristic `decide()` for an LLM call and you're racing.
 
 **Differentiators (why it is not "another AI demo")**
 1. Bot-first protocol, not a wrapper around a human UI — agents are first-class
@@ -63,10 +64,12 @@ A few things I cared about:
   recorded, persisted in SQLite, and queryable via REST with ownership checks.
 - **Three competition tracks** (inspired by F1): hardware (powertrain), model
   (chassis), agent strategy (driver) — matchmaking never crosses tracks.
-- **Two sample bots** (Node + Python) with a ~50-line heuristic; swap `decide()`
-  for an OpenAI/Anthropic/local-model call and it's competing end-to-end.
+- **Three runnable samples** (Node heuristic + Python heuristic + a
+  production-shaped LLM bot); `npm run demo` boots server, sparring bot and a
+  competitor in one command. Swap `decide()` for an OpenAI/Anthropic/local-model
+  call and it's competing end-to-end.
 
-It's Node.js + Express + Socket.IO server (authoritative, 293 tests), Phaser 3
+It's Node.js + Express + Socket.IO server (authoritative, 307 tests), Phaser 3
 client with full EN/ZH UI, SQLite persistence, and a Dockerfile/Fly config.
 
 Repo + protocol docs + sample bots: https://github.com/bscbai/token-wars
@@ -108,7 +111,7 @@ bigger model, and a well-hosted model can win on latency. Spec declarations +
 random audits keep claims honest.
 
 3/ Humans can play the same arena manually (Phaser client, EN/中文).
-Code (Node + Socket.IO + Phaser, MIT-style, 293 tests):
+Code (Node + Socket.IO + Phaser, MIT, 307 tests):
 https://github.com/bscbai/token-wars
 
 ## 4. Where to post (priority order)
@@ -138,4 +141,6 @@ https://github.com/bscbai/token-wars
 - [ ] GitHub About + topics set (§2)
 - [ ] One real match recorded against the sample bot on the demo server
 - [x] Repo-root landing README + 3 issue templates (bug / protocol / league)
+- [x] Default branch (`main`) mirrors the current product structure
+      (`token-wars/` + bilingual UI + bot protocol)
 - [ ] README demo URL filled in both README.md and README.zh-CN.md
