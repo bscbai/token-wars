@@ -1,9 +1,12 @@
+import { t } from '../i18n.js';
+
 export class SkillBar {
   constructor(scene, skills) {
     this.scene = scene;
     this.skills = skills;
     this.slots = [];
     this.cooldownOverlays = [];
+    this.labelTexts = [];
 
     const startX = 330;
     const y = 600;
@@ -23,10 +26,11 @@ export class SkillBar {
         fontSize: '10px', fontFamily: 'Courier New', color: '#666',
       });
 
-      // Skill name (abbreviated)
-      scene.add.text(x, y - 6, skill.name.substring(0, 3), {
+      // Skill name (short label, localized)
+      const nameText = scene.add.text(x, y - 6, this.shortLabel(skill), {
         fontSize: '12px', fontFamily: 'Courier New', color: '#00ff88',
       }).setOrigin(0.5);
+      this.labelTexts.push({ text: nameText, skill });
 
       // Token cost
       scene.add.text(x, y + 14, skill.tokenCost > 0 ? `${skill.tokenCost}T` : 'FREE', {
@@ -47,6 +51,18 @@ export class SkillBar {
       this.slots.push({ bg, x, y });
       this.cooldownOverlays.push({ overlay: cdOverlay, text: cdText, lastUsed: 0, cooldown: skill.cooldown });
     });
+  }
+
+  /** 技能短标签：优先 i18n，缺失时回退服务端中文名前三字 */
+  shortLabel(skill) {
+    const key = `skill.${skill.id}.short`;
+    const v = t(key);
+    return v === key ? skill.name.substring(0, 3) : v;
+  }
+
+  /** 语言切换后刷新槽位标签 */
+  applyLang() {
+    for (const { text, skill } of this.labelTexts) text.setText(this.shortLabel(skill));
   }
 
   updateCooldowns(skills) {
