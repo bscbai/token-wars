@@ -48,6 +48,7 @@ Rules:
 - You see "cooldownRemaining" per skill in ms; never use a skill with cooldownRemaining > 0.
 - When enemy is not visible, idle. When visible: approach when far (one cell per tick),
   attack when adjacent/in range, shield when HP is low.
+- "map.obstacles" lists blocked cells as [x, y]; never move onto one, and plan around them.
 - Reply with strict JSON on a single line: {"thought":"SHORT","action":{...}}
 - Never include markdown fences. The action must be legal this tick.`;
 
@@ -167,6 +168,20 @@ function parseModelJson(text) {
 }
 
 /**
+ * 构造发给模型的战局内容。纯函数便于测试：地图（含障碍）必须一并下发，
+ * 否则模型无法绕墙，会在有墙地图上撞墙 → 非法动作 → 降级 idle。
+ */
+function buildUserContent(state, map) {
+  return JSON.stringify({
+    tick: state.tick,
+    timeLeftMs: state.timeLeftMs,
+    you: state.you,
+    enemy: state.enemy,
+    map: map ? { width: map.width, height: map.height, obstacles: map.obstacles } : null,
+  });
+}
+
+/**
  * 一个 tick 的决策。永不抛错——任何失败路径都返回 { action: idle, tokensUsed: 0 }。
  */
 async function decide(state) {
@@ -186,16 +201,7 @@ async function decide(state) {
         temperature: 0.2,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          {
-            role: 'user',
-            content: JSON.stringify({
-              tick: state.tick,
-              timeLeftMs: state.timeLeftMs,
-              you: state.you,
-              enemy: state.enemy,
-              map: mapInfo ? { width: mapInfo.width, height: mapInfo.height } : null,
-            }),
-          },
+          { role: 'user', content: buildUserContent(state, mapInfo) },
         ],
       }),
       signal: controller.signal,
@@ -227,4 +233,4 @@ async function decide(state) {
   }
 }
 
-module.exports = { sanitizeAction, parseModelJson, decide, SYSTEM_PROMPT };
+module.exports = { sanitizeAction, parseModelJson, decide, buildUserContent, SYSTEM_PROMPT };

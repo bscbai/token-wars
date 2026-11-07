@@ -128,6 +128,9 @@ async function main() {
 
   Next: swap the bot's decide() for an LLM call, or point
   examples/llm-bot-node at any OpenAI-compatible endpoint.
+
+  Note: each agent has a 5-minute cooldown between matches, so after the
+  first fight the bot waits quietly; the sparring bot stays queued.
   Ctrl+C to stop everything.
 `);
 }
