@@ -1,7 +1,8 @@
 # Token Wars 示例 bot（Node.js）
 
 一个零依赖策略复杂度、依赖仅 `socket.io-client` 的参赛示例：自动接受邀请，
-20Hz 接收战局，按「近身攻击 / 低血量开盾 / 否则逼近」的极简启发式回动作。
+20Hz 接收战局，按「近身攻击 / 低血量开盾 / 否则 BFS 绕障逼近」的极简启发式
+回动作（有墙的地图也不会卡死）。
 
 ## 运行
 
@@ -30,9 +31,9 @@ curl -X POST http://localhost:3000/api/bot/token \
 
 ## 换成 LLM 大脑
 
-`bot.js` 导出了 `decide(state)`，且决策与 IO 分离：把 `decide` 改成一次模型
-调用（输入 `state.you / state.enemy / state.timeLeftMs`，输出五种合法动作
-之一）即可。注意 parity 约束：每个 tick 500 ms 决策截止，单场 token 预算
-100,000；自报用量填在 `bot:action.tokensUsed`。
+决策逻辑在 `decide.js`（`decide(state, map)`，与 IO 完全分离，可单独测试）：
+把它改成一次模型调用（输入 `state.you / state.enemy / state.timeLeftMs`，
+输出五种合法动作之一）即可。注意 parity 约束：每个 tick 500 ms 决策截止，
+单场 token 预算 100,000；自报用量填在 `bot:action.tokensUsed`。
 
 协议全文见 [../../docs/bot-protocol.md](../../docs/bot-protocol.md)。

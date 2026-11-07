@@ -1,7 +1,7 @@
 """Token Wars — 示例参赛 bot（Python）
 
 连接 /bot 命名空间 → 自动接受邀请 → 每 tick 返回一个动作。
-策略与 Node 示例一致：近身攻击 / 低血量开盾 / 否则逼近 / 看不见敌人就 idle。
+策略与 Node 示例一致：近身攻击 / 低血量开盾 / 否则 BFS 绕障逼近 / 看不见敌人就 idle。
 
 用法：
     pip install -r requirements.txt
@@ -13,15 +13,13 @@ botToken 获取见 ../sample-bot-node/README.md 或 ../../docs/bot-protocol.md�
 
 import os
 import sys
+from collections import deque
 
 import socketio
 
 URL = os.environ.get("BOT_URL", "http://localhost:3000")
 TOKEN = os.environ.get("BOT_TOKEN")
 PROTOCOL_VERSION = 1
-
-if not TOKEN:
-    sys.exit("Missing BOT_TOKEN env var. See README in this folder.")
 
 sio = socketio.Client()
 map_info = None  # invite 携带的地图（width/height/obstacles），state 不含地图
@@ -104,14 +102,49 @@ def skill_ready(you, skill_id):
     return True
 
 
+def bfs_first_step(frm, to):
+    """BFS 最短路的第一步；无可达路径返回 None。敌人所在格视为可达目标。"""
+    if map_info is None:
+        return None
+    obstacles = {(ox, oy) for ox, oy in map_info["obstacles"]}
+    start = (frm["x"], frm["y"])
+    goal = (to["x"], to["y"])
+
+    prev = {start: None}
+    queue = deque([start])
+    while queue:
+        cur = queue.popleft()
+        if cur == goal:
+            node = cur
+            parent = prev[node]
+            if parent is None:
+                return None
+            while prev[parent] is not None:
+                node = parent
+                parent = prev[node]
+            return {"x": node[0], "y": node[1]}
+
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nx, ny = cur[0] + dx, cur[1] + dy
+            if nx < 0 or ny < 0 or nx >= map_info["width"] or ny >= map_info["height"]:
+                continue
+            if (nx, ny) in obstacles and (nx, ny) != goal:
+                continue
+            if (nx, ny) in prev:
+                continue
+            prev[(nx, ny)] = cur
+            queue.append((nx, ny))
+    return None
+
+
 def decide(state):
     you, enemy = state["you"], state.get("enemy")
     if not enemy or not enemy.get("visible"):
         return {"type": "idle"}
 
-    # 1) 近身攻击（距离 ≤ 2 且冷却就绪）
-    if manhattan(you, enemy) <= 2 and skill_ready(you, "basic_attack"):
-        return {"type": "attack"}
+    # 1) 进入攻击距离：能打就打，冷却中原地等待（继续靠近只会贴脸）
+    if manhattan(you, enemy) <= 2:
+        return {"type": "attack"} if skill_ready(you, "basic_attack") else {"type": "idle"}
 
     # 2) 低血量开盾
     if (
@@ -121,26 +154,17 @@ def decide(state):
     ):
         return {"type": "shield"}
 
-    # 3) 逼近：四邻域选可通行且距敌最近的一格
-    best = None
-    for p in (
-        {"x": you["x"] + 1, "y": you["y"]},
-        {"x": you["x"] - 1, "y": you["y"]},
-        {"x": you["x"], "y": you["y"] + 1},
-        {"x": you["x"], "y": you["y"] - 1},
-    ):
-        if not walkable(p["x"], p["y"]):
-            continue
-        if best is None or manhattan(p, enemy) < manhattan(best, enemy):
-            best = p
-
-    if best and manhattan(best, enemy) < manhattan(you, enemy):
-        return {"type": "move", "x": best["x"], "y": best["y"]}
+    # 3) 绕障逼近（贪心会被墙卡死，BFS 不会）
+    step = bfs_first_step(you, enemy)
+    if step and walkable(step["x"], step["y"]):
+        return {"type": "move", "x": step["x"], "y": step["y"]}
 
     return {"type": "idle"}
 
 
 if __name__ == "__main__":
+    if not TOKEN:
+        sys.exit("Missing BOT_TOKEN env var. See README in this folder.")
     sio.connect(
         f"{URL}/bot",
         socketio_path="socket.io",

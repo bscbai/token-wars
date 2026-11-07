@@ -1,6 +1,6 @@
 # Token Wars 示例 bot（Python）
 
-Node 示例的等价 Python 版（`python-socketio`），同样的启发式策略。
+Node 示例的等价 Python 版（`python-socketio`），同样的启发式策略（含 BFS 绕障）。
 
 ## 运行
 
