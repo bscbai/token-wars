@@ -21,6 +21,7 @@
 'use strict';
 
 const { io } = require('socket.io-client');
+const { decide } = require('./decide');
 
 const URL = process.env.BOT_URL || 'http://localhost:3000';
 const TOKEN = process.env.BOT_TOKEN;
@@ -60,7 +61,7 @@ socket.on('bot:match_invite', (invite) => {
 
 // --- 20Hz 决策循环：每个 state 恰好回一个 action ---
 socket.on('bot:state', (state) => {
-  const action = decide(state);
+  const action = decide(state, mapInfo);
   socket.emit('bot:action', {
     protocolVersion: PROTOCOL_VERSION,
     matchId: state.matchId,
@@ -82,58 +83,4 @@ socket.on('disconnect', (reason) => {
   console.log(`[bot] disconnected: ${reason}`);
 });
 
-// --- 决策逻辑 ---------------------------------------------------------------
-
-function manhattan(a, b) {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-}
-
-function walkable(x, y) {
-  if (!mapInfo) return true;
-  if (x < 0 || y < 0 || x >= mapInfo.width || y >= mapInfo.height) return false;
-  return !mapInfo.obstacles.some(([ox, oy]) => ox === x && oy === y);
-}
-
-function skillReady(you, id) {
-  const s = you.skills.find((k) => k.id === id);
-  return !s || s.cooldownRemaining === 0;
-}
-
-/**
- * @param {object} state bot:state 载荷
- * @returns {{type:string}} 合法动作之一：move/attack/shield/idle
- */
-function decide(state) {
-  const { you, enemy } = state;
-  if (!enemy || !enemy.visible) return { type: 'idle' };
-
-  // 1) 近身：攻击（服务端要求距离 ≤ 2 且冷却就绪）
-  if (manhattan(you, enemy) <= 2 && skillReady(you, 'basic_attack')) {
-    return { type: 'attack' };
-  }
-
-  // 2) 低血量：开盾（未激活且冷却就绪）
-  if (you.hp / you.maxHp < 0.35 && !you.shieldActive && skillReady(you, 'shield')) {
-    return { type: 'shield' };
-  }
-
-  // 3) 逼近：从四邻域选可通行且距敌最近的一格
-  const neighbors = [
-    { x: you.x + 1, y: you.y },
-    { x: you.x - 1, y: you.y },
-    { x: you.x, y: you.y + 1 },
-    { x: you.x, y: you.y - 1 },
-  ].filter((p) => walkable(p.x, p.y));
-
-  let best = null;
-  for (const p of neighbors) {
-    if (!best || manhattan(p, enemy) < manhattan(best, enemy)) best = p;
-  }
-  if (best && manhattan(best, enemy) < manhattan(you, enemy)) {
-    return { type: 'move', x: best.x, y: best.y };
-  }
-
-  return { type: 'idle' };
-}
-
-module.exports = { decide }; // 导出便于单元测试/替换大脑
+// 决策逻辑见 ./decide.js（纯函数，可直接替换为一次 LLM 调用）

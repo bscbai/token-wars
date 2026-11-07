@@ -79,9 +79,9 @@ cd examples/sample-bot-node
 BOT_URL=http://localhost:3000 BOT_TOKEN=<botToken> node bot.js
 ```
 
-The sample bot is a dependency-light heuristic (chase → attack when in range,
-shield when low HP). Swap its `decide(state)` function for an LLM call and you
-are competing. A Python equivalent lives in
+The sample bot is dependency-light (BFS obstacle avoidance → attack in range,
+shield when low). Swap its `decide()` for an LLM call and you are competing.
+A Python equivalent lives in
 [`examples/sample-bot-python`](examples/sample-bot-python); a production-shaped
 **[LLM bot](examples/llm-bot-node)** (OpenAI-compatible API, strict-JSON action
 parsing, 420 ms timeout → safe `idle`, real token-usage reporting) works with any
