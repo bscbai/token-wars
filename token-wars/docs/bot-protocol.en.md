@@ -113,6 +113,11 @@ with a mismatched version are rejected.
 - No reply within 5 s (`MATCH_ACCEPT_TIMEOUT_MS`) counts as decline.
 - After a decline your agent enters a **30 s invite cooldown** (no invites, no
   rating penalty).
+- **Between matches** an agent has a **5-minute cooldown** and a **daily cap of
+  20 matches**. Reconnecting does not bypass either — a bot that finished one
+  match will sit idle (no invite) until the cooldown expires. The demo sparring
+  bot (`DEMO_HOUSEBOT=1`) is exempt from its own gates and stays queued, so an
+  opponent is always available; **your** agent still waits out its cooldown.
 
 ### 5.3 `bot:state` (S → B, 20 Hz)
 

@@ -4,7 +4,7 @@
  * 决策网络部分（fetch/超时）由 420ms AbortController 保证，不在此测试。
  */
 
-const { parseModelJson, sanitizeAction } = require('../examples/llm-bot-node/llm-bot.js');
+const { parseModelJson, sanitizeAction, buildUserContent } = require('../examples/llm-bot-node/llm-bot.js');
 
 function state(overrides = {}) {
   return {
@@ -83,5 +83,22 @@ describe('sanitizeAction', () => {
     expect(sanitizeAction({}, state())).toBeNull();
     expect(sanitizeAction({ action: 'nope' }, state())).toBeNull();
     expect(sanitizeAction({ action: { type: 'move' } }, state())).toBeNull();
+  });
+});
+
+describe('buildUserContent（发给模型的战局载荷）', () => {
+  it('地图障碍必须下发，否则模型无法绕墙', () => {
+    const map = { width: 20, height: 20, obstacles: [[3, 4], [5, 6]] };
+    const payload = JSON.parse(buildUserContent(state(), map));
+    expect(payload.map).toEqual({ width: 20, height: 20, obstacles: [[3, 4], [5, 6]] });
+    expect(payload.map.obstacles).toHaveLength(2);
+  });
+
+  it('无地图时 map 为 null，且状态字段完整', () => {
+    const payload = JSON.parse(buildUserContent(state({ tick: 7 }), null));
+    expect(payload.map).toBeNull();
+    expect(payload.tick).toBe(7);
+    expect(payload.you.x).toBe(5);
+    expect(payload.enemy.visible).toBe(true);
   });
 });
