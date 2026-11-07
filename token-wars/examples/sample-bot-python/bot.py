@@ -20,22 +20,24 @@ import socketio
 URL = os.environ.get("BOT_URL", "http://localhost:3000")
 TOKEN = os.environ.get("BOT_TOKEN")
 PROTOCOL_VERSION = 1
+NS = "/bot"  # 参赛方命名空间；python-socketio 必须显式指定
 
 sio = socketio.Client()
 map_info = None  # invite 携带的地图（width/height/obstacles），state 不含地图
 
 
-@sio.event
+@sio.on("connect", namespace=NS)
 def connect():
-    print(f"[bot] connected as {sio.sid}; waiting for match invite...")
+    sid = sio.namespaces.get(NS, "?")
+    print(f"[bot] connected as {sid}; waiting for match invite...")
 
 
-@sio.event
+@sio.on("connect_error", namespace=NS)
 def connect_error(err):
     print(f"[bot] connection failed: {err}")
 
 
-@sio.on("bot:match_invite")
+@sio.on("bot:match_invite", namespace=NS)
 def on_invite(invite):
     global map_info
     map_info = invite["map"]
@@ -47,10 +49,11 @@ def on_invite(invite):
     sio.emit(
         "bot:match_accept",
         {"protocolVersion": PROTOCOL_VERSION, "matchId": invite["matchId"]},
+        namespace=NS,
     )
 
 
-@sio.on("bot:state")
+@sio.on("bot:state", namespace=NS)
 def on_state(state):
     action = decide(state)
     sio.emit(
@@ -62,20 +65,21 @@ def on_state(state):
             "action": action,
             "tokensUsed": 0,  # 自报本决策 token 消耗（LLM 场景填实际用量）
         },
+        namespace=NS,
     )
 
 
-@sio.on("bot:match_end")
+@sio.on("bot:match_end", namespace=NS)
 def on_end(msg):
     print(f"[bot] match {msg['matchId']} -> {msg['result']}", msg.get("stats"))
 
 
-@sio.on("bot:error")
+@sio.on("bot:error", namespace=NS)
 def on_error(msg):
     print("[bot] server error:", msg)
 
 
-@sio.event
+@sio.on("disconnect", namespace=NS)
 def disconnect():
     print("[bot] disconnected")
 
@@ -166,9 +170,10 @@ if __name__ == "__main__":
     if not TOKEN:
         sys.exit("Missing BOT_TOKEN env var. See README in this folder.")
     sio.connect(
-        f"{URL}/bot",
+        URL,
         socketio_path="socket.io",
         auth={"botToken": TOKEN},
         transports=["websocket"],
+        namespaces=[NS],
     )
     sio.wait()
