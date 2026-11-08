@@ -127,6 +127,8 @@ class ExternalMatchRunner {
     const stats = this.stats[side];
 
     if (brain.isExternal) {
+      // 与内置 brain 同一衰减实现（BuiltinBrain.decide 首行也调用它）
+      agent.tickShield();
       const state = this._buildState(agent, enemy, tick, timeLeftMs);
       const result = await this._withDeadline(brain.decide(state), this.decisionDeadlineMs);
 

@@ -20,11 +20,8 @@ class BuiltinBrain {
    * @returns {{ action:string, log: object|null }} log 为 match.log 条目（tick/agent 由调用方补）
    */
   decide(agent, enemy, { now, map, isWalkable }) {
-    // Apply shield drain（原实现位于决策之前）
-    if (agent.shieldActive) {
-      agent.shield = Math.max(0, agent.shield - 1);
-      if (agent.shield <= 0) agent.shieldActive = false;
-    }
+    // Apply shield drain（原实现位于决策之前；外部 agent 走同一方法）
+    agent.tickShield();
 
     const attackWeight = agent.getWeight('attack');
     const defenseWeight = agent.getWeight('defense');

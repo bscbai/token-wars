@@ -474,6 +474,34 @@ describe('BuiltinBrain 对拍（提取重构行为零变化）', () => {
     }
   });
 
+  it('护盾衰减内置/外部共用同一实现（AIAgent.tickShield）', () => {
+    // 回归：内置 brain 每 tick 掉 1 点护盾，外部 agent 完全不衰减 →
+    // 外部护盾可无限持续，parity 破口。
+    const a = new AIAgent('p1', [], 'A');
+    a.enableShield(a.shieldMax);
+    expect(a.shieldActive).toBe(true);
+    for (let i = 1; i <= a.shieldMax; i++) {
+      a.tickShield();
+      expect(a.shield).toBe(Math.max(0, a.shieldMax - i));
+    }
+    expect(a.shieldActive).toBe(false);
+    a.tickShield(); // 已失效时无副作用
+    expect(a.shield).toBe(0);
+
+    // BuiltinBrain 决策首行即调用同一方法
+    const brain = new BuiltinBrain();
+    const b = new AIAgent('p2', [], 'B');
+    b.x = 5; b.y = 5;
+    a.x = 9; a.y = 9;
+    b.enableShield(b.shieldMax);
+    brain.decide(b, a, {
+      now: 1000,
+      map: { width: 20, height: 20, obstacles: [] },
+      isWalkable: () => true,
+    });
+    expect(b.shield).toBe(b.shieldMax - 1);
+  });
+
   it('同排对望 + 中央方块不再死锁（算力广场）', () => {
     // 回归：双方同在 y=10，中央 2x2 方块挡住直线；旧的单轴贪心会各自贴墙
     // 停在 x=8 / x=11 一动不动（2400 tick 平局）。

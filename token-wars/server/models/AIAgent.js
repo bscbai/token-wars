@@ -270,6 +270,16 @@ class AIAgent {
     this.shield = amount;
   }
 
+  /**
+   * 护盾按竞技场 tick 衰减。内置 brain 与外部 agent 必须走同一实现：
+   * 内置每 tick 掉 1 点、外部不掉，等于外部护盾无限持续（parity 破口）。
+   */
+  tickShield() {
+    if (!this.shieldActive) return;
+    this.shield = Math.max(0, this.shield - 1);
+    if (this.shield <= 0) this.shieldActive = false;
+  }
+
   takeDamage(amount, attackerId) {
     let remaining = amount;
     // Shield absorbs first
