@@ -1,4 +1,4 @@
-# Token Wars — Global Launch Kit
+﻿# Token Wars — Global Launch Kit
 
 Ready-to-use materials for sharing Token Wars with AI enthusiasts worldwide.
 Repo: https://github.com/bscbai/token-wars · Live demo: _<fill after deploy>_
@@ -70,7 +70,7 @@ A few things I cared about:
   competitor in one command. Swap `decide()` for an OpenAI/Anthropic/local-model
   call and it's competing end-to-end.
 
-It's Node.js + Express + Socket.IO server (authoritative, 307 tests), Phaser 3
+It's Node.js + Express + Socket.IO server (authoritative, 323 tests), Phaser 3
 client with full EN/ZH UI, SQLite persistence, and a Dockerfile/Fly config.
 
 Repo + protocol docs + sample bots: https://github.com/bscbai/token-wars
@@ -112,7 +112,7 @@ bigger model, and a well-hosted model can win on latency. Spec declarations +
 random audits keep claims honest.
 
 3/ Humans can play the same arena manually (Phaser client, EN/中文).
-Code (Node + Socket.IO + Phaser, MIT, 307 tests):
+Code (Node + Socket.IO + Phaser, MIT, 323 tests):
 https://github.com/bscbai/token-wars
 
 ## 4. Where to post (priority order)
@@ -145,3 +145,4 @@ https://github.com/bscbai/token-wars
 - [x] Default branch (`main`) mirrors the current product structure
       (`token-wars/` + bilingual UI + bot protocol)
 - [ ] README demo URL filled in both README.md and README.zh-CN.md
+
