@@ -34,6 +34,34 @@ class BuiltinBrain {
     let actionTaken = 'idle';
     let logEntry = null;
     const dist = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    // 贪心逼近：先在差距更大的轴上走，被墙挡住再走另一轴。
+    // 只按 x 优先会让双方在 x 对齐后 dx=0 卡死（永久平局），故按主导轴排序。
+    const stepToward = () => {
+      const dx = Math.sign(enemy.x - agent.x);
+      const dy = Math.sign(enemy.y - agent.y);
+      // 同轴时（dx 或 dy 为 0）向 +1 侧侧移绕行：正面被墙挡住时能脱离死锁，
+      // 且双方侧移方向一致，不会互相抵消（如算力广场中央方块）。
+      const moveX = () => {
+        const step = dx !== 0 ? dx : 1;
+        if (isWalkable(agent.x + step, agent.y)) { agent.x += step; return 'move_x'; }
+        if (dx === 0 && isWalkable(agent.x - 1, agent.y)) { agent.x -= 1; return 'move_x'; }
+        return null;
+      };
+      const moveY = () => {
+        const step = dy !== 0 ? dy : 1;
+        if (isWalkable(agent.x, agent.y + step)) { agent.y += step; return 'move_y'; }
+        if (dy === 0 && isWalkable(agent.x, agent.y - 1)) { agent.y -= 1; return 'move_y'; }
+        return null;
+      };
+      const gapY = Math.abs(enemy.y - agent.y);
+      const gapX = Math.abs(enemy.x - agent.x);
+      const order = gapY > gapX ? [moveY, moveX] : [moveX, moveY];
+      for (const move of order) {
+        const label = move();
+        if (label) return label;
+      }
+      return null;
+    };
     const pushLog = (action) => {
       logEntry = {
         action,
@@ -82,14 +110,9 @@ class BuiltinBrain {
           actionTaken = `attack(${dmg})`;
         }
       } else {
-        // Chase
-        const dx = Math.sign(enemy.x - agent.x);
-        const dy = Math.sign(enemy.y - agent.y);
-        if (isWalkable(agent.x + dx, agent.y)) {
-          agent.x += dx; actionTaken = 'chase_x';
-        } else if (isWalkable(agent.x, agent.y + dy)) {
-          agent.y += dy; actionTaken = 'chase_y';
-        }
+        // Chase（与 P6 同样的主导轴优先，避免单轴对齐后卡死）
+        const label = stepToward();
+        if (label) actionTaken = label === 'move_x' ? 'chase_x' : 'chase_y';
       }
       pushLog(actionTaken);
     }
@@ -118,13 +141,8 @@ class BuiltinBrain {
     }
     // Priority 6: Move toward enemy
     else if (dist(agent, enemy) > 2) {
-      const dx = Math.sign(enemy.x - agent.x);
-      const dy = Math.sign(enemy.y - agent.y);
-      if (isWalkable(agent.x + dx, agent.y)) {
-        agent.x += dx; actionTaken = 'move_x';
-      } else if (isWalkable(agent.x, agent.y + dy)) {
-        agent.y += dy; actionTaken = 'move_y';
-      }
+      const label = stepToward();
+      if (label) actionTaken = label;
     }
     // Priority 7: Collect dropped token (high economy)
     else if (economyWeight > 50 && Math.random() < 0.3) {

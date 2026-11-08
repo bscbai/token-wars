@@ -36,6 +36,9 @@ export class AIArenaScene extends Phaser.Scene {
     this._lastTournament = null;
     this.selectedTrack = DEFAULT_TRACK;
     this._trackObjects = [];
+    this.showStandings = false;
+    this._standingsObjects = [];
+    this._standingsData = null;
   }
 
   create() {
@@ -71,6 +74,13 @@ export class AIArenaScene extends Phaser.Scene {
     // Track selector (three ladders; matchmaking never crosses tracks)
     this.drawTrackSelector();
 
+    // Public standings for the selected track (same data as GET /api/ai-arena/leaderboard)
+    this.standingsBtn = this.add.text(800, 518, t('arena.standings'), {
+      fontSize: '12px', fontFamily: 'Courier New', color: '#88aaff',
+      backgroundColor: '#1a1a2a', padding: { x: 10, y: 4 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this.standingsBtn.on('pointerdown', () => this.toggleStandings());
+
     // Status text
     this.statusText = this.add.text(cx, 610, '', {
       fontSize: '13px', color: '#00ff88', fontFamily: 'Courier New',
@@ -101,7 +111,9 @@ export class AIArenaScene extends Phaser.Scene {
     this.backText.setText(t('arena.back'));
     this.drawTrackSelector();
     this.refreshAgentList();
-    if (this.selectedAgent) this.redrawDetailPanel();
+    this.standingsBtn.setText(t(this.showStandings ? 'arena.standingsClose' : 'arena.standings'));
+    if (this.showStandings) this.drawStandings();
+    else if (this.selectedAgent) this.redrawDetailPanel();
     if (this._lastHistory) this.drawMatchHistory(this._lastHistory);
     if (this.replayData) {
       if (this.replayHeaderText) {
@@ -140,8 +152,97 @@ export class AIArenaScene extends Phaser.Scene {
         this.selectedTrack = id;
         this.drawTrackSelector();
         this.setStatus(color, t(`arena.track.${id}`));
+        if (this.showStandings) {
+          this._standingsData = null;
+          this.drawStandings();
+          net.emit('ai_arena:leaderboard', { track: id });
+        }
       });
       this._trackObjects.push(chip);
+    });
+  }
+
+  // ===== STANDINGS (public AELO ladder) =====
+
+  toggleStandings() {
+    this.showStandings = !this.showStandings;
+    this.standingsBtn.setText(t(this.showStandings ? 'arena.standingsClose' : 'arena.standings'));
+    if (!this.showStandings) {
+      this.clearStandings();
+      if (this.selectedAgent) this.redrawDetailPanel();
+      else if (this.hintText) this.hintText.setVisible(true);
+      return;
+    }
+    // Standings replace the detail card; keep it visually consistent
+    if (this.detailObjects) {
+      for (const obj of this.detailObjects) obj.destroy();
+      this.detailObjects = [];
+    }
+    if (this.hintText) this.hintText.setVisible(false);
+    this._standingsData = null;
+    this.drawStandings();
+    net.emit('ai_arena:leaderboard', { track: this.selectedTrack });
+  }
+
+  clearStandings() {
+    for (const obj of this._standingsObjects) obj.destroy();
+    this._standingsObjects = [];
+  }
+
+  drawStandings() {
+    this.clearStandings();
+    const cx = 590;
+    const push = (o) => { this._standingsObjects.push(o); return o; };
+
+    push(this.add.rectangle(cx, 310, 530, 340, 0x111122, 0.8).setStrokeStyle(1, 0x4466ff));
+    push(this.add.text(cx, 152, t('arena.standings.title', { track: t(`arena.track.${this.selectedTrack}`) }), {
+      fontSize: '14px', fontFamily: 'Courier New', color: '#88aaff', fontStyle: 'bold',
+    }).setOrigin(0.5, 0));
+
+    const entries = this._standingsData;
+    if (!entries) {
+      push(this.add.text(cx, 240, t('arena.standings.loading'), {
+        fontSize: '12px', fontFamily: 'Courier New', color: '#666',
+      }).setOrigin(0.5));
+      return;
+    }
+    if (entries.length === 0) {
+      push(this.add.text(cx, 240, t('arena.standings.empty'), {
+        fontSize: '12px', fontFamily: 'Courier New', color: '#666',
+      }).setOrigin(0.5));
+      return;
+    }
+
+    // Column headers
+    const headY = 184;
+    const headStyle = { fontSize: '10px', fontFamily: 'Courier New', color: '#556' };
+    push(this.add.text(352, headY, '#', headStyle).setOrigin(0, 0.5));
+    push(this.add.text(380, headY, t('arena.standings.col.agent'), headStyle).setOrigin(0, 0.5));
+    push(this.add.text(690, headY, t('arena.standings.col.track'), headStyle).setOrigin(0.5, 0.5));
+    push(this.add.text(770, headY, 'AELO', headStyle).setOrigin(1, 0.5));
+    push(this.add.text(840, headY, t('arena.standings.col.record'), headStyle).setOrigin(1, 0.5));
+
+    const me = this.playerData ? this.playerData.username : null;
+    entries.slice(0, 10).forEach((e, i) => {
+      const y = 208 + i * 24;
+      const league = this.getLeague(e.aelo);
+      const mine = me && e.playerName === me;
+      const color = mine ? '#ffdd44' : '#aabbcc';
+      push(this.add.text(352, y, `${i + 1}`, {
+        fontSize: '11px', fontFamily: 'Courier New', color: '#556',
+      }).setOrigin(0, 0.5));
+      push(this.add.text(380, y, `${league.emoji} ${e.name}`, {
+        fontSize: '12px', fontFamily: 'Courier New', color, fontStyle: mine ? 'bold' : 'normal',
+      }).setOrigin(0, 0.5));
+      push(this.add.text(690, y, t(`arena.track.${e.track}.short`), {
+        fontSize: '11px', fontFamily: 'Courier New', color: league.color,
+      }).setOrigin(0.5, 0.5));
+      push(this.add.text(770, y, `${e.aelo}`, {
+        fontSize: '12px', fontFamily: 'Courier New', color,
+      }).setOrigin(1, 0.5));
+      push(this.add.text(840, y, `${e.wins}W ${e.losses}L`, {
+        fontSize: '11px', fontFamily: 'Courier New', color: '#778',
+      }).setOrigin(1, 0.5));
     });
   }
 
@@ -163,7 +264,7 @@ export class AIArenaScene extends Phaser.Scene {
     const startY = 90;
     const itemH = 50;
     this.agentListTitle.setText(t('arena.yourAgents', { n: this.agents.length }));
-    if (this.hintText) this.hintText.setVisible(!this.selectedAgent);
+    if (this.hintText) this.hintText.setVisible(!this.selectedAgent && !this.showStandings);
 
     if (this.agents.length === 0) {
       const empty = this.add.text(160, 220, t('arena.emptyAgents'), {
@@ -235,6 +336,11 @@ export class AIArenaScene extends Phaser.Scene {
   // ===== RIGHT PANEL: AGENT DETAIL =====
 
   selectAgent(agent) {
+    if (this.showStandings) {
+      this.showStandings = false;
+      this.clearStandings();
+      this.standingsBtn.setText(t('arena.standings'));
+    }
     this.selectedAgent = agent;
     this.redrawDetailPanel();
   }
@@ -431,11 +537,17 @@ export class AIArenaScene extends Phaser.Scene {
       this.refreshAgentList();
     });
 
+    evt('leaderboard', (data) => {
+      if (!this.showStandings) return;
+      this._standingsData = data.entries || [];
+      this.drawStandings();
+    });
+
     evt('deployed', (data) => {
       this.setStatus('#00ff88', t('arena.statusDeployed'));
       if (this.selectedAgent && this.selectedAgent.id === data.agentId) {
         this.selectedAgent.deployed = true;
-        this.redrawDetailPanel();
+        if (!this.showStandings) this.redrawDetailPanel();
       }
       net.emit('ai_arena:get_agents', {});
     });

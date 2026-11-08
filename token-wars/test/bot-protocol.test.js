@@ -403,9 +403,8 @@ describe('BotProtocol schema 校验', () => {
 
 describe('BuiltinBrain 对拍（提取重构行为零变化）', () => {
   // 记录型 brain 包装器：捕获每次 decide() 的动作标签做全序列对比。
-  // 不比对 match.log——P2/P3/P4 才是唯一 pushLog 分支，空地固下
-  // 双方 x 轴对齐后 dx=0、P6「移动 0 格」卡死（提取前原有行为），
-  // log 为空序列；decide 动作序列才是行为零变化的完整证据。
+  // 不比对 match.log——P2/P3/P4 才是唯一 pushLog 分支，纯移动回合不写 log；
+  // decide 动作序列才是确定性（同种子同序列）的完整证据。
   function runSeededMatch(seed, map = TEST_MAP) {
     const store = new Store(':memory:', { migrate: false });
     const inner = new BuiltinBrain();
@@ -449,6 +448,40 @@ describe('BuiltinBrain 对拍（提取重构行为零变化）', () => {
     // 封锁图：P6 双向不可走 → 动作停留 idle（而非落入 P8 巡逻）
     expect(l42.length).toBeGreaterThan(10);
     expect(l42.every((e) => e.endsWith(':idle'))).toBe(true);
+  });
+
+  it('同排对望 + 中央方块不再死锁（算力广场）', () => {
+    // 回归：双方同在 y=10，中央 2x2 方块挡住直线；旧的单轴贪心会各自贴墙
+    // 停在 x=8 / x=11 一动不动（2400 tick 平局）。
+    const store = new Store(':memory:', { migrate: false });
+    const mgr = new AIArenaManager({ emit: () => {} }, store, {});
+    const map = {
+      id: 'compute_square', name: '算力广场', width: 20, height: 20,
+      obstacles: [[9, 9], [10, 9], [9, 10], [10, 10]],
+      spawnA: { x: 1, y: 10 }, spawnB: { x: 18, y: 10 },
+    };
+    const a = new AIAgent('p1', [], 'A');
+    const b = new AIAgent('p2', [], 'B');
+    mgr.startMatch(a, b, map);
+    const entry = mgr.matchHistory[0];
+    expect(entry.winner).not.toBe('draw');
+    expect(entry.totalTicks).toBeLessThan(2400);
+    store.close();
+  });
+
+  it('内置对内置不再死锁：空地地图在时限内分出胜负', () => {
+    // 回归：旧 P6 只按 x 优先，双方 x 对齐后 dx=0 且不再动 y，
+    // 整场卡在距离 17 → 必然 2400 tick 平局（玩家部署内置 AI 永远打不完）。
+    const store = new Store(':memory:', { migrate: false });
+    const mgr = new AIArenaManager({ emit: () => {} }, store, {});
+    const a = new AIAgent('p1', [], 'A');
+    const b = new AIAgent('p2', [], 'B');
+    mgr.startMatch(a, b, TEST_MAP);
+    const entry = mgr.matchHistory[0];
+    expect(entry.winner).not.toBe('draw');
+    expect(entry.totalTicks).toBeLessThan(2400);
+    expect([a.alive, b.alive].filter(Boolean)).toHaveLength(1);
+    store.close();
   });
 });
 
