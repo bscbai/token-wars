@@ -13,3 +13,17 @@ DEPLOY.md
 NETWORK_IMPROVEMENT_PLAN.md
 *.log
 players.json
+
+# Runtime state — never bake a local save into the image
+server/data/*.db
+server/data/*.db-shm
+server/data/*.db-wal
+server/data/*.json
+server/data/*.bak
+server/data/*.db-journal
+
+# Dev-only trees (not copied by the Dockerfile; kept out of the build context)
+examples/
+test/
+out/
+coverage/

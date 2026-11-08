@@ -12,7 +12,15 @@ powershell -Command "iwr https://fly.io/install.ps1 -UseBasicParsing | iex"
 
 cd token-wars                      # fly.toml and Dockerfile live here
 fly auth login
-fly launch --name token-wars --no-deploy --region hkg  # hkg = Hong Kong
+fly launch --name token-wars --no-deploy --region nrt  # nrt = Tokyo (change primary_region + --region together)
+```
+
+### Persistent volume (required — `fly.toml` already mounts it)
+SQLite lives at `/app/server/data/tokenwars.db`. The config mounts the volume
+`tokenwars_data` there, so **create it before the first deploy**; otherwise the
+deploy fails and players/matches would reset on every restart.
+```bash
+fly volumes create tokenwars_data --size 1
 ```
 
 ### Required secrets & demo options
@@ -23,18 +31,6 @@ fly secrets set JWT_SECRET="$(openssl rand -hex 32)"
 # Recommended for a public demo: always-queued house bot so visitors' agents
 # match instantly without waiting for a second human player
 fly secrets set DEMO_HOUSEBOT=1
-```
-
-### Persistent volume (recommended)
-SQLite lives at `/app/server/data/tokenwars.db` in the container. Without a
-volume, players and match archives reset on every deploy — fine for a throwaway
-demo, wrong for a real league:
-```bash
-fly volumes create tokenwars_data --size 1
-# then add to fly.toml:
-#   [mounts]
-#     source = "tokenwars_data"
-#     destination = "/app/server/data"
 ```
 
 ### Deploy

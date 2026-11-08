@@ -24,3 +24,10 @@ primary_region = "nrt"
   cpu_kind = "shared"
   cpus = 1
   memory = "512mb"
+
+# Persistent SQLite. Create the volume before the first deploy:
+#   fly volumes create tokenwars_data --size 1
+# Without this mount every deploy/restart wipes all players and match archives.
+[[mounts]]
+  source = "tokenwars_data"
+  destination = "/app/server/data"

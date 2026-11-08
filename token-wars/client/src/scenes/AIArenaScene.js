@@ -10,6 +10,11 @@ const MAP_MAX_DISPLAY = 20;
 // Special behaviors (ids are protocol-stable; display via i18n)
 const BEHAVIOR_IDS = ['berserker', 'perfect_defense', 'greedy_algorithm', 'dodge_master'];
 
+// Competition tracks (ids match shared/constants.js TRACKS; matchmaking never crosses)
+const TRACK_IDS = ['hardware', 'model', 'agent'];
+const TRACK_COLORS = { hardware: '#ff8844', model: '#44aaff', agent: '#44ffaa' };
+const DEFAULT_TRACK = 'agent';
+
 export class AIArenaScene extends Phaser.Scene {
   constructor() {
     super({ key: 'AIArenaScene' });
@@ -29,6 +34,8 @@ export class AIArenaScene extends Phaser.Scene {
     this._lastHistory = null;
     this._lastSeason = null;
     this._lastTournament = null;
+    this.selectedTrack = DEFAULT_TRACK;
+    this._trackObjects = [];
   }
 
   create() {
@@ -61,6 +68,9 @@ export class AIArenaScene extends Phaser.Scene {
     this.deployBtn.on('pointerover', () => this.deployBtn.setColor('#88ffcc'));
     this.deployBtn.on('pointerout', () => this.deployBtn.setColor('#44ffaa'));
 
+    // Track selector (three ladders; matchmaking never crosses tracks)
+    this.drawTrackSelector();
+
     // Status text
     this.statusText = this.add.text(cx, 610, '', {
       fontSize: '13px', color: '#00ff88', fontFamily: 'Courier New',
@@ -89,6 +99,7 @@ export class AIArenaScene extends Phaser.Scene {
     this.hintText.setText(t('arena.selectHint'));
     this.deployBtn.setText(t('arena.deploy'));
     this.backText.setText(t('arena.back'));
+    this.drawTrackSelector();
     this.refreshAgentList();
     if (this.selectedAgent) this.redrawDetailPanel();
     if (this._lastHistory) this.drawMatchHistory(this._lastHistory);
@@ -100,6 +111,38 @@ export class AIArenaScene extends Phaser.Scene {
     }
     if (this._lastSeason) this.drawSeasonPanel(this._lastSeason);
     if (this._lastTournament) this.drawTournamentPanel(this._lastTournament);
+  }
+
+  // ===== TRACK SELECTOR =====
+
+  drawTrackSelector() {
+    for (const obj of this._trackObjects) obj.destroy();
+    this._trackObjects = [];
+
+    const cx = 480;
+    const label = this.add.text(cx, 494, t('arena.track.label'), {
+      fontSize: '11px', fontFamily: 'Courier New', color: '#666',
+    }).setOrigin(0.5);
+    this._trackObjects.push(label);
+
+    TRACK_IDS.forEach((id, i) => {
+      const x = cx + (i - 1) * 150;
+      const selected = this.selectedTrack === id;
+      const color = TRACK_COLORS[id] || '#44ffaa';
+      const chip = this.add.text(x, 518, t(`arena.track.${id}`), {
+        fontSize: '13px', fontFamily: 'Courier New',
+        color: selected ? '#0a0a1a' : color,
+        backgroundColor: selected ? color : '#1a1a2a',
+        padding: { x: 12, y: 4 },
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      chip.on('pointerdown', () => {
+        if (this.selectedTrack === id) return;
+        this.selectedTrack = id;
+        this.drawTrackSelector();
+        this.setStatus(color, t(`arena.track.${id}`));
+      });
+      this._trackObjects.push(chip);
+    });
   }
 
   // ===== LEFT PANEL: AGENT LIST =====
@@ -120,6 +163,7 @@ export class AIArenaScene extends Phaser.Scene {
     const startY = 90;
     const itemH = 50;
     this.agentListTitle.setText(t('arena.yourAgents', { n: this.agents.length }));
+    if (this.hintText) this.hintText.setVisible(!this.selectedAgent);
 
     if (this.agents.length === 0) {
       const empty = this.add.text(160, 220, t('arena.emptyAgents'), {
@@ -155,8 +199,9 @@ export class AIArenaScene extends Phaser.Scene {
       });
       this.agentListContainer.push(nameText);
 
-      // AELO
-      const aeloText = this.add.text(62, y + 26, `${league.emoji} ${agent.aelo}`, {
+      // AELO + track
+      const trackTag = agent.track ? ` · ${t(`arena.track.${agent.track}.short`)}` : '';
+      const aeloText = this.add.text(62, y + 26, `${league.emoji} ${agent.aelo}${trackTag}`, {
         fontSize: '12px', fontFamily: 'Courier New', color: league.color,
       });
       this.agentListContainer.push(aeloText);
@@ -200,28 +245,32 @@ export class AIArenaScene extends Phaser.Scene {
       for (const obj of this.detailObjects) obj.destroy();
     }
     this.detailObjects = [];
-    const cx = 480;
+    // 内容与右侧面板框（中心 590、y 140–480）对齐，避免压到「请选择」提示
+    const cx = 590;
     const a = this.selectedAgent;
     const league = this.getLeague(a.aelo);
 
     // Rename flow starts inactive on every redraw
     this._renameActive = false;
 
+    // 有选中项时隐藏「Select an agent…」提示
+    if (this.hintText) this.hintText.setVisible(false);
+
     // Detail background
     this.detailObjects.push(
-      this.add.rectangle(590, 315, 530, 350, 0x111122, 0.8).setStrokeStyle(1, 0x44ffaa)
+      this.add.rectangle(590, 310, 530, 340, 0x111122, 0.8).setStrokeStyle(1, 0x44ffaa)
     );
 
     // Name
     this.detailObjects.push(
-      this.add.text(cx, 80, `${'★'.repeat(a.level)} ${a.name}`, {
+      this.add.text(cx, 152, `${'★'.repeat(a.level)} ${a.name}`, {
         fontSize: '16px', fontFamily: 'Courier New', color: '#00ff88', fontStyle: 'bold',
       }).setOrigin(0.5, 0)
     );
 
     // League + AELO + W/L/D
     this.detailObjects.push(
-      this.add.text(cx, 105,
+      this.add.text(cx, 178,
         `${league.emoji} ${league.name} | AELO ${a.aelo} | ${a.wins}W ${a.losses}L ${a.draws}D`, {
           fontSize: '12px', fontFamily: 'Courier New', color: league.color,
         }).setOrigin(0.5, 0)
@@ -231,19 +280,19 @@ export class AIArenaScene extends Phaser.Scene {
     const expNeeded = a.level >= 3 ? 500 : (a.level >= 2 ? 100 : 1);
     const expPct = Math.min(a.exp / expNeeded, 1);
     this.detailObjects.push(
-      this.add.rectangle(cx, 130, 300, 10, 0x333).setOrigin(0.5, 0)
+      this.add.rectangle(cx, 202, 300, 10, 0x333).setOrigin(0.5, 0)
     );
     this.detailObjects.push(
-      this.add.rectangle(cx - 150, 130, 300 * expPct, 10, 0x44ffaa).setOrigin(0, 0.5)
+      this.add.rectangle(cx - 150, 202, 300 * expPct, 10, 0x44ffaa).setOrigin(0, 0.5)
     );
     this.detailObjects.push(
-      this.add.text(cx, 130, `EXP: ${a.exp}/${expNeeded}`, {
+      this.add.text(cx, 202, `EXP: ${a.exp}/${expNeeded}`, {
         fontSize: '10px', fontFamily: 'Courier New', color: '#fff',
       }).setOrigin(0.5)
     );
 
     // --- Action buttons ---
-    const btnY = 160;
+    const btnY = 236;
 
     if (a.deployed) {
       const recallBtn = this.add.text(cx - 100, btnY, t('arena.recall'), {
@@ -257,7 +306,10 @@ export class AIArenaScene extends Phaser.Scene {
         fontSize: '14px', fontFamily: 'Courier New', color: '#00ff88',
         backgroundColor: '#1a2a1a', padding: { x: 12, y: 5 },
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      deployBtn.on('pointerdown', () => net.emit('ai_arena:deploy', { tokenDisk: this.playerData.equippedTokens || [] }));
+      deployBtn.on('pointerdown', () => net.emit('ai_arena:deploy', {
+        tokenDisk: this.playerData.equippedTokens || [],
+        track: this.selectedTrack,
+      }));
       this.detailObjects.push(deployBtn);
     }
 
@@ -316,7 +368,7 @@ export class AIArenaScene extends Phaser.Scene {
       );
 
       BEHAVIOR_IDS.forEach((id, i) => {
-        const bx = cx - 140 + i * 93;
+        const bx = cx - 160 + i * 107;
         const active = a.specialBehavior === id;
         const btn = this.add.text(bx, specY + 18, t(`arena.beh.${id}.name`), {
           fontSize: '10px', fontFamily: 'Courier New',
@@ -727,6 +779,7 @@ export class AIArenaScene extends Phaser.Scene {
     net.emit('ai_arena:deploy', {
       tokenDisk: this.playerData.equippedTokens ||
         (this.playerData.stableTokens || []).slice(0, 16),
+      track: this.selectedTrack,
     });
     this.setStatus('#ffff00', t('arena.deploying'));
   }

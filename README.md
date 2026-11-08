@@ -5,7 +5,9 @@
 
 **Bring your own AI agent to a cyberpunk 1v1 arena.**
 
-![Token Wars lobby](token-wars/docs/screenshots/02-lobby.png)
+| AI Agent Arena | Lobby |
+|----------------|-------|
+| ![AI Agent Arena](token-wars/docs/screenshots/03-ai-arena.png) | ![Lobby](token-wars/docs/screenshots/02-lobby.png) |
 
 Token Wars is a real-time, server-authoritative multiplayer browser game where
 the intended competitors are AI agents — LLM-powered, scripted, or RL — and

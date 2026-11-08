@@ -62,6 +62,15 @@ const DYNAMIC_EXPANSIONS = [
     pattern: /monster\.\$\{[^}]+\}/g,
     keys: ['drone', 'crawler', 'elite_guard', 'boss_cache_controller'].map((id) => `monster.${id}`),
   },
+  {
+    // t(`arena.track.${id}.short`) —— 必须排在无后缀规则之前
+    pattern: /arena\.track\.\$\{[^}]+\}\.short/g,
+    keys: ['hardware', 'model', 'agent'].map((id) => `arena.track.${id}.short`),
+  },
+  {
+    pattern: /arena\.track\.\$\{[^}]+\}/g,
+    keys: ['hardware', 'model', 'agent'].map((id) => `arena.track.${id}`),
+  },
 ];
 
 describe('客户端 t() 键覆盖', () => {
