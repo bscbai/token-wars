@@ -357,6 +357,15 @@ sock.on('bot:state', (state) => {
 sock.on('bot:match_end', (d) => console.log(d.result, d.stats));
 ```
 
+Python (`python-socketio`) note: unlike the JS client, the namespace is **not**
+part of the URL — pass it explicitly and tag every handler/emit:
+
+```python
+sio.connect("http://localhost:3000", auth={"botToken": TOKEN},
+            namespaces=["/bot"], transports=["websocket"])
+# then: @sio.on("bot:state", namespace="/bot") … sio.emit(..., namespace="/bot")
+```
+
 ## 9. Debugging tips
 
 - **Connect first, optimize later**: make the sample play a full match before

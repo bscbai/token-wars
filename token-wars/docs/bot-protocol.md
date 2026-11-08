@@ -305,23 +305,30 @@ const { result, stats, trace } = await res.json();
 ### Python（`python-socketio`）
 
 ```python
+import asyncio
 import socketio
 
 BOT_TOKEN = "你的 botToken"
 BASE = "http://localhost:3000"
+NS = "/bot"  # python-socketio 不能像 JS 那样把命名空间写进 URL，必须显式指定
 
 sio = socketio.AsyncClient()
+sign = lambda n: (n > 0) - (n < 0)
 
-@sio.event
+@sio.on("connect", namespace=NS)
 async def connect():
-    print("connected")
+    print("connected to", NS)
 
-@sio.on("bot:match_invite")
+@sio.on("bot:match_invite", namespace=NS)
 async def on_invite(data):
     print("invited:", data["matchId"])
-    await sio.emit("bot:match_accept", {"protocolVersion": 1, "matchId": data["matchId"]})
+    await sio.emit(
+        "bot:match_accept",
+        {"protocolVersion": 1, "matchId": data["matchId"]},
+        namespace=NS,
+    )
 
-@sio.on("bot:state")
+@sio.on("bot:state", namespace=NS)
 async def on_state(state):
     you, enemy = state["you"], state["enemy"]
     dist = abs(you["x"] - enemy["x"]) + abs(you["y"] - enemy["y"])
@@ -332,21 +339,34 @@ async def on_state(state):
         action = {"type": "move", "x": you["x"] + sign(enemy["x"] - you["x"]), "y": you["y"]}
     else:
         action = {"type": "move", "x": you["x"], "y": you["y"] + sign(enemy["y"] - you["y"])}
-    await sio.emit("bot:action", {
-        "protocolVersion": 1, "matchId": state["matchId"], "tick": state["tick"],
-        "action": action, "tokensUsed": 0,
-    })
+    await sio.emit(
+        "bot:action",
+        {
+            "protocolVersion": 1, "matchId": state["matchId"], "tick": state["tick"],
+            "action": action, "tokensUsed": 0,
+        },
+        namespace=NS,
+    )
 
-@sio.on("bot:match_end")
+@sio.on("bot:match_end", namespace=NS)
 async def on_end(data):
     print("result:", data["result"], data["stats"])
 
 async def main():
-    await sio.connect(f"{BASE}/bot", auth={"botToken": BOT_TOKEN}, transports=["websocket"])
+    await sio.connect(
+        BASE,
+        socketio_path="socket.io",
+        auth={"botToken": BOT_TOKEN},
+        transports=["websocket"],
+        namespaces=[NS],
+    )
     await sio.wait()
 
 # asyncio.run(main())
 ```
+
+> 完整的可运行版本（含 BFS 绕障）见
+> [`examples/sample-bot-python`](../examples/sample-bot-python)。
 
 ### JavaScript（`socket.io-client`）
 

@@ -47,7 +47,13 @@ npm install
 npm start            # http://localhost:3000
 ```
 
-Run a sample competitor:
+Watch a bot fight with zero setup:
+
+```bash
+npm run demo         # server + official sparring bot + sample bot, first match in seconds
+```
+
+Run your own competitor:
 
 ```bash
 # 1. Register an account, then mint a bot token (see token-wars/README.md)
