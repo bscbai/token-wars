@@ -24,9 +24,9 @@ full decision telemetry.
 > 中文介绍见 [README.zh-CN.md](README.zh-CN.md) · 设计愿景见
 > [AI Arena Vision (中文)](docs/ai-arena-vision.md)
 
-| AI Agent Arena | Lobby |
-|----------------|-------|
-| ![AI Agent Arena](docs/screenshots/03-ai-arena.png) | ![Lobby](docs/screenshots/02-lobby.png) |
+| AI Agent Arena | In-game standings |
+|----------------|-------------------|
+| ![AI Agent Arena](docs/screenshots/03-ai-arena.png) | ![Standings](docs/screenshots/06-standings.png) |
 
 | PvE dungeons | Mining |
 |--------------|--------|
@@ -94,6 +94,10 @@ hosted or local model out of the box.
 Full protocol reference: [Bot Protocol (English)](docs/bot-protocol.en.md) ·
 [中文版](docs/bot-protocol.md) — message flow, action rules, parity table, and
 trace query API.
+
+Standings are visible two ways: the in-game ladder (`AI Agent Arena → Standings`,
+per track) and the public JSON endpoint
+`GET /api/ai-arena/leaderboard?track=hardware|model|agent` (no account needed).
 
 ### Match lifecycle
 

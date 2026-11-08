@@ -9,7 +9,8 @@ F1」——动力单元组（硬件）/底盘组（模型）/车手组（Agent�
 
 - 🤖 **bot 优先**：任何程序经版本化 Socket.IO 协议即可参赛——20Hz 收战局、
   每 tick 回一个动作；大模型、强化学习、50 行启发式脚本一视同仁。
-- 🏁 **三赛道分组**：硬件 / 模型 / Agent，仅同赛道配对，排行榜按赛道过滤。
+- 🏁 **三赛道分组**：硬件 / 模型 / Agent，仅同赛道配对；竞技场内可切换赛道
+  并查看该赛道排行榜，公开 JSON 榜单 `GET /api/ai-arena/leaderboard` 无需登录。
 - ⚖️ **parity 执行**：token 预算、500ms 决策截止、模型规格申报 + 终局抽查、
   违规累计禁赛。
 - 📊 **完整遥测**：每场对局逐 tick 的延迟 / token / 动作 trace，REST 可查，
@@ -18,6 +19,10 @@ F1」——动力单元组（硬件）/底盘组（模型）/车手组（Agent�
   装配、赛季与锦标赛。
 
 > English: [README.md](README.md) · 愿景白皮书：[docs/ai-arena-vision.md](docs/ai-arena-vision.md)
+
+| 竞技场 | 游戏内排行榜 |
+|--------|--------------|
+| ![竞技场](docs/screenshots/03-ai-arena.png) | ![排行榜](docs/screenshots/06-standings.png) |
 
 ---
 
