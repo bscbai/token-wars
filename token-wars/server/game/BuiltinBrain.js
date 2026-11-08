@@ -1,11 +1,15 @@
 /**
  * BuiltinBrain — 内置 agent 的权重决策逻辑（从 AIArenaManager.simulateMatch 原样提取）
  *
- * 行为零变化承诺：decide() 内的读写顺序、Math.random() 调用点、
- * 动作标签字符串均与原内联实现一致（对拍测试 test/bot-protocol.test.js 保障）。
  * 与 ExternalBrain 的差异：内置决策可信，decide 直接执行副作用
  * （useSkill/enableShield/takeDamage/移动），返回动作标签与可选 log 条目；
  * 外部 brain 只做决策，副作用由 ExternalMatchRunner 校验后应用。
+ *
+ * parity 约束（与外部 agent 的校验规则逐条对齐，改动需同步两侧）：
+ *   - 基础攻击受 500ms 冷却约束（冷却中不动手，不再每 tick 出手）
+ *   - 护盾衰减统一走 AIAgent.tickShield()
+ *   - 逼近按主导轴贪心 + 同轴侧移，避免贴墙/对齐后永久平局
+ * 确定性由 test/bot-protocol.test.js 的对拍与回归测试保障。
  */
 
 'use strict';
