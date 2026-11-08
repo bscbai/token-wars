@@ -348,10 +348,16 @@ class AIArenaManager {
     if (!matchedIds) return;
     this.matchQueue = this.matchQueue.filter((id) => !matchedIds.includes(id));
 
-    const agentA = this.agents.get(matchedIds[0]);
-    const agentB = this.agents.get(matchedIds[1]);
+    let agentA = this.agents.get(matchedIds[0]);
+    let agentB = this.agents.get(matchedIds[1]);
 
     if (!agentA || !agentB) return;
+
+    // 先手面随机：同一 tick 内先动的一方先落地伤害，固定按入队顺序会让
+    // 先入队者（常是常驻陪练）每场都拿到平手/同归于尽时的优势。
+    if (Math.random() < 0.5) {
+      [agentA, agentB] = [agentB, agentA];
+    }
 
     // Pick a random map
     const mapKeys = Object.keys(AI_MAPS);

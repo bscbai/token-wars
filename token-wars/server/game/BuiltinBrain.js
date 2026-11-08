@@ -71,6 +71,10 @@ class BuiltinBrain {
       };
     };
 
+    // 基础攻击同样受 500ms 冷却约束——外部 agent 的服务端校验会拒绝冷却中的
+    // attack，内置若每 tick 都能出手就等于 10 倍 DPS，parity 名存实亡。
+    const basicReady = !agent.skillOnCooldown('basic_attack', now);
+
     // Priority 1: Retreat + Shield (HP < 20% && high defense)
     if (agent.hp / agent.maxHp < 0.20 && defenseWeight > 50) {
       if (!agent.shieldActive && !agent.skillOnCooldown('shield', now)) {
@@ -86,28 +90,32 @@ class BuiltinBrain {
     }
     // Priority 2: Berserker combo (★★★ behavior)
     else if (agent.hasSpecialActive('berserker') && dist(agent, enemy) <= 2) {
-      agent.useSkill('basic_attack', now, 1);
-      if (!agent.skillOnCooldown('token_burst', now)) {
-        agent.useSkill('token_burst', now, 3);
+      if (basicReady) {
+        agent.useSkill('basic_attack', now, 1);
+        if (!agent.skillOnCooldown('token_burst', now)) {
+          agent.useSkill('token_burst', now, 3);
+        }
+        const dmg = calcDamage(agent.atk, 1.5, enemy.def);
+        enemy.takeDamage(dmg, agent.id);
+        actionTaken = `berserker_combo(${dmg})`;
+        pushLog(actionTaken);
       }
-      const dmg = calcDamage(agent.atk, 1.5, enemy.def);
-      enemy.takeDamage(dmg, agent.id);
-      actionTaken = `berserker_combo(${dmg})`;
-      pushLog(actionTaken);
     }
     // Priority 3: Low HP combo (enemy < 30% && high attack)
     else if (enemy.hp / enemy.maxHp < 0.30 && attackWeight > 50) {
       if (dist(agent, enemy) <= 2) {
-        agent.useSkill('basic_attack', now, 1);
-        if (!agent.skillOnCooldown('token_burst', now)) {
-          agent.useSkill('token_burst', now, 3);
-          const dmg = calcDamage(agent.atk, 1.5, enemy.def);
-          enemy.takeDamage(dmg, agent.id);
-          actionTaken = `combo(${dmg})`;
-        } else {
-          const dmg = calcDamage(agent.atk, 1.0, enemy.def);
-          enemy.takeDamage(dmg, agent.id);
-          actionTaken = `attack(${dmg})`;
+        if (basicReady) {
+          agent.useSkill('basic_attack', now, 1);
+          if (!agent.skillOnCooldown('token_burst', now)) {
+            agent.useSkill('token_burst', now, 3);
+            const dmg = calcDamage(agent.atk, 1.5, enemy.def);
+            enemy.takeDamage(dmg, agent.id);
+            actionTaken = `combo(${dmg})`;
+          } else {
+            const dmg = calcDamage(agent.atk, 1.0, enemy.def);
+            enemy.takeDamage(dmg, agent.id);
+            actionTaken = `attack(${dmg})`;
+          }
         }
       } else {
         // Chase（与 P6 同样的主导轴优先，避免单轴对齐后卡死）
@@ -118,11 +126,13 @@ class BuiltinBrain {
     }
     // Priority 4: Melee attack (distance ≤ 2)
     else if (dist(agent, enemy) <= 2) {
-      agent.useSkill('basic_attack', now, 1);
-      const dmg = calcDamage(agent.atk, 1.0, enemy.def);
-      enemy.takeDamage(dmg, agent.id);
-      actionTaken = `attack(${dmg})`;
-      pushLog(actionTaken);
+      if (basicReady) {
+        agent.useSkill('basic_attack', now, 1);
+        const dmg = calcDamage(agent.atk, 1.0, enemy.def);
+        enemy.takeDamage(dmg, agent.id);
+        actionTaken = `attack(${dmg})`;
+        pushLog(actionTaken);
+      }
     }
     // Priority 5: Close gap (high mobility)
     else if (dist(agent, enemy) > 2 && mobilityWeight > 50) {

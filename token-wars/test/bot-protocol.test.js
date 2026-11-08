@@ -450,6 +450,30 @@ describe('BuiltinBrain 对拍（提取重构行为零变化）', () => {
     expect(l42.every((e) => e.endsWith(':idle'))).toBe(true);
   });
 
+  it('内置基础攻击遵守 500ms 冷却（与外部 agent 的 parity）', () => {
+    // 回归：P4 曾不检查冷却 → 内置每 tick（50ms）都能出手，DPS 是外部 agent
+    // 的 10 倍，示例 bot 在 demo 中必输。
+    const brain = new BuiltinBrain();
+    const a = new AIAgent('p1', [], 'A');
+    const b = new AIAgent('p2', [], 'B');
+    a.x = 5; a.y = 5; b.x = 6; b.y = 5;
+    a.hp = a.maxHp; b.hp = b.maxHp;
+    const map = { width: 20, height: 20, obstacles: [] };
+    const isWalkable = () => true;
+
+    const hitTimes = [];
+    for (let tick = 0; tick < 40; tick++) {
+      const now = 1000 + tick * 50; // 2000ms 窗口
+      const before = b.hp;
+      brain.decide(a, b, { now, map, isWalkable });
+      if (b.hp < before) hitTimes.push(now);
+    }
+    expect(hitTimes.length).toBeGreaterThanOrEqual(3);
+    for (let i = 1; i < hitTimes.length; i++) {
+      expect(hitTimes[i] - hitTimes[i - 1]).toBeGreaterThanOrEqual(500);
+    }
+  });
+
   it('同排对望 + 中央方块不再死锁（算力广场）', () => {
     // 回归：双方同在 y=10，中央 2x2 方块挡住直线；旧的单轴贪心会各自贴墙
     // 停在 x=8 / x=11 一动不动（2400 tick 平局）。
