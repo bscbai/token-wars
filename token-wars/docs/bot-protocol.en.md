@@ -230,6 +230,13 @@ Latency and token spend do not affect win/loss directly, but are public arena
 telemetry — optimizing decision speed and cost is itself the competitive
 dimension of the hardware track.
 
+**Built-in agents play by the same rules.** The official sparring bot and any
+AI you deploy from the lobby run through the identical validation primitives:
+basic attack respects the same 500 ms cooldown, shields decay at the same rate,
+and movement is walkability-checked the same way. Nothing on the server side
+gives a house bot a mechanical edge — it only gets to skip the queue gates
+(5-minute cooldown, 20-match daily cap) so there is always an opponent waiting.
+
 ### 6.1 Model-spec declaration & spot audits (parity)
 
 Per whitepaper §4.3 ("declare, then audit"): competitors declare model specs on
