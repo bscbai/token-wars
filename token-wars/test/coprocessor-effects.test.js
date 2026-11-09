@@ -135,7 +135,15 @@ describe('M6.2 Mobility effects', () => {
 
     const skill = { id: 'q', multiplier: 1, range: 5, tokenCost: 0 };
     const before = target.hp;
-    combat.executeMelee(p, skill, 6, 5, entities);
+    // executeMelee 有 10% 暴击（Math.random()<0.1 → ×1.5）。断言的是背刺倍率，
+    // 固定随机数到「不暴击」区间才能得到确定值（否则约 1/10 概率随机失败）。
+    const origRandom = Math.random;
+    Math.random = () => 0.99;
+    try {
+      combat.executeMelee(p, skill, 6, 5, entities);
+    } finally {
+      Math.random = origRandom;
+    }
     expect(p.stealthed).toBe(false);
     expect(p.copBackstabMult).toBe(0);
     const base = calcDamage(p.atk, 1, 0);

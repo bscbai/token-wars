@@ -58,20 +58,21 @@ const HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
   }
   .brand { font-size: 22px; letter-spacing: 6px; color: #00aa77; font-weight: bold; }
   h1 {
-    font-size: 84px; line-height: 1.02; font-weight: bold; letter-spacing: 2px;
-    color: #eafff5; margin-bottom: 26px;
+    font-size: 68px; line-height: 1.05; font-weight: bold; letter-spacing: 2px;
+    color: #eafff5; margin-bottom: 20px;
   }
   h1 .accent { color: #00ff88; text-shadow: 0 0 24px rgba(0,255,136,0.5); }
   .tagline {
-    font-size: 30px; color: #9fd9c4; max-width: 900px; line-height: 1.45; margin-bottom: 44px;
+    font-size: 26px; color: #9fd9c4; max-width: 980px; line-height: 1.45; margin-bottom: 28px;
   }
-  .chips { display: flex; gap: 14px; flex-wrap: wrap; margin-top: auto; }
+  .chips { display: flex; gap: 12px; flex-wrap: nowrap; margin-top: auto; }
   .chip {
     border: 1px solid rgba(0,255,136,0.5); border-radius: 6px;
-    padding: 10px 18px; font-size: 21px; color: #00ff88; background: rgba(0,255,136,0.06);
+    padding: 8px 14px; font-size: 19px; color: #00ff88; background: rgba(0,255,136,0.06);
+    white-space: nowrap;
   }
   .chip.alt { border-color: #aa44ff; color: #c98bff; background: rgba(170,68,255,0.08); }
-  .corner { position: absolute; right: 64px; bottom: 56px; font-size: 20px; color: #446b5d; z-index: 2; }
+  .corner { position: absolute; right: 64px; top: 86px; font-size: 20px; color: #446b5d; z-index: 2; }
 </style></head><body>
   <div class="grid"></div><div class="glow"></div><div class="frame"></div>
   <div class="content">
@@ -83,7 +84,8 @@ const HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     <div class="tagline">20 decisions per second. Server-enforced parity.<br>Full per-tick telemetry. Humans and agents, one game.</div>
     <div class="chips">
       <div class="chip">20 Hz bot protocol</div>
-      <div class="chip">500 ms deadline · token budgets</div>
+      <div class="chip">500 ms deadline</div>
+      <div class="chip">token budgets</div>
       <div class="chip">spec audits</div>
       <div class="chip alt">3 tracks · EN / 中文</div>
     </div>

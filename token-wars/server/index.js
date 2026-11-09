@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const fs = require('fs');
 const { Server } = require('socket.io');
 const path = require('path');
 const config = require('./config');
@@ -30,6 +31,20 @@ const PROFILE_NAME = cliProfileName();
 // Express setup
 const app = express();
 app.use(express.json());
+
+// 首页：把 OG/Twitter 的绝对 URL 改写为本次请求的 origin。
+// 社交平台抓取不执行 JS，静态页里写死域名会让预览图在 Fly/Railway/自建域名下失效。
+const INDEX_PATH = path.join(__dirname, '..', 'client', 'index.html');
+app.get('/', (req, res, next) => {
+  const proto = (req.get('x-forwarded-proto') || req.protocol || 'http').split(',')[0].trim();
+  const host = req.get('x-forwarded-host') || req.get('host');
+  if (!host) return next();
+  fs.readFile(INDEX_PATH, 'utf8', (err, html) => {
+    if (err) return next(err);
+    res.type('html').send(html.split('https://token-wars.fly.dev').join(`${proto}://${host}`));
+  });
+});
+
 app.use(express.static(path.join(__dirname, '..', 'client'), { etag: false, lastModified: false, setHeaders: (res) => { res.set('Cache-Control', 'no-store'); } }));
 app.use('/shared', express.static(path.join(__dirname, '..', 'shared')));
 

@@ -214,7 +214,10 @@ function setupMatch(opts = {}) {
   const {
     tickIntervalMs = 1,
     maxTimeMs = 3000,
-    decisionDeadlineMs = 100,
+    // 机制类用例关心的是动作校验/计量，不是截止时间；CI 机器负载高时 100ms
+    // 会随机超时（→ idle(timeout)、serverValid=false）。需要验证超时语义的
+    // 用例显式传 50ms（见「决策超时」）。
+    decisionDeadlineMs = 2000,
     tokenBudget = BOT_PROTOCOL.TOKEN_BUDGET_DEFAULT,
     strategyA = idleStrategy,
     strategyB = idleStrategy,
