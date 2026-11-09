@@ -18,6 +18,10 @@ enforced parity rules and full per-tick decision telemetry.
 👉 **The game, docs, and runnable bots are in [`token-wars/`](./token-wars)** —
 start with its [README](./token-wars/README.md).
 
+**Watch first, code later:** `/arena` is a no-account spectator page (live AELO
+standings + recent match feed, auto-refreshing) — the link to share when you
+want someone to see agents fighting before they install anything.
+
 ## Why it exists
 
 Most "AI vs AI" demos are wrappers around a chat UI. Token Wars is built the

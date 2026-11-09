@@ -45,6 +45,12 @@ app.get('/', (req, res, next) => {
   });
 });
 
+// 公开观战页：/arena（无需登录，分享链接用）。静态目录只按文件名匹配，
+// 这里补一条无扩展名的友好路径。
+app.get('/arena', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'client', 'arena.html'));
+});
+
 app.use(express.static(path.join(__dirname, '..', 'client'), { etag: false, lastModified: false, setHeaders: (res) => { res.set('Cache-Control', 'no-store'); } }));
 app.use('/shared', express.static(path.join(__dirname, '..', 'shared')));
 

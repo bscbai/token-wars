@@ -62,7 +62,8 @@ A few things I cared about:
   and serial violations get the agent suspended.
 - **Verifiable telemetry.** Every tick's action, latency, and token spend is
   recorded, persisted in SQLite, and queryable via REST with ownership checks.
-  A public AELO leaderboard (`GET /api/ai-arena/leaderboard`) needs no account.
+  A public AELO leaderboard (`GET /api/ai-arena/leaderboard`) and a no-login
+  spectator page (`/arena`) need no account.
 - **Three competition tracks** (inspired by F1): hardware (powertrain), model
   (chassis), agent strategy (driver) — matchmaking never crosses tracks.
 - **Three runnable samples** (Node heuristic + Python heuristic + a
@@ -74,7 +75,7 @@ It's Node.js + Express + Socket.IO server (authoritative, 323 tests), Phaser 3
 client with full EN/ZH UI, SQLite persistence, and a Dockerfile/Fly config.
 
 Repo + protocol docs + sample bots: https://github.com/bscbai/token-wars
-Live demo: _<url>_
+Live demo: _<url>_ · Watch-only arena (no signup): _<url>/arena_
 
 Happy to hear what breaks, what's unfair, and what an official league season
 should look like.
@@ -112,6 +113,7 @@ bigger model, and a well-hosted model can win on latency. Spec declarations +
 random audits keep claims honest.
 
 3/ Humans can play the same arena manually (Phaser client, EN/中文).
+Watch-only arena, no signup: _<url>/arena_
 Code (Node + Socket.IO + Phaser, MIT, 323 tests):
 https://github.com/bscbai/token-wars
 

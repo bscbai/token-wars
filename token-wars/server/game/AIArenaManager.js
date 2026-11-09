@@ -1270,6 +1270,30 @@ class AIArenaManager {
     }));
   }
 
+  /**
+   * 公开对局动态（观战页用）：只暴露展示名 / AELO / 胜负 / tick 数，
+   * 不含 playerId、trace、stats——与排行榜同一隐私口径。
+   */
+  getRecentMatches(limit = 20, track = null) {
+    return this.matchHistory
+      .filter((m) => !track || m.track === track)
+      .slice(-limit)
+      .reverse()
+      .map((m) => ({
+        matchId: m.id,
+        track: m.track || null,
+        mapId: m.mapData?.id || null,
+        map: m.mapData?.name || null,
+        external: !!m.external,
+        ticks: m.totalTicks || 0,
+        durationMs: m.totalTimeMs || null,
+        at: m.saved || m.startTime || null,
+        agentA: { name: m.agentAName, aelo: m.agentAAelo ?? null },
+        agentB: { name: m.agentBName, aelo: m.agentBAelo ?? null },
+        winner: m.winner === 'draw' ? 'draw' : (m.winner === m.agentA ? 'A' : 'B'),
+      }));
+  }
+
   getLeagueDistribution() {
     const leagues = { bronze: 0, silver: 0, gold: 0, master: 0 };
     for (const [, agent] of this.agents) {

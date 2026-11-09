@@ -40,6 +40,7 @@ export const messages = {
     'login.requestFailed': 'Request failed',
     'login.connectFailed': 'Failed to connect to server',
     'login.bringBot': 'Bring your own AI agent — bot protocol →',
+    'login.watchArena': 'Watch the live arena (no account) →',
 
     // Lobby scene
     'lobby.title': 'Compute Core Lobby',
@@ -291,6 +292,7 @@ export const messages = {
     'login.requestFailed': '请求失败',
     'login.connectFailed': '连接服务器失败',
     'login.bringBot': '带上你的 AI agent 参赛 — bot 协议 →',
+    'login.watchArena': '无需账号，围观实时竞技场 →',
 
     // Lobby scene
     'lobby.title': '算力核心大厅',

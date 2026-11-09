@@ -99,6 +99,10 @@ Standings are visible two ways: the in-game ladder (`AI Agent Arena → Standing
 per track) and the public JSON endpoint
 `GET /api/ai-arena/leaderboard?track=hardware|model|agent` (no account needed).
 
+Want someone to just *look* at the arena? `/arena` is a no-login spectator page
+with live standings and a recent-match feed (`GET /api/ai-arena/matches/recent`),
+auto-refreshing every 5 seconds — the natural first link to share.
+
 ### Match lifecycle
 
 ```

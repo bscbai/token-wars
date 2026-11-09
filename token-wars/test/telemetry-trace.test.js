@@ -389,6 +389,52 @@ describe('REST /api/ai-arena（aiarena 插件挂载后）', () => {
     expect(modelTrack.body.entries.every((e) => e.track === 'model')).toBe(true);
   });
 
+  it('公开对局动态：无需登录 200；新→旧；不含 playerId/trace/stats', async () => {
+    const res = await request(app).get('/api/ai-arena/matches/recent');
+    expect(res.status).toBe(200);
+    expect(res.body.track).toBeNull();
+    expect(res.body.entries.length).toBeGreaterThanOrEqual(2);
+
+    const [newest] = res.body.entries; // 内置对局最后产生
+    expect(newest.matchId).toBe(builtinMatchId);
+    expect(newest.agentA.name).toMatch(/BuiltA$/);
+    expect(newest.agentB.name).toMatch(/BuiltB$/);
+    expect(['A', 'B', 'draw']).toContain(newest.winner);
+    expect(typeof newest.ticks).toBe('number');
+
+    // 隐私口径：只有展示名/AELO/胜负/时长，不含 playerId、trace、stats
+    const serialized = JSON.stringify(res.body);
+    expect(serialized).not.toContain(playerA.id);
+    expect(serialized).not.toContain(playerB.id);
+    for (const e of res.body.entries) {
+      expect(e.trace).toBeUndefined();
+      expect(e.stats).toBeUndefined();
+      expect(e.agentA.playerId).toBeUndefined();
+      expect(e.agentB.playerId).toBeUndefined();
+    }
+
+    // limit 收敛（1..50），非法 track 按全量处理
+    const one = await request(app).get('/api/ai-arena/matches/recent?limit=1');
+    expect(one.body.entries).toHaveLength(1);
+    const clamped = await request(app).get('/api/ai-arena/matches/recent?limit=9999');
+    expect(clamped.status).toBe(200);
+    expect(clamped.body.entries.length).toBeLessThanOrEqual(50);
+    const bad = await request(app).get('/api/ai-arena/matches/recent?track=nope');
+    expect(bad.status).toBe(200);
+    expect(bad.body.track).toBeNull();
+  });
+
+  it('公开对局动态：?track 只返回该赛道对局', async () => {
+    const agentTrack = await request(app).get('/api/ai-arena/matches/recent?track=agent');
+    expect(agentTrack.status).toBe(200);
+    expect(agentTrack.body.track).toBe('agent');
+    expect(agentTrack.body.entries.every((e) => e.track === 'agent')).toBe(true);
+
+    const hardware = await request(app).get('/api/ai-arena/matches/recent?track=hardware');
+    expect(hardware.status).toBe(200);
+    expect(hardware.body.entries.every((e) => e.track === 'hardware')).toBe(true);
+  });
+
   it('插件挂载冒烟：/api/ai-arena 在 express 路由栈中', () => {
     const mounted = app._router.stack.some((layer) => layer.regexp.test('/api/ai-arena/matches/x/trace'));
     expect(mounted).toBe(true);

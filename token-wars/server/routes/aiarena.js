@@ -40,6 +40,18 @@ function makeAiarenaRouter({ aiarena, verifySession }) {
     });
   });
 
+  // GET /api/ai-arena/matches/recent — 公开对局动态（观战页用，无需登录）
+  router.get('/matches/recent', (req, res) => {
+    const track = TRACK_IDS.includes(req.query.track) ? req.query.track : null;
+    const parsed = parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 50) : 20;
+    res.json({
+      track,
+      entries: aiarena.getRecentMatches(limit, track),
+      generatedAt: new Date().toISOString(),
+    });
+  });
+
   // GET /api/ai-arena/agents/:agentId/matches
   router.get('/agents/:agentId/matches', (req, res) => {
     const auth = authenticate(req);

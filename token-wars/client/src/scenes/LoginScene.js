@@ -102,6 +102,13 @@ export class LoginScene extends Phaser.Scene {
       padding-top: 8px; border-top: 1px solid #1a3a2e;
     `;
 
+    // 免登录观战页：分享链接的第一落点，新访客先看 AI 对局再决定是否参赛
+    this.watchLink = document.createElement('a');
+    this.watchLink.href = '/arena';
+    this.watchLink.target = '_blank';
+    this.watchLink.rel = 'noopener';
+    this.watchLink.style.cssText = 'color: #88aaff; font-size: 13px; text-decoration: none;';
+
     // Assemble form
     this.userLabelEl = userLabel;
     this.passLabelEl = passLabel;
@@ -112,6 +119,7 @@ export class LoginScene extends Phaser.Scene {
     this.formDiv.appendChild(this.actionBtn);
     this.formDiv.appendChild(this.toggleLink);
     this.formDiv.appendChild(this.statusSpan);
+    this.formDiv.appendChild(this.watchLink);
     this.formDiv.appendChild(this.botLink);
     gameContainer.appendChild(this.formDiv);
 
@@ -164,6 +172,7 @@ export class LoginScene extends Phaser.Scene {
     this.toggleLink.textContent = this.isRegister ? t('login.toLogin') : t('login.toRegister');
     this.botLink.textContent = t('login.bringBot');
     this.botLink.href = BOT_DOC_URL[getLang()] || BOT_DOC_URL.en;
+    this.watchLink.textContent = t('login.watchArena');
   }
 
   /** <html lang> 与 <title> 跟随当前语言 */
