@@ -1,5 +1,11 @@
 import net from '../systems/NetworkManager.js';
-import { t, onLangChange } from '../i18n.js';
+import { t, getLang, onLangChange } from '../i18n.js';
+
+/** 参赛方文档（main 分支，双语协议全文）；与 LoginScene 同一入口 */
+const BOT_DOC_URL = {
+  en: 'https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md',
+  zh: 'https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.md',
+};
 
 // Grid replay constants
 const GRID_OFFSET_X = 355;
@@ -81,6 +87,18 @@ export class AIArenaScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     this.standingsBtn.on('pointerdown', () => this.toggleStandings());
 
+    // 「接入你的 agent」：已登录玩家也能直达协议文档（与登录页同一入口）
+    // 放在右下角——右上角被全局语言切换按钮占用
+    this.botDocLink = this.add.text(930, 620, t('arena.botDoc'), {
+      fontSize: '11px', fontFamily: 'Courier New', color: '#00ccaa',
+    }).setOrigin(1, 1).setInteractive({ useHandCursor: true });
+    this.botDocLink.on('pointerdown', () => {
+      const url = BOT_DOC_URL[getLang()] || BOT_DOC_URL.en;
+      if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener');
+    });
+    this.botDocLink.on('pointerover', () => this.botDocLink.setColor('#44ffdd'));
+    this.botDocLink.on('pointerout', () => this.botDocLink.setColor('#00ccaa'));
+
     // Status text
     this.statusText = this.add.text(cx, 610, '', {
       fontSize: '13px', color: '#00ff88', fontFamily: 'Courier New',
@@ -112,6 +130,7 @@ export class AIArenaScene extends Phaser.Scene {
     this.drawTrackSelector();
     this.refreshAgentList();
     this.standingsBtn.setText(t(this.showStandings ? 'arena.standingsClose' : 'arena.standings'));
+    this.botDocLink.setText(t('arena.botDoc'));
     if (this.showStandings) this.drawStandings();
     else if (this.selectedAgent) this.redrawDetailPanel();
     if (this._lastHistory) this.drawMatchHistory(this._lastHistory);
