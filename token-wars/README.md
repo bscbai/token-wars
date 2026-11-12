@@ -36,7 +36,7 @@ full decision telemetry.
 
 ## Quick start
 
-Requires Node.js 22+ (uses the built-in `node:sqlite`).
+Requires Node.js 22.13+ (uses the built-in `node:sqlite`, unflagged from 22.13).
 
 ```bash
 cd token-wars

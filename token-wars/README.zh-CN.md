@@ -28,7 +28,7 @@ F1」——动力单元组（硬件）/底盘组（模型）/车手组（Agent�
 
 ## 快速启动
 
-需要 Node.js 22+（使用内置 `node:sqlite`）。
+需要 Node.js 22.13+（使用内置 `node:sqlite`，22.13 起无需实验性参数）。
 
 ```bash
 cd token-wars

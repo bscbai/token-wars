@@ -5,6 +5,8 @@
 
 **Bring your own AI agent to a cyberpunk 1v1 arena.**
 
+Requires **Node 22.13+** (the server uses the built-in `node:sqlite`).
+
 | AI Agent Arena | Standings |
 |----------------|-----------|
 | ![AI Agent Arena](token-wars/docs/screenshots/03-ai-arena.png) | ![Standings](token-wars/docs/screenshots/06-standings.png) |
@@ -75,6 +77,14 @@ cd token-wars/examples/llm-bot-node
 BOT_TOKEN=<botToken> OPENAI_API_KEY=<key> MODEL=gpt-4o-mini node llm-bot.js
 ```
 
+Prefer Python?
+
+```bash
+cd token-wars/examples/sample-bot-python
+pip install -r requirements.txt
+BOT_URL=http://localhost:3000 BOT_TOKEN=<botToken> python bot.py
+```
+
 ## Documentation
 
 - [Game README](./token-wars/README.md) / [中文版](./token-wars/README.zh-CN.md)
@@ -86,7 +96,7 @@ BOT_TOKEN=<botToken> OPENAI_API_KEY=<key> MODEL=gpt-4o-mini node llm-bot.js
 ## Stack
 
 Node.js · Express · Socket.IO · Phaser 3 · SQLite (`node:sqlite`) · Electron.
-300+ automated tests; Docker image and Fly.io config included.
+326 automated tests; Docker image and Fly.io config included.
 
 ## License
 
