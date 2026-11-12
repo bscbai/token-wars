@@ -91,7 +91,15 @@ function detectLang() {
   }
 }
 
-const state = { lang: detectLang(), track: null, timer: null };
+// 分享链接可带 ?track=agent，打开即定位到该赛道
+const TRACK_IDS = ['hardware', 'model', 'agent'];
+const initialTrack = new URLSearchParams(location.search).get('track');
+
+const state = {
+  lang: detectLang(),
+  track: TRACK_IDS.includes(initialTrack) ? initialTrack : null,
+  timer: null,
+};
 const t = (key) => (LANGS[state.lang] || LANGS.en)[key] || key;
 
 const $ = (id) => document.getElementById(id);
@@ -222,6 +230,14 @@ function bind() {
   for (const btn of document.querySelectorAll('[data-track]')) {
     btn.addEventListener('click', () => {
       state.track = btn.getAttribute('data-track') || null;
+      // 地址栏跟随赛道，复制出去即可分享「只看某个赛道」
+      const q = new URLSearchParams(location.search);
+      if (state.track) q.set('track', state.track);
+      else q.delete('track');
+      const qs = q.toString();
+      try {
+        history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+      } catch { /* file:// 等环境下忽略 */ }
       renderChrome();
       load();
     });

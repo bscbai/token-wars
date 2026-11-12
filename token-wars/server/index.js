@@ -32,24 +32,28 @@ const PROFILE_NAME = cliProfileName();
 const app = express();
 app.use(express.json());
 
-// 首页：把 OG/Twitter 的绝对 URL 改写为本次请求的 origin。
+// 首页与观战页：把 OG/Twitter 的绝对 URL 改写为本次请求的 origin。
 // 社交平台抓取不执行 JS，静态页里写死域名会让预览图在 Fly/Railway/自建域名下失效。
-const INDEX_PATH = path.join(__dirname, '..', 'client', 'index.html');
-app.get('/', (req, res, next) => {
+const CLIENT_DIR = path.join(__dirname, '..', 'client');
+
+function sendHtml(req, res, next, file) {
   const proto = (req.get('x-forwarded-proto') || req.protocol || 'http').split(',')[0].trim();
   const host = req.get('x-forwarded-host') || req.get('host');
   if (!host) return next();
-  fs.readFile(INDEX_PATH, 'utf8', (err, html) => {
+  fs.readFile(file, 'utf8', (err, html) => {
     if (err) return next(err);
-    res.type('html').send(html.split('https://token-wars.fly.dev').join(`${proto}://${host}`));
+    const origin = `${proto}://${host}`;
+    res.type('html').send(
+      html.split('https://token-wars.fly.dev').join(origin).split('__ORIGIN__').join(origin)
+    );
   });
-});
+}
+
+app.get('/', (req, res, next) => sendHtml(req, res, next, path.join(CLIENT_DIR, 'index.html')));
 
 // 公开观战页：/arena（无需登录，分享链接用）。静态目录只按文件名匹配，
 // 这里补一条无扩展名的友好路径。
-app.get('/arena', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'client', 'arena.html'));
-});
+app.get('/arena', (req, res, next) => sendHtml(req, res, next, path.join(CLIENT_DIR, 'arena.html')));
 
 app.use(express.static(path.join(__dirname, '..', 'client'), { etag: false, lastModified: false, setHeaders: (res) => { res.set('Cache-Control', 'no-store'); } }));
 app.use('/shared', express.static(path.join(__dirname, '..', 'shared')));
