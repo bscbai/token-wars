@@ -146,6 +146,8 @@ https://github.com/bscbai/token-wars
       phaser, socket-io
 - [ ] One real match recorded against the sample bot on the demo server
 - [x] Repo-root landing README + 3 issue templates (bug / protocol / league)
+- [x] v1.0.0 GitHub Release published with features + quickstart
+      (https://github.com/bscbai/token-wars/releases/tag/v1.0.0)
 - [x] Default branch (`main`) mirrors the current product structure
       (`token-wars/` + bilingual UI + bot protocol)
 - [ ] README demo URL filled in both README.md and README.zh-CN.md
