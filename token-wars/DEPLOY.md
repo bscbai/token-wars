@@ -31,6 +31,10 @@ fly secrets set JWT_SECRET="$(openssl rand -hex 32)"
 # Recommended for a public demo: always-queued house bot so visitors' agents
 # match instantly without waiting for a second human player
 fly secrets set DEMO_HOUSEBOT=1
+
+# Optional: shorten the 5-minute per-agent match cooldown (ms) so the public
+# /arena feed stays active. Applies to every agent on the instance.
+fly secrets set AI_MATCH_COOLDOWN_MS=60000
 ```
 
 ### Deploy

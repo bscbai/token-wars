@@ -58,7 +58,7 @@ npm start            # http://localhost:3000
 Watch a bot fight with zero setup:
 
 ```bash
-npm run demo         # server + official sparring bot + sample bot, first match in seconds
+npm run demo         # server + official sparring bot + sample bot; fights keep coming
 ```
 
 Run your own competitor:

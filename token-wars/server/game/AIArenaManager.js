@@ -10,7 +10,8 @@ const TRACKS_BY_ID = Object.values(TRACKS).reduce((acc, t) => { acc[t.id] = t; r
 // AI Arena constants
 const AI_MATCH_TICK_MS = AI_ARENA_TIMING.MATCH_TICK_MS; // Simulate at 20Hz
 const AI_MATCH_MAX_TIME_MS = AI_ARENA_TIMING.MATCH_MAX_TIME_MS; // 120 seconds max
-const AI_MATCH_COOLDOWN_MS = 5 * 60 * 1000; // 5 min cooldown
+// 5 min cooldown；演示服务器可用 AI_MATCH_COOLDOWN_MS 缩短（仅影响对局频率，不改变校验）
+const AI_MATCH_COOLDOWN_MS = parseInt(process.env.AI_MATCH_COOLDOWN_MS, 10) || 5 * 60 * 1000;
 const AI_DAILY_MATCH_CAP = 20;
 const AI_AELO_K = 20;
 
