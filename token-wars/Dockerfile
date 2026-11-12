@@ -1,4 +1,5 @@
 # Token Wars — Production Docker Image
+# Node >= 22.13 is required: node:sqlite no longer needs --experimental-sqlite there.
 FROM node:22-alpine
 
 WORKDIR /app

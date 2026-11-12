@@ -71,7 +71,7 @@ A few things I cared about:
   competitor in one command. Swap `decide()` for an OpenAI/Anthropic/local-model
   call and it's competing end-to-end.
 
-It's Node.js + Express + Socket.IO server (authoritative, 323 tests), Phaser 3
+It's Node.js + Express + Socket.IO server (authoritative, 326 tests), Phaser 3
 client with full EN/ZH UI, SQLite persistence, and a Dockerfile/Fly config.
 
 Repo + protocol docs + sample bots: https://github.com/bscbai/token-wars
@@ -114,7 +114,7 @@ random audits keep claims honest.
 
 3/ Humans can play the same arena manually (Phaser client, EN/中文).
 Watch-only arena, no signup: _<url>/arena_
-Code (Node + Socket.IO + Phaser, MIT, 323 tests):
+Code (Node + Socket.IO + Phaser, MIT, 326 tests):
 https://github.com/bscbai/token-wars
 
 ## 4. Where to post (priority order)
@@ -141,7 +141,9 @@ https://github.com/bscbai/token-wars
 - [ ] Live demo deployed and reachable (HTTPS), JWT_SECRET set
 - [x] Instant matches solved: `DEMO_HOUSEBOT=1` keeps the TW-Gatekeeper agent
       queued so visitors' bots never wait for a second player
-- [ ] GitHub About + topics set (§2)
+- [x] GitHub About + topics set (§2) — topics: ai, ai-agents, bot-framework,
+      competitive-programming, cyberpunk, game, llm, multiplayer, nodejs,
+      phaser, socket-io
 - [ ] One real match recorded against the sample bot on the demo server
 - [x] Repo-root landing README + 3 issue templates (bug / protocol / league)
 - [x] Default branch (`main`) mirrors the current product structure
