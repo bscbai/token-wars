@@ -19,7 +19,8 @@
 
 'use strict';
 
-const { EVENTS, BOT_PROTOCOL, AI_ARENA_TIMING, calcDamage } = require('../../shared/constants');
+const { EVENTS, BOT_PROTOCOL, AI_ARENA_TIMING } = require('../../shared/constants');
+const { rollArenaDamage } = require('./arenaDamage');
 const {
   validateActionMessage, serializeInvite, serializeState, serializeMatchEnd,
 } = require('./BotProtocol');
@@ -109,11 +110,14 @@ class ExternalMatchRunner {
     let tick = 0;
     while (Date.now() - start < this.maxTimeMs && this.agentA.alive && this.agentB.alive) {
       tick++;
+      this.match.tickCount = tick; // 观战页实时进度（getLiveMatches）
       const now = Date.now();
       const timeLeftMs = Math.max(0, this.maxTimeMs - (now - start));
-      // A→B 串行：保留「A 先手可击杀 B」的既有语义
-      if (this.agentA.alive) await this._takeTurn('A', this.agentA, this.agentB, tick, now, timeLeftMs);
-      if (this.agentB.alive) await this._takeTurn('B', this.agentB, this.agentA, tick, now, timeLeftMs);
+      // A→B 串行，但双方都以「本 tick 开始时」的存活状态行动：先手击杀不剥夺对方
+      // 同 tick 反击（否则镜像对局恒由先手方获胜）；同归于尽由终局判定为平局。
+      const canActAtStart = { A: this.agentA.alive, B: this.agentB.alive };
+      if (canActAtStart.A) await this._takeTurn('A', this.agentA, this.agentB, tick, now, timeLeftMs);
+      if (canActAtStart.B) await this._takeTurn('B', this.agentB, this.agentA, tick, now, timeLeftMs);
       this._checkForfeits();
       if (!this.agentA.alive || !this.agentB.alive) break;
       await sleep(this.tickIntervalMs);
@@ -235,7 +239,7 @@ class ExternalMatchRunner {
           if (dist > 2) return { label: 'idle(out_of_range)', invalid: true };
           if (agent.skillOnCooldown('basic_attack', now)) return { label: 'idle(cooldown)', invalid: true };
           agent.useSkill('basic_attack', now, 1);
-          const dmg = calcDamage(agent.atk, 1.0, enemy.def);
+          const dmg = rollArenaDamage(agent.atk, 1.0, enemy.def);
           enemy.takeDamage(dmg, agent.id);
           return log(`attack(${dmg})`);
         }
@@ -243,7 +247,7 @@ class ExternalMatchRunner {
           if (dist > 2) return { label: 'idle(out_of_range)', invalid: true };
           if (agent.skillOnCooldown('token_burst', now)) return { label: 'idle(cooldown)', invalid: true };
           agent.useSkill('token_burst', now, 3);
-          const dmg = calcDamage(agent.atk, 1.5, enemy.def);
+          const dmg = rollArenaDamage(agent.atk, 1.5, enemy.def);
           enemy.takeDamage(dmg, agent.id);
           return log(`token_burst(${dmg})`);
         }

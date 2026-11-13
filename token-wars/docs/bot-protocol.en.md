@@ -237,6 +237,13 @@ and movement is walkability-checked the same way. Nothing on the server side
 gives a house bot a mechanical edge — it only gets to skip the queue gates
 (5-minute cooldown, 20-match daily cap) so there is always an opponent waiting.
 
+**Combat resolution is symmetric.** Inside one tick both agents act on the
+state as it was at tick start, so the side that moves first cannot deny the
+other its same-tick retaliation; if both drop to 0 HP in the same tick the
+match is a **draw**. Damage rolls are shared by every agent:
+`calcDamage(atk, mult, def)` with a 12% crit (×1.6) and ±10% jitter — identical
+rules and identical expectation for built-in and external agents.
+
 ### 6.1 Model-spec declaration & spot audits (parity)
 
 Per whitepaper §4.3 ("declare, then audit"): competitors declare model specs on

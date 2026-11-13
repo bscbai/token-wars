@@ -105,6 +105,9 @@ const AI_MAPS = {
   },
 };
 
+// 地图按 id 索引（match.map 存的是 map.id）
+const AI_MAPS_BY_ID = Object.values(AI_MAPS).reduce((acc, m) => { acc[m.id] = m; return acc; }, {});
+
 class AIArenaManager {
   constructor(io, store, combatSystem, options = {}) {
     this.io = io;
@@ -431,9 +434,13 @@ class AIArenaManager {
       elapsed = tick * AI_MATCH_TICK_MS;
       const now = match.startTime + elapsed;
 
+      // 同 tick 内双方都按「回合开始时」的存活状态行动：先手方击杀不再剥夺
+      // 对方的同 tick 反击机会（否则镜像对局恒由先手方获胜）。同归于尽 = 平局。
+      const canActAtStart = [agentA.alive, agentB.alive];
+
       // Process each agent's turn（决策经 brain 抽象；内置走 BuiltinBrain 权重脚本）
       [agentA, agentB].forEach((agent, agentIdx) => {
-        if (!agent.alive) return;
+        if (!canActAtStart[agentIdx]) return;
         const enemy = agentIdx === 0 ? agentB : agentA;
 
         const result = this.brain.decide(agent, enemy, { now, map, isWalkable });
@@ -628,6 +635,8 @@ class AIArenaManager {
     }
 
     match.winner = winner?.id || 'draw';
+    // 平局必须单独标记：winner 字段在平局时仍指向一方（AELO 计算需要 winner/loser）
+    match.isDraw = isDraw;
     match.winnerAelo = winner?.aelo || null;
     match.loserAelo = loser?.aelo || null;
 
@@ -823,7 +832,7 @@ class AIArenaManager {
       id: match.id,
       opponent: match.agentA === agentId ? match.agentBName : match.agentAName,
       map: match.mapData?.name || 'unknown',
-      result: match.winner === 'draw' ? 'draw' : (match.winner === agentId ? 'win' : 'loss'),
+      result: match.isDraw || match.winner === 'draw' ? 'draw' : (match.winner === agentId ? 'win' : 'loss'),
       winnerId: match.winner,
       totalTicks: match.totalTicks,
       external: !!match.external,
@@ -985,7 +994,7 @@ class AIArenaManager {
 
     const playerSide = match.agentAPlayerId === playerId ? 'A' : 'B';
     const playerAgentId = playerSide === 'A' ? match.agentA : match.agentB;
-    const result = match.winner === 'draw' ? 'draw' : (match.winner === playerAgentId ? 'win' : 'loss');
+    const result = match.isDraw || match.winner === 'draw' ? 'draw' : (match.winner === playerAgentId ? 'win' : 'loss');
 
     let trace = match.trace || [];
     if (side === 'A' || side === 'B') trace = trace.filter(t => t.side === side);
@@ -1291,8 +1300,50 @@ class AIArenaManager {
         at: m.saved || m.startTime || null,
         agentA: { name: m.agentAName, aelo: m.agentAAelo ?? null },
         agentB: { name: m.agentBName, aelo: m.agentBAelo ?? null },
-        winner: m.winner === 'draw' ? 'draw' : (m.winner === m.agentA ? 'A' : 'B'),
+        winner: m.isDraw || m.winner === 'draw' ? 'draw' : (m.winner === m.agentA ? 'A' : 'B'),
       }));
+  }
+
+  /**
+   * 公开只读：正在进行的对局快照（观战页用）。
+   * 内置对局是同步瞬时模拟，不会出现在 activeMatches 中；只暴露对外可见字段
+   * （显示名 / AELO / 血量 / 坐标 / 护盾），不含 agentId、playerId、trace。
+   */
+  getLiveMatches() {
+    const now = Date.now();
+    const out = [];
+    for (const [matchId, m] of this.activeMatches) {
+      if (!m.external) continue;
+      const a = this.agents.get(m.agentA);
+      const b = this.agents.get(m.agentB);
+      const map = AI_MAPS_BY_ID[m.map];
+      if (!a || !b || !map) continue;
+      const side = (agent) => ({
+        name: agent.name,
+        aelo: agent.aelo ?? null,
+        hp: Math.max(0, Math.round(agent.hp)),
+        maxHp: agent.maxHp,
+        x: agent.x,
+        y: agent.y,
+        shield: Math.round(agent.shield || 0),
+        shieldActive: !!agent.shieldActive,
+        alive: !!agent.alive,
+      });
+      out.push({
+        matchId,
+        track: a.track || null,
+        mapId: map.id,
+        map: map.name,
+        width: map.width,
+        height: map.height,
+        obstacles: map.obstacles,
+        tick: m.tickCount || 0,
+        elapsedMs: m.startTime ? now - m.startTime : null,
+        agentA: side(a),
+        agentB: side(b),
+      });
+    }
+    return out;
   }
 
   getLeagueDistribution() {

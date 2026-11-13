@@ -519,8 +519,8 @@ describe('BuiltinBrain 对拍（提取重构行为零变化）', () => {
     const b = new AIAgent('p2', [], 'B');
     mgr.startMatch(a, b, map);
     const entry = mgr.matchHistory[0];
-    expect(entry.winner).not.toBe('draw');
-    expect(entry.totalTicks).toBeLessThan(2400);
+    expect(entry.totalTicks).toBeLessThan(2400);          // 不再 2400 tick 卡死
+    expect([a.alive, b.alive].some((x) => !x)).toBe(true); // 确实打起来了（有人阵亡/同归于尽）
     store.close();
   });
 
@@ -533,9 +533,43 @@ describe('BuiltinBrain 对拍（提取重构行为零变化）', () => {
     const b = new AIAgent('p2', [], 'B');
     mgr.startMatch(a, b, TEST_MAP);
     const entry = mgr.matchHistory[0];
-    expect(entry.winner).not.toBe('draw');
     expect(entry.totalTicks).toBeLessThan(2400);
-    expect([a.alive, b.alive].filter(Boolean)).toHaveLength(1);
+    expect([a.alive, b.alive].some((x) => !x)).toBe(true);
+    store.close();
+  });
+
+  it('镜像对局不再由先手方稳赢（双方都可能获胜）', () => {
+    // 回归：先手方击杀曾立即剥夺对方同 tick 反击 → 两个相同 brain 恒由 A 获胜。
+    // 现在同 tick 双方都行动 + 暴击浮动，胜负不再与先后手绑定。
+    const store = new Store(':memory:', { migrate: false });
+    const mgr = new AIArenaManager({ emit: () => {} }, store, {});
+    let aWins = 0;
+    let bWins = 0;
+    const N = 20;
+    for (let i = 0; i < N; i += 1) {
+      const a = new AIAgent('p1', [], 'MirrorA');
+      const b = new AIAgent('p2', [], 'MirrorB');
+      mgr.startMatch(a, b, TEST_MAP);
+      const entry = mgr.matchHistory.at(-1);
+      if (!entry.isDraw && entry.winner === entry.agentA) aWins += 1;
+      if (!entry.isDraw && entry.winner === entry.agentB) bWins += 1;
+    }
+    // 20 场镜像对局：只允许极小概率出现全胜（p ≈ 2^-19）
+    expect(aWins + bWins).toBeGreaterThan(0);
+    expect(aWins).toBeLessThan(N);
+    expect(bWins).toBeLessThan(N);
+    store.close();
+  });
+
+  it('平局在公开对局动态里显示为 draw（不误报成某一方胜）', () => {    const store = new Store(':memory:', { migrate: false });
+    const mgr = new AIArenaManager({ emit: () => {} }, store, {});
+    // 平局时 winner 字段仍指向一方（AELO 计算需要），必须靠 isDraw 区分
+    mgr.matchHistory.push({
+      id: 'draw-1', agentA: 'agent-a', agentB: 'agent-b',
+      winner: 'agent-b', isDraw: true, agentAName: 'A', agentBName: 'B',
+      totalTicks: 200, totalTimeMs: 10000, saved: Date.now(), mapData: { id: 'data_mine', name: '数据矿洞' },
+    });
+    expect(mgr.getRecentMatches(1)[0].winner).toBe('draw');
     store.close();
   });
 });

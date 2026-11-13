@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BuiltinBrain — 内置 agent 的权重决策逻辑（从 AIArenaManager.simulateMatch 原样提取）
  *
  * 与 ExternalBrain 的差异：内置决策可信，decide 直接执行副作用
@@ -14,7 +14,7 @@
 
 'use strict';
 
-const { calcDamage } = require('../../shared/constants');
+const { rollArenaDamage } = require('./arenaDamage');
 
 class BuiltinBrain {
   /**
@@ -96,7 +96,7 @@ class BuiltinBrain {
         if (!agent.skillOnCooldown('token_burst', now)) {
           agent.useSkill('token_burst', now, 3);
         }
-        const dmg = calcDamage(agent.atk, 1.5, enemy.def);
+        const dmg = rollArenaDamage(agent.atk, 1.5, enemy.def);
         enemy.takeDamage(dmg, agent.id);
         actionTaken = `berserker_combo(${dmg})`;
         pushLog(actionTaken);
@@ -109,11 +109,11 @@ class BuiltinBrain {
           agent.useSkill('basic_attack', now, 1);
           if (!agent.skillOnCooldown('token_burst', now)) {
             agent.useSkill('token_burst', now, 3);
-            const dmg = calcDamage(agent.atk, 1.5, enemy.def);
+            const dmg = rollArenaDamage(agent.atk, 1.5, enemy.def);
             enemy.takeDamage(dmg, agent.id);
             actionTaken = `combo(${dmg})`;
           } else {
-            const dmg = calcDamage(agent.atk, 1.0, enemy.def);
+            const dmg = rollArenaDamage(agent.atk, 1.0, enemy.def);
             enemy.takeDamage(dmg, agent.id);
             actionTaken = `attack(${dmg})`;
           }
@@ -129,7 +129,7 @@ class BuiltinBrain {
     else if (dist(agent, enemy) <= 2) {
       if (basicReady) {
         agent.useSkill('basic_attack', now, 1);
-        const dmg = calcDamage(agent.atk, 1.0, enemy.def);
+        const dmg = rollArenaDamage(agent.atk, 1.0, enemy.def);
         enemy.takeDamage(dmg, agent.id);
         actionTaken = `attack(${dmg})`;
         pushLog(actionTaken);
