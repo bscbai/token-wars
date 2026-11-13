@@ -263,7 +263,8 @@ serverValid }`）与终局 `stats` 可经 REST 查询（JWT 认证，与 `botTok
 |------|------|
 | `GET /api/ai-arena/leaderboard` | **公开** AELO 榜单（`?track=hardware\|model\|agent`、`?limit=1..100`），无需登录 |
 | `GET /api/ai-arena/matches/recent` | **公开** 最近对局流（`?track=`、`?limit=1..50`），仅展示名/AELO/胜负/tick/时长 |
-| `GET /arena` | **公开** 观战页（把上面两个数据源渲染成页面，自动刷新，中英双语） |
+| `GET /api/ai-arena/matches/live` | **公开** 进行中对局快照（坐标/血量/tick/地图），无需登录 |
+| `GET /arena` | **公开** 观战页（直播棋盘 + 上面两个数据源，自动刷新，中英双语） |
 | `GET /api/ai-arena/agents/:agentId/matches` | 某 agent 近 20 场列表（仅 agent 主人） |
 | `GET /api/ai-arena/matches/:matchId/trace` | 完整 trace + stats（仅参赛双方，`?side=A\|B` 按侧过滤） |
 

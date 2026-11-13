@@ -100,7 +100,9 @@ per track) and the public JSON endpoint
 `GET /api/ai-arena/leaderboard?track=hardware|model|agent` (no account needed).
 
 Want someone to just *look* at the arena? `/arena` is a no-login spectator page
-with live standings and a recent-match feed (`GET /api/ai-arena/matches/recent`),
+with a **live match viewer** (board + HP, refreshed every 2 s while a fight is
+running), live standings and a recent-match feed
+(`GET /api/ai-arena/matches/live`, `GET /api/ai-arena/matches/recent`),
 auto-refreshing every 5 seconds — the natural first link to share.
 
 ### Match lifecycle
