@@ -8,7 +8,7 @@
  * parity 约束（与外部 agent 的校验规则逐条对齐，改动需同步两侧）：
  *   - 基础攻击受 500ms 冷却约束（冷却中不动手，不再每 tick 出手）
  *   - 护盾衰减统一走 AIAgent.tickShield()
- *   - 逼近按主导轴贪心 + 同轴侧移，避免贴墙/对齐后永久平局
+ *   - 逼近优先走 BFS 最短路（绕障），无路时退回主导轴贪心 + 同轴侧移
  * 确定性由 test/bot-protocol.test.js 的对拍与回归测试保障。
  */
 
@@ -35,9 +35,48 @@ class BuiltinBrain {
     let actionTaken = 'idle';
     let logEntry = null;
     const dist = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-    // 贪心逼近：先在差距更大的轴上走，被墙挡住再走另一轴。
-    // 只按 x 优先会让双方在 x 对齐后 dx=0 卡死（永久平局），故按主导轴排序。
-    const stepToward = () => {
+
+    // BFS 最短路第一步：绕障能力与示例 bot 同级（旧贪心会在墙角/长墙前停滞）。
+    // 地图 ≤ 20×20，单次搜索最多 400 节点，同步模拟下开销可忽略。
+    const bfsStep = () => {
+      if (!map || !map.obstacles || map.width <= 0 || map.height <= 0) return null;
+      const key = (x, y) => x * map.width + y;
+      const blocked = new Set(map.obstacles.map(([x, y]) => key(x, y)));
+      const start = key(agent.x, agent.y);
+      const goal = key(enemy.x, enemy.y);
+      const prev = new Map([[start, -1]]);
+      const queue = [start];
+      let head = 0;
+      let found = false;
+      while (head < queue.length) {
+        const cur = queue[head++];
+        if (cur === goal) { found = true; break; }
+        const cx = Math.floor(cur / map.width);
+        const cy = cur % map.width;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const x = cx + dx;
+          const y = cy + dy;
+          if (x < 0 || y < 0 || x >= map.width || y >= map.height) continue;
+          const k = key(x, y);
+          if (prev.has(k)) continue;
+          if (blocked.has(k) && k !== goal) continue; // 敌人所在格视为可达目标
+          prev.set(k, cur);
+          queue.push(k);
+        }
+      }
+      if (!found) return null;
+      // 回溯到「父节点是起点」的那一格，即第一步
+      let node = goal;
+      while (prev.get(node) !== start) {
+        node = prev.get(node);
+        if (node === undefined || node === -1) return null;
+      }
+      return { x: Math.floor(node / map.width), y: node % map.width };
+    };
+
+    // 贪心逼近（BFS 无路时的兜底）：先在差距更大的轴上走，被墙挡住再走另一轴。
+    // 同轴时（dx 或 dy 为 0）向 +1 侧侧移绕行，避免对齐后死锁。
+    const greedyStep = () => {
       const dx = Math.sign(enemy.x - agent.x);
       const dy = Math.sign(enemy.y - agent.y);
       // 同轴时（dx 或 dy 为 0）向 +1 侧侧移绕行：正面被墙挡住时能脱离死锁，
@@ -62,6 +101,17 @@ class BuiltinBrain {
         if (label) return label;
       }
       return null;
+    };
+    // 逼近：先 BFS（绕障最短路），无路可走再退回贪心
+    const stepToward = () => {
+      const step = bfsStep();
+      if (step) {
+        const dx = step.x - agent.x;
+        agent.x = step.x;
+        agent.y = step.y;
+        return dx !== 0 ? 'move_x' : 'move_y';
+      }
+      return greedyStep();
     };
     const pushLog = (action) => {
       logEntry = {
@@ -125,9 +175,15 @@ class BuiltinBrain {
       }
       pushLog(actionTaken);
     }
-    // Priority 4: Melee attack (distance ≤ 2)
+    // Priority 4: Melee attack (distance ≤ 2) — 技能就绪优先吃 1.5×，与示例 bot 同一策略
     else if (dist(agent, enemy) <= 2) {
-      if (basicReady) {
+      if (!agent.skillOnCooldown('token_burst', now)) {
+        agent.useSkill('token_burst', now, 3);
+        const dmg = rollArenaDamage(agent.atk, 1.5, enemy.def);
+        enemy.takeDamage(dmg, agent.id);
+        actionTaken = `token_burst(${dmg})`;
+        pushLog(actionTaken);
+      } else if (basicReady) {
         agent.useSkill('basic_attack', now, 1);
         const dmg = rollArenaDamage(agent.atk, 1.0, enemy.def);
         enemy.takeDamage(dmg, agent.id);
