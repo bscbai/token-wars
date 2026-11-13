@@ -27,6 +27,9 @@ const LANGS = {
     record: 'W/L',
     none: 'No agents on this track yet',
     noMatches: 'No matches yet — the arena is warming up',
+    live: 'Live now',
+    liveNone: 'No match running right now — the next one starts soon',
+    liveStarted: 'running',
     tick: 'ticks',
     updated: 'updated',
     loading: 'Loading…',
@@ -53,6 +56,9 @@ const LANGS = {
     record: '胜/负',
     none: '本赛道暂无上榜 AI',
     noMatches: '暂无对局 — 竞技场正在热身',
+    live: '正在直播',
+    liveNone: '当前没有进行中的对局 — 下一场很快就来',
+    liveStarted: '已进行',
     tick: 'tick',
     updated: '更新于',
     loading: '加载中…',
@@ -65,6 +71,7 @@ const LANGS = {
 };
 
 const REFRESH_MS = 5000;
+const LIVE_REFRESH_MS = 2000;
 // 竞技场地图名（服务端 AI_MAPS 只带中文名；观战页按语言本地化）
 const MAP_NAMES = {
   en: {
@@ -126,6 +133,7 @@ function renderChrome() {
   $('lang-btn').textContent = state.lang === 'zh' ? 'EN' : '中文';
   $('standings-title').textContent = t('standings');
   $('matches-title').textContent = t('matches');
+  $('live-label').textContent = t('live');
   for (const btn of document.querySelectorAll('[data-track]')) {
     const id = btn.getAttribute('data-track');
     btn.textContent = id ? t(id) : t('all');
@@ -192,6 +200,79 @@ function renderMatches(entries) {
   }
 }
 
+/** 小棋盘：障碍 + 双方位置（服务端快照，2s 刷新） */
+function drawBoard(canvas, m) {
+  const cell = Math.max(8, Math.floor(300 / Math.max(m.width, m.height)));
+  canvas.width = m.width * cell;
+  canvas.height = m.height * cell;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#06060f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // 细网格：让空场地也能看出格数与移动
+  ctx.strokeStyle = 'rgba(0, 255, 136, 0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 1; i < m.width; i++) {
+    ctx.moveTo(i * cell + 0.5, 0);
+    ctx.lineTo(i * cell + 0.5, canvas.height);
+  }
+  for (let j = 1; j < m.height; j++) {
+    ctx.moveTo(0, j * cell + 0.5);
+    ctx.lineTo(canvas.width, j * cell + 0.5);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#17242e';
+  for (const [x, y] of m.obstacles || []) {
+    ctx.fillRect(x * cell, y * cell, cell - 1, cell - 1);
+  }
+  const dot = (a, color) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(a.x * cell + 1, a.y * cell + 1, cell - 2, cell - 2);
+  };
+  dot(m.agentA, m.agentA.alive ? '#00ff88' : '#2a5a44');
+  dot(m.agentB, m.agentB.alive ? '#ff4466' : '#5a2a36');
+}
+
+function renderLive(entries) {
+  const host = $('live');
+  host.replaceChildren();
+  if (!entries.length) {
+    host.appendChild(el('p', 'empty', t('liveNone')));
+    return;
+  }
+  for (const m of entries.slice(0, 2)) {
+    const wrap = el('div', 'live-match');
+    const canvas = document.createElement('canvas');
+    canvas.className = 'live-canvas';
+    drawBoard(canvas, m);
+    wrap.appendChild(canvas);
+
+    const meta = el('div', 'live-meta');
+    const line = el('div', 'duel');
+    line.append(
+      el('span', `side ${m.agentA.alive ? 'win' : ''}`, `◆ ${m.agentA.name}`),
+      el('span', 'vs', 'vs'),
+      el('span', `side ${m.agentB.alive ? 'win' : ''}`, `${m.agentB.name} ◇`)
+    );
+    meta.appendChild(line);
+    meta.appendChild(el('div', 'hp', `HP ${m.agentA.hp}/${m.agentA.maxHp} · ${m.agentB.hp}/${m.agentB.maxHp}`));
+    const mapName = (MAP_NAMES[state.lang] || {})[m.mapId] || m.map;
+    meta.appendChild(el('div', '', `${trackName(m.track)} · ${mapName}`));
+    meta.appendChild(el('div', '', `${t('liveStarted')} ${(m.elapsedMs / 1000).toFixed(1)}s`));
+    wrap.appendChild(meta);
+    host.appendChild(wrap);
+  }
+}
+
+async function loadLive() {
+  try {
+    const data = await fetch('/api/ai-arena/matches/live').then((r) => r.json());
+    renderLive(data.entries || []);
+  } catch {
+    // 网络抖动：保留上一帧，不打扰观战
+  }
+}
+
 async function load() {
   const params = (limit) => {
     const q = new URLSearchParams({ limit: String(limit) });
@@ -211,13 +292,18 @@ async function load() {
   }
 }
 
+let liveTimer = null;
+
 function schedule() {
   if (state.timer) clearInterval(state.timer);
+  if (liveTimer) clearInterval(liveTimer);
   state.timer = setInterval(load, REFRESH_MS);
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) clearInterval(state.timer);
-    else { load(); schedule(); }
-  });
+  liveTimer = setInterval(loadLive, LIVE_REFRESH_MS);
+}
+
+function stopTimers() {
+  if (state.timer) clearInterval(state.timer);
+  if (liveTimer) clearInterval(liveTimer);
 }
 
 function bind() {
@@ -226,6 +312,7 @@ function bind() {
     try { localStorage.setItem('tw-lang', state.lang); } catch { /* ignore */ }
     renderChrome();
     load();
+    loadLive();
   });
   for (const btn of document.querySelectorAll('[data-track]')) {
     btn.addEventListener('click', () => {
@@ -248,4 +335,16 @@ renderChrome();
 setStatus(t('loading'));
 bind();
 load();
+loadLive();
 schedule();
+
+// 页面不可见时停轮询（后台标签不消耗流量），回来立即补一帧
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopTimers();
+  } else {
+    load();
+    loadLive();
+    schedule();
+  }
+});

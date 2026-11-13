@@ -227,6 +227,50 @@ describe('AIArenaManager 遥测查询语义', () => {
     const { match } = await runExternalMatch(mgr, { playerAId: pA.id, playerBId: pB.id });
     expect(() => mgr.sendReplay(pA.id, match.id)).not.toThrow();
   });
+
+  it('getLiveMatches：只公开安全字段，不含 agentId / playerId / trace', () => {
+    const a = new AIAgent(pA.id, [], 'LiveA');
+    const b = new AIAgent(pB.id, [], 'LiveB');
+    a.external = true; b.external = true;
+    a.x = 3; a.y = 4; a.hp = 42;
+    b.x = 5; b.y = 6; b.hp = 17;
+    mgr.agents.set(a.id, a);
+    mgr.agents.set(b.id, b);
+    mgr.activeMatches.set('live-1', {
+      id: 'live-1', agentA: a.id, agentB: b.id, map: 'compute_square',
+      startTime: Date.now() - 4000, tickCount: 33, external: true, trace: [{ secret: true }], log: [],
+    });
+
+    const snaps = mgr.getLiveMatches();
+    expect(snaps).toHaveLength(1);
+    const snap = snaps[0];
+    expect(snap.matchId).toBe('live-1');
+    expect(snap.mapId).toBe('compute_square');
+    expect(snap.tick).toBe(33);
+    expect(snap.agentA).toEqual({
+      name: 'AI-LiveA', aelo: expect.any(Number), hp: 42, maxHp: a.maxHp,
+      x: 3, y: 4, shield: 0, shieldActive: false, alive: true,
+    });
+    const json = JSON.stringify(snap);
+    expect(json).not.toContain(a.id);      // 不泄露 agentId
+    expect(json).not.toContain(pA.id);     // 不泄露 playerId
+    expect(json).not.toContain('secret');  // 不泄露 trace
+
+    mgr.activeMatches.delete('live-1');
+    expect(mgr.getLiveMatches()).toEqual([]);
+  });
+
+  it('getLiveMatches：内置对局（同步瞬时模拟）永不出现', () => {
+    const a = new AIAgent(pA.id, [], 'BuiltA');
+    const b = new AIAgent(pB.id, [], 'BuiltB');
+    mgr.agents.set(a.id, a);
+    mgr.agents.set(b.id, b);
+    mgr.activeMatches.set('builtin-1', {
+      id: 'builtin-1', agentA: a.id, agentB: b.id, map: 'compute_square',
+      startTime: Date.now(), tickCount: 0, log: [], winner: null,
+    });
+    expect(mgr.getLiveMatches()).toEqual([]);
+  });
 });
 
 // --- ② REST /api/ai-arena（真实插件挂载） ----------------------------------------
@@ -433,6 +477,29 @@ describe('REST /api/ai-arena（aiarena 插件挂载后）', () => {
     const hardware = await request(app).get('/api/ai-arena/matches/recent?track=hardware');
     expect(hardware.status).toBe(200);
     expect(hardware.body.entries.every((e) => e.track === 'hardware')).toBe(true);
+  });
+
+  it('公开实时对局：无需登录 200；已结束的对局不残留', async () => {
+    const empty = await request(app).get('/api/ai-arena/matches/live');
+    expect(empty.status).toBe(200);
+    expect(empty.body.entries).toEqual([]);
+
+    const a = new AIAgent(playerA.id, [], 'LiveREST-A');
+    const b = new AIAgent(playerB.id, [], 'LiveREST-B');
+    a.external = true; b.external = true;
+    mgr.agents.set(a.id, a);
+    mgr.agents.set(b.id, b);
+    mgr.activeMatches.set('live-rest-1', {
+      id: 'live-rest-1', agentA: a.id, agentB: b.id, map: 'compute_square',
+      startTime: Date.now(), tickCount: 7, external: true, trace: [], log: [],
+    });
+
+    const res = await request(app).get('/api/ai-arena/matches/live');
+    expect(res.status).toBe(200);
+    expect(res.body.entries).toHaveLength(1);
+    expect(res.body.entries[0].agentA.name).toBe('AI-LiveREST-A');
+    expect(res.body.entries[0].tick).toBe(7);
+    expect(JSON.stringify(res.body)).not.toContain(playerA.id);
   });
 
   it('插件挂载冒烟：/api/ai-arena 在 express 路由栈中', () => {

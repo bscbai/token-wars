@@ -31,7 +31,7 @@ const MATCH_COOLDOWN_MS = parseInt(process.env.AI_MATCH_COOLDOWN_MS, 10) || 3000
 const children = [];
 let shuttingDown = false;
 
-function relay(tag, stream, onLine) {
+function relay(tag, stream) {
   stream.setEncoding('utf8');
   stream.on('data', (chunk) => {
     for (const line of chunk.split(/\r?\n/)) {
@@ -39,22 +39,21 @@ function relay(tag, stream, onLine) {
       // 子进程自身已带 [bot] 前缀时避免重复
       const body = line.startsWith(tag) ? line.slice(tag.length).trimStart() : line;
       console.log(`${tag} ${body}`);
-      if (onLine) onLine(body);
     }
   });
 }
 
-function startProcess(name, args, env, onLine) {
+function startProcess(name, args, env) {
   const child = spawn(process.execPath, args, {
     cwd: ROOT,
     env: { ...process.env, ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   children.push(child);
-  relay(`[${name}]`, child.stdout, onLine);
+  relay(`[${name}]`, child.stdout);
   relay(`[${name}]`, child.stderr);
   child.on('exit', (code) => {
-    if (!shuttingDown && !child.intentionalExit) console.log(`[${name}] exited with code ${code}`);
+    if (!shuttingDown) console.log(`[${name}] exited with code ${code}`);
   });
   return child;
 }
@@ -62,7 +61,6 @@ function startProcess(name, args, env, onLine) {
 function stopAll() {
   if (shuttingDown) return;
   shuttingDown = true;
-  if (requeueTimer) clearTimeout(requeueTimer);
   console.log('\nShutting down demo...');
   for (const child of children) {
     if (!child.killed) child.kill('SIGTERM');
@@ -107,34 +105,6 @@ async function mintBotToken(sessionToken) {
   return botToken;
 }
 
-// --- 参赛 bot：一场结束后重连，于是重新入队（新连接 = 新 queue join） ---
-let botToken = null;
-let botChild = null;
-let requeueTimer = null;
-
-function startBot() {
-  botChild = startProcess('bot', [path.join('examples', 'sample-bot-node', 'bot.js')], {
-    BOT_URL: BASE,
-    BOT_TOKEN: botToken,
-  }, (line) => {
-    if (/match \S+ -> (win|loss|draw)/.test(line)) scheduleRequeue();
-  });
-}
-
-/** 冷却结束后重启 bot 进程，让本地 demo 持续出对局 */
-function scheduleRequeue() {
-  if (shuttingDown || requeueTimer) return;
-  requeueTimer = setTimeout(() => {
-    requeueTimer = null;
-    if (shuttingDown) return;
-    if (botChild && !botChild.killed) {
-      botChild.intentionalExit = true;
-      botChild.kill('SIGTERM');
-    }
-    startBot();
-  }, MATCH_COOLDOWN_MS + 1800);
-}
-
 async function main() {
   console.log('Starting Token Wars demo...\n');
 
@@ -147,9 +117,14 @@ async function main() {
   await waitForServer();
 
   const { username, sessionToken } = await registerDemoAccount();
-  botToken = await mintBotToken(sessionToken);
+  const botToken = await mintBotToken(sessionToken);
 
-  startBot();
+  // 服务端在对局结束后会自动把双方重新排队，因此 bot 只需连接一次；
+  // 关键只是把 5 分钟冷却缩短，否则第二场要等很久。
+  startProcess('bot', [path.join('examples', 'sample-bot-node', 'bot.js')], {
+    BOT_URL: BASE,
+    BOT_TOKEN: botToken,
+  });
 
   console.log(`
 ──────────────────────────────────────────────────────────────
@@ -164,9 +139,8 @@ async function main() {
   Next: swap the bot's decide() for an LLM call, or point
   examples/llm-bot-node at any OpenAI-compatible endpoint.
 
-  Note: the demo shortens the match cooldown to ${Math.round(MATCH_COOLDOWN_MS / 1000)}s and
-  reconnects the bot after each fight, so matches keep coming.
-  Real servers keep the 5-minute cooldown.
+  Note: the demo shortens the match cooldown to ${Math.round(MATCH_COOLDOWN_MS / 1000)}s so
+  fights keep coming. Real servers keep the 5-minute cooldown.
   Ctrl+C to stop everything.
 `);
 }

@@ -5,7 +5,7 @@
  * import 会挂上真实连接。这里只保留策略。
  *
  * 策略（可整体替换为一次 LLM 调用）：
- *   1. 敌人在攻击距离（曼哈顿 ≤ 2）→ 冷却就绪则 attack，否则原地等待
+ *   1. 敌人在攻击距离（曼哈顿 ≤ 2）→ token_burst 就绪则放技能，否则普攻就绪则攻击
  *   2. 血量低于 35% 且护盾就绪 → shield
  *   3. 其余情况 → 沿 BFS 最短路绕开障碍逼近敌人
  *   4. 看不到敌人 / 无可行路径 → idle
@@ -26,6 +26,11 @@ function walkable(x, y, map) {
 function skillReady(you, id) {
   const s = you.skills.find((k) => k.id === id);
   return !s || s.cooldownRemaining === 0;
+}
+
+/** 技能是否可用：必须真的出现在 state.skills 里（缺失 ≠ 就绪，避免发出非法动作） */
+function canUse(you, id) {
+  return you.skills.some((k) => k.id === id) && skillReady(you, id);
 }
 
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -83,13 +88,14 @@ function decide(state, map) {
   const { you, enemy } = state;
   if (!enemy || !enemy.visible) return { type: 'idle' };
 
-  // 1) 进入攻击距离：能打就打，冷却中则原地等待（继续靠近只会贴脸）
+  // 1) 进入攻击距离：优先吃满 cooldown 的技能（token_burst 1.5×），否则普攻
   if (manhattan(you, enemy) <= 2) {
+    if (canUse(you, 'token_burst')) return { type: 'skill', id: 'token_burst' };
     return skillReady(you, 'basic_attack') ? { type: 'attack' } : { type: 'idle' };
   }
 
-  // 2) 低血量开盾
-  if (you.hp / you.maxHp < 0.35 && !you.shieldActive && skillReady(you, 'shield')) {
+  // 2) 低血量开盾（未声明 shield 技能时不发，避免违规）
+  if (you.hp / you.maxHp < 0.35 && !you.shieldActive && canUse(you, 'shield')) {
     return { type: 'shield' };
   }
 

@@ -106,6 +106,11 @@ def skill_ready(you, skill_id):
     return True
 
 
+def can_use(you, skill_id):
+    """技能可用：必须真的出现在 state.skills 里（缺失 ≠ 就绪，避免发出非法动作）"""
+    return any(s["id"] == skill_id for s in you["skills"]) and skill_ready(you, skill_id)
+
+
 def bfs_first_step(frm, to):
     """BFS 最短路的第一步；无可达路径返回 None。敌人所在格视为可达目标。"""
     if map_info is None:
@@ -146,15 +151,17 @@ def decide(state):
     if not enemy or not enemy.get("visible"):
         return {"type": "idle"}
 
-    # 1) 进入攻击距离：能打就打，冷却中原地等待（继续靠近只会贴脸）
+    # 1) 进入攻击距离：优先吃满 cooldown 的技能（token_burst 1.5×），否则普攻
     if manhattan(you, enemy) <= 2:
+        if can_use(you, "token_burst"):
+            return {"type": "skill", "id": "token_burst"}
         return {"type": "attack"} if skill_ready(you, "basic_attack") else {"type": "idle"}
 
-    # 2) 低血量开盾
+    # 2) 低血量开盾（未声明 shield 技能时不发，避免违规）
     if (
         you["hp"] / you["maxHp"] < 0.35
         and not you.get("shieldActive")
-        and skill_ready(you, "shield")
+        and can_use(you, "shield")
     ):
         return {"type": "shield"}
 

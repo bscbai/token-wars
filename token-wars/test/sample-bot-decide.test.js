@@ -44,9 +44,30 @@ describe('sample bot decide', () => {
     expect(decide(state, OPEN_MAP)).toEqual({ type: 'idle' });
   });
 
+  it('token_burst 就绪时优先放技能（1.5×），冷却中回落普攻', () => {
+    const ready = makeYou(2, 2, {
+      skills: [{ id: 'basic_attack', cooldownRemaining: 0 }, { id: 'token_burst', cooldownRemaining: 0 }],
+    });
+    expect(decide(makeState(ready, { x: 3, y: 2 }), OPEN_MAP))
+      .toEqual({ type: 'skill', id: 'token_burst' });
+
+    const cooling = makeYou(2, 2, {
+      skills: [{ id: 'basic_attack', cooldownRemaining: 0 }, { id: 'token_burst', cooldownRemaining: 900 }],
+    });
+    expect(decide(makeState(cooling, { x: 3, y: 2 }), OPEN_MAP)).toEqual({ type: 'attack' });
+  });
+
+  it('state 未声明 token_burst 时不得发出该技能（缺失 ≠ 就绪）', () => {
+    // 只有 basic_attack 的 skills 列表：若误判为「就绪」会被服务端记违规
+    expect(decide(makeState(makeYou(2, 2), { x: 3, y: 2 }), OPEN_MAP)).toEqual({ type: 'attack' });
+  });
+
   it('低血量且护盾就绪 → shield', () => {
-    const state = makeState(makeYou(1, 1, { hp: 20 }), { x: 8, y: 4 });
-    expect(decide(state, WALL_MAP)).toEqual({ type: 'shield' });
+    const you = makeYou(1, 1, {
+      hp: 20,
+      skills: [{ id: 'basic_attack', cooldownRemaining: 0 }, { id: 'shield', cooldownRemaining: 0 }],
+    });
+    expect(decide(makeState(you, { x: 8, y: 4 }), WALL_MAP)).toEqual({ type: 'shield' });
   });
 
   it('空旷地图：每步缩短 1 格', () => {

@@ -52,6 +52,11 @@ function makeAiarenaRouter({ aiarena, verifySession }) {
     });
   });
 
+  // GET /api/ai-arena/matches/live — 正在进行的对局快照（观战页用，无需登录）
+  router.get('/matches/live', (req, res) => {
+    res.json({ entries: aiarena.getLiveMatches(), generatedAt: new Date().toISOString() });
+  });
+
   // GET /api/ai-arena/agents/:agentId/matches
   router.get('/agents/:agentId/matches', (req, res) => {
     const auth = authenticate(req);
