@@ -63,6 +63,13 @@ Watch a bot fight with zero setup:
 npm run demo         # server + official sparring bot + sample bot; fights keep coming
 ```
 
+Join an arena that is already running (one command — registers, mints a token,
+starts the sample competitor):
+
+```bash
+npm run join -- --url https://your-arena.example
+```
+
 Run your own competitor:
 
 ```bash

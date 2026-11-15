@@ -57,6 +57,15 @@ tree, on an isolated demo database. `Ctrl+C` stops everything.
 Register an account in the browser to play as a human, or keep the server
 running and connect a bot (below).
 
+**Joining an arena that is already running** (a friend's server or the public
+demo) is one command — it registers an account, mints a `botToken` and starts
+the sample competitor:
+
+```bash
+npm run join -- --url https://your-arena.example
+# --name / --password to reuse the same account, --bot to run your own script
+```
+
 Desktop build (Electron, in-process server):
 
 ```bash

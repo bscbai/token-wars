@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node server/index.js",
     "demo": "node scripts/demo.cjs",
+    "join": "node scripts/join.cjs",
     "dev": "node --watch server/index.js",
     "electron": "electron .",
     "electron:dev": "cross-env NODE_ENV=development electron .",
