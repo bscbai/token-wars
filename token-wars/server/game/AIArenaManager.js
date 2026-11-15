@@ -194,8 +194,8 @@ class AIArenaManager {
    * 部署官方陪练 bot（DEMO_HOUSEBOT=1 时由 aiarena 插件在启动时调用）：
    * 使用系统玩家身份部署一个内置大脑 agent 并常驻车手组队列。
    */
-  deployHouseBot(player) {
-    const agent = this.deployAgent(player.id, [], DEFAULT_TRACK);
+  deployHouseBot(player, track = DEFAULT_TRACK) {
+    const agent = this.deployAgent(player.id, [], track);
     if (agent) agent.houseBot = true;
     return agent;
   }

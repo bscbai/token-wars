@@ -41,15 +41,25 @@ module.exports = {
 
     // 官方陪练 bot（DEMO_HOUSEBOT=1）：创建/复用系统玩家并部署常驻 agent，
     // 保证公网 demo 任何时刻接入的外部 bot 都能立即匹配到对手。
+    // 三条赛道各部署一个：跨赛道不能配对，只放一个会让另外两条赛道的访客空等。
     if (process.env.DEMO_HOUSEBOT === '1') {
-      const HOUSEBOT_NAME = 'TW-Gatekeeper';
-      let housePlayer = store.getPlayerByUsername(HOUSEBOT_NAME);
-      if (!housePlayer) {
-        const Player = require('../../models/Player');
-        housePlayer = new Player(HOUSEBOT_NAME);
-        store.addPlayer(housePlayer);
+      const Player = require('../../models/Player');
+      const ensureHousePlayer = (username) => {
+        let player = store.getPlayerByUsername(username);
+        if (!player) {
+          player = new Player(username);
+          store.addPlayer(player);
+        }
+        return player;
+      };
+      const HOUSE_BOTS = [
+        { username: 'TW-Gatekeeper', track: 'agent' },
+        { username: 'TW-Gatekeeper-HW', track: 'hardware' },
+        { username: 'TW-Gatekeeper-MD', track: 'model' },
+      ];
+      for (const houseBot of HOUSE_BOTS) {
+        aiarena.deployHouseBot(ensureHousePlayer(houseBot.username), houseBot.track);
       }
-      aiarena.deployHouseBot(housePlayer);
     }
 
     // 玩家级路由（原 AIArenaManager.registerSocket 的 guard.on 迁移，schema 原样）

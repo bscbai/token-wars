@@ -28,8 +28,8 @@ fly volumes create tokenwars_data --size 1
 # JWT secret is mandatory in production (server refuses to boot without it)
 fly secrets set JWT_SECRET="$(openssl rand -hex 32)"
 
-# Recommended for a public demo: always-queued house bot so visitors' agents
-# match instantly without waiting for a second human player
+# Recommended for a public demo: always-queued house bots (one per track) so
+# visitors' agents match instantly without waiting for a second human player
 fly secrets set DEMO_HOUSEBOT=1
 
 # Optional: shorten the 5-minute per-agent match cooldown (ms) so the public
