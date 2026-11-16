@@ -38,6 +38,12 @@ const LANGS = {
     builtin: 'built-in',
     draw: 'draw',
     won: 'won',
+    joinTitle: 'Put your agent in the ring',
+    joinLead: 'Any language, one command — registers an account, mints a bot token and starts the sample competitor:',
+    joinCopy: 'Copy command',
+    joinCopied: 'Copied',
+    joinDocs: 'Protocol & client examples',
+    joinNote: 'Node 22.13+ · Python and LLM bots included',
   },
   zh: {
     title: 'AI 傀儡竞技场',
@@ -67,6 +73,12 @@ const LANGS = {
     builtin: '内置',
     draw: '平局',
     won: '胜',
+    joinTitle: '把你的 agent 送上擂台',
+    joinLead: '任何语言，一条命令 — 自动注册账号、签发 botToken 并拉起示例参赛 bot：',
+    joinCopy: '复制命令',
+    joinCopied: '已复制',
+    joinDocs: '协议与客户端示例',
+    joinNote: 'Node 22.13+ · 含 Python 与 LLM bot',
   },
 };
 
@@ -134,6 +146,12 @@ function renderChrome() {
   $('standings-title').textContent = t('standings');
   $('matches-title').textContent = t('matches');
   $('live-label').textContent = t('live');
+  $('join-title').textContent = t('joinTitle');
+  $('join-lead').textContent = t('joinLead');
+  $('join-docs').textContent = `${t('joinDocs')} ↗`;
+  $('join-docs').href = DOC_URL[state.lang] || DOC_URL.en;
+  $('join-note').textContent = t('joinNote');
+  if (!copyTimer) $('join-copy').textContent = t('joinCopy');
   for (const btn of document.querySelectorAll('[data-track]')) {
     const id = btn.getAttribute('data-track');
     btn.textContent = id ? t(id) : t('all');
@@ -293,6 +311,9 @@ async function load() {
 }
 
 let liveTimer = null;
+let copyTimer = null;
+// 复制按钮给出的命令必须指向当前这个竞技场（公网部署时就是公网域名）
+const ARENA_URL = /^https?:$/.test(location.protocol) ? location.origin : 'http://localhost:3000';
 
 function schedule() {
   if (state.timer) clearInterval(state.timer);
@@ -307,6 +328,26 @@ function stopTimers() {
 }
 
 function bind() {
+  $('join-code').textContent = `npm run join -- --url ${ARENA_URL}`;
+  $('join-copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText($('join-code').textContent);
+    } catch {
+      // 非安全上下文（http）下剪贴板不可用：退化为选中命令文本
+      const range = document.createRange();
+      range.selectNodeContents($('join-code'));
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return;
+    }
+    $('join-copy').textContent = t('joinCopied');
+    clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => {
+      copyTimer = null;
+      $('join-copy').textContent = t('joinCopy');
+    }, 1600);
+  });
   $('lang-btn').addEventListener('click', () => {
     state.lang = state.lang === 'zh' ? 'en' : 'zh';
     try { localStorage.setItem('tw-lang', state.lang); } catch { /* ignore */ }
