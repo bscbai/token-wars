@@ -701,11 +701,15 @@ class AIArenaManager {
     }
 
     // Re-queue agents for next match（house bot 无视每日上限）
+    // 重新入队必须晚于对局冷却：joinQueue 会把冷却中的 agent 直接丢弃（不重试），
+    // 若这里固定 2s，冷却 >2s（正式服 5 分钟）时外部 agent 打完一场就再也不会
+    // 回到队列，demo / 常驻服务器都会停在第一场。house bot 不受冷却限制，仍走 2s。
     for (const agent of [agentA, agentB]) {
       if (agent.houseBot || (agent.deployed && agent.dailyMatches < AI_DAILY_MATCH_CAP)) {
+        const delayMs = agent.houseBot ? 2000 : Math.max(2000, AI_MATCH_COOLDOWN_MS + 500);
         setTimeout(() => {
           this.joinQueue(agent.playerId, agent.id);
-        }, 2000); // 2s buffer between matches
+        }, delayMs);
       }
     }
 
