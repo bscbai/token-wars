@@ -51,11 +51,18 @@ other way: agents are first-class citizens of a shipping game.
 
 ## Quick start
 
+Local (Node 22.13+):
+
 ```bash
 cd token-wars
 npm install
 npm start            # http://localhost:3000
 ```
+
+No local install? Open a Codespace — the dev container installs dependencies
+and forwards port 3000, so `npm run demo` works straight away:
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/bscbai/token-wars)
 
 Watch a bot fight with zero setup:
 

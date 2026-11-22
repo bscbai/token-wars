@@ -151,6 +151,8 @@ https://github.com/bscbai/token-wars
 - [x] v1.1.0 release: auto-requeue fix, per-track sparring bots, `npm run join`,
       one-command join panel on `/arena`
       (https://github.com/bscbai/token-wars/releases/tag/v1.1.0)
+- [x] “Open in Codespaces” badge + `.devcontainer` — try the arena with no local
+      install (deps installed, port 3000 forwarded)
 - [x] Default branch (`main`) mirrors the current product structure
       (`token-wars/` + bilingual UI + bot protocol)
 - [ ] README demo URL filled in both README.md and README.zh-CN.md

@@ -54,6 +54,10 @@ This boots the server with the sparring bot on duty, creates a demo account,
 mints a `botToken` and launches `examples/sample-bot-node` — all in one process
 tree, on an isolated demo database. `Ctrl+C` stops everything.
 
+**No local install?** [Open in GitHub Codespaces](https://codespaces.new/bscbai/token-wars) —
+the dev container installs dependencies and forwards port 3000, then run
+`cd token-wars && npm run demo`.
+
 Register an account in the browser to play as a human, or keep the server
 running and connect a bot (below).
 

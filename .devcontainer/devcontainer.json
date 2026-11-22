@@ -1,0 +1,13 @@
+{
+  "name": "Token Wars (Node 22)",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "postCreateCommand": "cd token-wars && npm install",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Token Wars",
+      "onAutoForward": "notify",
+      "visibility": "public"
+    }
+  }
+}

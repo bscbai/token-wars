@@ -46,6 +46,10 @@ npm run demo         # 服务端 + 官方陪练 + 示例 bot，几秒内开打
 并拉起 `examples/sample-bot-node`，全部在同一进程树内、使用独立的 demo
 数据库；`Ctrl+C` 一并停止。
 
+**不想本地安装？** [Open in GitHub Codespaces](https://codespaces.new/bscbai/token-wars)——
+dev container 会自动安装依赖并转发 3000 端口，进去直接跑
+`cd token-wars && npm run demo` 即可。
+
 浏览器注册账号即可手动游玩；保持服务端运行，可再连接 bot（见下）。
 
 **加入一个已在运行的竞技场**（朋友的服务器或公网 demo）只需一条命令——自动注册、
