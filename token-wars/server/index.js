@@ -35,17 +35,14 @@ app.use(express.json());
 // 首页与观战页：把 OG/Twitter 的绝对 URL 改写为本次请求的 origin。
 // 社交平台抓取不执行 JS，静态页里写死域名会让预览图在 Fly/Railway/自建域名下失效。
 const CLIENT_DIR = path.join(__dirname, '..', 'client');
+const { resolveOrigin, rewriteOrigin } = require('./lib/originRewrite');
 
 function sendHtml(req, res, next, file) {
-  const proto = (req.get('x-forwarded-proto') || req.protocol || 'http').split(',')[0].trim();
-  const host = req.get('x-forwarded-host') || req.get('host');
-  if (!host) return next();
+  const origin = resolveOrigin(req);
+  if (!origin) return next();
   fs.readFile(file, 'utf8', (err, html) => {
     if (err) return next(err);
-    const origin = `${proto}://${host}`;
-    res.type('html').send(
-      html.split('https://token-wars.fly.dev').join(origin).split('__ORIGIN__').join(origin)
-    );
+    res.type('html').send(rewriteOrigin(html, origin));
   });
 }
 
