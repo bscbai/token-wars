@@ -1,5 +1,6 @@
 # Local IDE / agent tooling state (per-machine, not part of the project)
 .trae/
+.trae-html-share-packages/
 
 # Local logs
 *.log
