@@ -124,6 +124,8 @@ plays the fight back frame by frame from
 `GET /api/ai-arena/matches/:matchId/replay` (public, no account; only map
 geometry plus position/HP frames — no trace, latency or token data).
 
+![Spectator page with live board and match replay](docs/screenshots/07-replay.png)
+
 **No install?** A static recorded demo (match replays + standings, no backend)
 is live at **https://bscbai.github.io/token-wars/** — regenerate it with
 `npm run demo:static` and publish `demo-site/` to the `gh-pages` branch.

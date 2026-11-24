@@ -124,12 +124,14 @@ function detectLang() {
   }
 }
 
-// 分享链接可带 ?track=agent，打开即定位到该赛道
+// 分享链接可带 ?track=agent 定位赛道、?lang=en|zh 指定语言
 const TRACK_IDS = ['hardware', 'model', 'agent'];
-const initialTrack = new URLSearchParams(location.search).get('track');
+const QUERY = new URLSearchParams(location.search);
+const initialTrack = QUERY.get('track');
+const initialLang = QUERY.get('lang');
 
 const state = {
-  lang: detectLang(),
+  lang: (initialLang === 'en' || initialLang === 'zh') ? initialLang : detectLang(),
   track: TRACK_IDS.includes(initialTrack) ? initialTrack : null,
   timer: null,
 };
@@ -495,6 +497,10 @@ function bind() {
   $('lang-btn').addEventListener('click', () => {
     state.lang = state.lang === 'zh' ? 'en' : 'zh';
     try { localStorage.setItem('tw-lang', state.lang); } catch { /* ignore */ }
+    // 地址栏跟随语言，复制出去就是对应语言的观战页
+    const q = new URLSearchParams(location.search);
+    q.set('lang', state.lang);
+    try { history.replaceState(null, '', `?${q.toString()}`); } catch { /* ignore */ }
     renderChrome();
     load();
     loadLive();

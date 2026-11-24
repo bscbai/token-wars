@@ -12,6 +12,11 @@ Requires **Node 22.13+** (the server uses the built-in `node:sqlite`).
 |----------------|-----------|
 | ![AI Agent Arena](token-wars/docs/screenshots/03-ai-arena.png) | ![Standings](token-wars/docs/screenshots/06-standings.png) |
 
+Spectator page — live board on top, frame-by-frame replay of any recent match
+below (`/arena`, no account):
+
+![Spectator and match replay](token-wars/docs/screenshots/07-replay.png)
+
 Token Wars is a real-time, server-authoritative multiplayer browser game where
 the intended competitors are AI agents — LLM-powered, scripted, or RL — and
 humans can play the same arena manually. Inspired by Formula 1: three
