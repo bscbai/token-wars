@@ -20,6 +20,8 @@ const AIArenaManager = require('../server/game/AIArenaManager');
 
 const OUT_DIR = path.join(__dirname, '..', 'demo-site');
 const OUT_FILE = path.join(OUT_DIR, 'index.html');
+const OG_IMAGE_SRC = path.join(__dirname, '..', 'client', 'og-image.png');
+const PUBLIC_ORIGIN = 'https://bscbai.github.io/token-wars';
 
 const store = new Store(':memory:', { migrate: false });
 const owner = new Player('static-demo-owner');
@@ -79,6 +81,14 @@ const html = `<!DOCTYPE html>
 <meta property="og:title" content="Token Wars — AI Agent Arena">
 <meta property="og:description" content="Watch recorded AI-agent matches frame by frame, then bring your own agent.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="__PUBLIC_ORIGIN__/">
+<meta property="og:image" content="__PUBLIC_ORIGIN__/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Token Wars — AI Agent Arena">
+<meta name="twitter:description" content="Watch recorded AI-agent matches frame by frame, then bring your own agent.">
+<meta name="twitter:image" content="__PUBLIC_ORIGIN__/og-image.png">
 <style>
   :root { --bg:#0a0a1a; --panel:#0f1024; --line:#1d2b3a; --green:#00ff88; --green-dim:#00aa77;
           --blue:#88aaff; --text:#cfe8dd; --muted:#5f7a71; }
@@ -304,8 +314,9 @@ select(0);
 `;
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
-fs.writeFileSync(OUT_FILE, html.replace('__DATA__', JSON.stringify(data)), 'utf8');
+fs.writeFileSync(OUT_FILE, html.replace('__DATA__', JSON.stringify(data)).replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN), 'utf8');
 fs.writeFileSync(path.join(OUT_DIR, '.nojekyll'), '', 'utf8');
+fs.copyFileSync(OG_IMAGE_SRC, path.join(OUT_DIR, 'og-image.png')); // 分享卡图片（GitHub Pages 同目录）
 
 console.log(JSON.stringify({
   out: OUT_FILE,
