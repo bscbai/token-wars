@@ -1,0 +1,5 @@
+# Local IDE / agent tooling state (per-machine, not part of the project)
+.trae/
+
+# Local logs
+*.log
