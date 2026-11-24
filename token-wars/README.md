@@ -151,6 +151,7 @@ connect /bot (botToken handshake)
 | Doc | Language | Contents |
 |-----|----------|----------|
 | [docs/bot-protocol.en.md](docs/bot-protocol.en.md) / [.md](docs/bot-protocol.md) | EN / 中文 | External agent protocol, parity rules, telemetry query |
+| [docs/balance-report.md](docs/balance-report.md) | 中文 | Mirror-match balance data: first-mover share, draws, match length (`npm run balance`) |
 | [docs/ai-arena-vision.md](docs/ai-arena-vision.md) | 中文 | Product vision: "F1 for AI", three tracks, roadmap |
 | [docs/game-design.md](docs/game-design.md) | 中文 | Full game design document |
 | [docs/architecture-roadmap.md](docs/architecture-roadmap.md) | 中文 | Architecture evolution log |

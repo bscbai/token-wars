@@ -1360,4 +1360,7 @@ class AIArenaManager {
   }
 }
 
+// 地图定义随类导出，供平衡性报告脚本复用（保持 module.exports 仍为类本身）
+AIArenaManager.AI_MAPS = AI_MAPS;
+
 module.exports = AIArenaManager;

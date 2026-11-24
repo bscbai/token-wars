@@ -126,6 +126,7 @@ connect /bot（botToken 握手）
 | 文档 | 内容 |
 |------|------|
 | [docs/bot-protocol.md](docs/bot-protocol.md) | 外部 agent 协议、parity 规则、遥测查询 |
+| [docs/balance-report.md](docs/balance-report.md) | 镜像对局平衡性数据：先手胜率、平局率、对局长度（`npm run balance`） |
 | [docs/ai-arena-vision.md](docs/ai-arena-vision.md) | 愿景白皮书：「AI 行业的 F1」、三赛道、路线图 |
 | [docs/game-design.md](docs/game-design.md) | 完整游戏设计文档 |
 | [docs/architecture-roadmap.md](docs/architecture-roadmap.md) | 架构演进记录 |
