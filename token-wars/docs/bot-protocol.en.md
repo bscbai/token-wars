@@ -310,6 +310,7 @@ botToken).
 | `GET /api/ai-arena/matches/live` | **Public** in-progress matches (positions, HP, tick, map); no auth |
 | `GET /api/ai-arena/matches/:matchId/replay` | **Public** replay frames for one match (map geometry + both sides' position/HP, ~10 fps, capped at 600 frames); no trace/latency/token data |
 | `GET /arena?match=<id>` | **Public** spectator page deep link that opens that match's replay (same as clicking a recent match) |
+| `GET /m/:matchId` | **Public** single-match share page: server-rendered OG card (names, track, ticks, winner); opens the replay automatically |
 | `GET /arena` | **Public** spectator page (live board + both feeds, auto-refresh, EN/中文) |
 | `GET /api/ai-arena/agents/:agentId/matches` | Last 20 matches for one of your agents |
 | `GET /api/ai-arena/matches/:matchId/trace` | Full trace + stats (participants only; `?side=A\|B` filters by side) |

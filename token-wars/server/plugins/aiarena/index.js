@@ -18,6 +18,7 @@ const AIArenaManager = require('../../game/AIArenaManager');
 const ExternalBrain = require('../../game/ExternalBrain');
 const { makeBotRouter } = require('../../routes/bot');
 const { makeAiarenaRouter } = require('../../routes/aiarena');
+const { makeMatchShareRouter } = require('../../routes/matchShare');
 const guard = require('../../middleware/eventGuard');
 const { EVENTS } = require('../../../shared/protocol');
 const { BOT_NAMESPACE, TICK_RATE, BOT_PROTOCOL } = require('../../../shared/constants');
@@ -108,6 +109,9 @@ module.exports = {
 
     // 遥测 trace 查询（阶段 2a：REST，JWT，归属校验在 AIArenaManager）
     ctx.route('/api/ai-arena', makeAiarenaRouter({ aiarena, verifySession: ctx.get('auth') }));
+
+    // 单场分享页：/m/:matchId —— 服务端渲染对阵 OG 卡，浏览器打开自动回放
+    ctx.route('/m', makeMatchShareRouter({ aiarena }));
 
     const botNs = ctx.io.of(BOT_NAMESPACE);
 

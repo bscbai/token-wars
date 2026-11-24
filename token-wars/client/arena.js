@@ -417,6 +417,11 @@ function closeReplay() {
   stopReplayTimer();
   replay.data = null;
   replay.idx = 0;
+  // /m/<id> 分享页的「关闭」回到观战页；站内深链只清掉 ?match 参数
+  if (window.__TW_MATCH__) {
+    location.assign('/arena');
+    return;
+  }
   $('replay').hidden = true;
   setMatchParam(null);
 }
@@ -431,7 +436,8 @@ async function openReplay(matchId) {
   $('replay-meta').textContent = '';
   $('replay-hp').textContent = t('replayLoading');
   $('replay-toggle').textContent = t('replayPlay');
-  setMatchParam(matchId);
+  // /m/<id> 由服务端注入 id，保持分享链接原样；/?match= 深链则同步地址栏
+  if (!window.__TW_MATCH__) setMatchParam(matchId);
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   try {
@@ -517,8 +523,8 @@ load();
 loadLive();
 schedule();
 
-// 分享链接可带 ?match=<id>，打开直接回放该场对局
-const initialMatch = new URLSearchParams(location.search).get('match');
+// 分享链接：/m/<id>（服务端注入 window.__TW_MATCH__）或 ?match=<id>
+const initialMatch = window.__TW_MATCH__ || new URLSearchParams(location.search).get('match');
 if (initialMatch) openReplay(initialMatch);
 
 // 页面不可见时停轮询（后台标签不消耗流量），回来立即补一帧
