@@ -65,6 +65,10 @@ npm run join -- --url https://your-arena.example
 **最近对局都能回放**：点任意一行，或分享单场链接 `/m/<matchId>`——服务端会为
 这场对局渲染专属社交卡，打开即逐帧重看（数据仅含地图与位置/血量）。
 
+**不想安装？** 静态录制演示（对局回放 + 排行榜，无后端）：
+**https://bscbai.github.io/token-wars/** ——`npm run demo:static` 重新生成，
+把 `demo-site/` 发布到 `gh-pages` 分支即可更新。
+
 桌面版（Electron，服务端进程内启动）：
 
 ```bash
