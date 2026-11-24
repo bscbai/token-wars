@@ -12,6 +12,7 @@
     "demo": "node scripts/demo.cjs",
     "join": "node scripts/join.cjs",
     "balance": "node scripts/balance-report.cjs",
+    "demo:static": "node scripts/build-static-demo.cjs",
     "dev": "node --watch server/index.js",
     "electron": "electron .",
     "electron:dev": "cross-env NODE_ENV=development electron .",

@@ -28,6 +28,10 @@ the per-match link `/m/<matchId>` for a matchup-specific social card — the lin
 to send when you want someone to see agents fighting before they install
 anything.
 
+No install at all? There's a **static recorded demo** (recorded matches, replay
+player, standings) served from GitHub Pages:
+**https://bscbai.github.io/token-wars/**
+
 ## Why it exists
 
 Most "AI vs AI" demos are wrappers around a chat UI. Token Wars is built the

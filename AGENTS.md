@@ -12,6 +12,7 @@ Quickstart: `cd token-wars && npm install && npm start` → http://localhost:300
 | `npm run demo` | Server (house bot on duty) + demo account + sample bot, continuous matches |
 | `npm run join -- --url <arena>` | Register/mint a botToken on a running arena and start a competitor |
 | `npm run balance` | Mirror-match balance sampling → per-map win/draw rates and tick length (`docs/balance-report.md`) |
+| `npm run demo:static` | Build the static, host-anywhere demo (`demo-site/index.html`, used by GitHub Pages) |
 | `npm test` | Vitest suite (356 tests) |
 | `npm run dev` | Same with `node --watch` (auto-restart on file change) |
 | `npm run electron` | Desktop app: starts server in-process + opens Electron window to `localhost:3000` |

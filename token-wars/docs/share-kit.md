@@ -156,6 +156,8 @@ https://github.com/bscbai/token-wars
       (https://github.com/bscbai/token-wars/releases/tag/v1.1.1)
 - [x] “Open in Codespaces” badge + `.devcontainer` — try the arena with no local
       install (deps installed, port 3000 forwarded)
+- [x] Static recorded demo on GitHub Pages (`npm run demo:static` →
+      `demo-site/` → `gh-pages`): https://bscbai.github.io/token-wars/
 - [x] Default branch (`main`) mirrors the current product structure
       (`token-wars/` + bilingual UI + bot protocol)
 - [ ] README demo URL filled in both README.md and README.zh-CN.md
