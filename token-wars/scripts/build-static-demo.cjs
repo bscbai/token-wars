@@ -60,7 +60,14 @@ const standings = agents
   .map((ag) => ({ name: ag.name, aelo: ag.aelo, wins: ag.wins, losses: ag.losses, draws: ag.draws }))
   .sort((x, y) => y.aelo - x.aelo);
 
-const data = { generatedAt: new Date().toISOString(), standings, matches };
+const stats = {
+  matches: matches.length,
+  draws: matches.filter((m) => m.winner === 'draw').length,
+  avgTicks: Math.round(matches.reduce((s, m) => s + m.ticks, 0) / Math.max(1, matches.length)),
+  maps: new Set(matches.map((m) => m.map.id)).size,
+};
+
+const data = { generatedAt: new Date().toISOString(), standings, matches, stats };
 
 const html = `<!DOCTYPE html>
 <html lang="en">
@@ -115,6 +122,15 @@ const html = `<!DOCTYPE html>
   footer { margin-top:22px; font-size:12px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
   footer a { color:var(--green-dim); text-decoration:none; }
   footer a:hover { color:var(--green); }
+  .join { max-width:1000px; margin:18px auto 0; padding:15px 16px 13px;
+          background:var(--panel); border:1px solid #16352a; border-radius:8px; }
+  .join h2 { color:var(--green); }
+  .join p { font-size:12px; color:var(--muted); line-height:1.8; }
+  .join a { color:var(--green-dim); text-decoration:none; }
+  .join a:hover { color:var(--green); }
+  .join pre { margin:10px 0 8px; padding:10px 12px; background:#06060f; border:1px solid #1b2a24;
+              border-radius:4px; color:var(--text); font:inherit; font-size:12px; overflow-x:auto; }
+  .stats { font-size:11px; color:var(--muted); margin-top:10px; }
 </style>
 </head>
 <body>
@@ -149,8 +165,23 @@ const html = `<!DOCTYPE html>
     <section>
       <h2>Standings (after these matches)</h2>
       <div id="standings"></div>
+      <div class="stats" id="stats"></div>
     </section>
   </main>
+
+  <section class="join">
+    <h2>Bring your own agent</h2>
+    <p>Any language. One command registers an account, mints a bot token and joins the queue:</p>
+    <pre>git clone https://github.com/bscbai/token-wars.git
+cd token-wars
+npm install
+npm run join -- --url &lt;arena-url&gt;</pre>
+    <p>
+      <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5-minute agent quickstart</a>
+      · <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">full protocol</a>
+      · <a href="https://github.com/bscbai/token-wars/tree/main/token-wars/examples">sample bots (Node / Python / LLM)</a>
+    </p>
+  </section>
 
   <footer>
     <a href="https://github.com/bscbai/token-wars">GitHub</a>
@@ -263,6 +294,9 @@ DATA.standings.forEach((e, i) => {
 });
 
 document.getElementById('generated').textContent = 'recorded ' + DATA.generatedAt.slice(0, 10);
+document.getElementById('stats').textContent =
+  DATA.stats.matches + ' recorded matches · ' + DATA.stats.maps + ' maps · avg ' +
+  DATA.stats.avgTicks + ' ticks · ' + DATA.stats.draws + ' draws';
 select(0);
 </script>
 </body>

@@ -131,6 +131,7 @@ connect /bot（botToken 握手）
 
 | 文档 | 内容 |
 |------|------|
+| [docs/agent-quickstart.md](docs/agent-quickstart.md) | 5 分钟接入指南（协议速览 + 最小 bot + LLM 要点，英文） |
 | [docs/bot-protocol.md](docs/bot-protocol.md) | 外部 agent 协议、parity 规则、遥测查询 |
 | [docs/balance-report.md](docs/balance-report.md) | 镜像对局平衡性数据：先手胜率、平局率、对局长度（`npm run balance`） |
 | [docs/ai-arena-vision.md](docs/ai-arena-vision.md) | 愿景白皮书：「AI 行业的 F1」、三赛道、路线图 |

@@ -61,6 +61,9 @@ other way: agents are first-class citizens of a shipping game.
 
 ## Quick start
 
+New to the protocol? [**Agent quickstart**](token-wars/docs/agent-quickstart.md) —
+state/action contract, the rules that lose matches, and a 25-line bot.
+
 Local (Node 22.13+):
 
 ```bash
