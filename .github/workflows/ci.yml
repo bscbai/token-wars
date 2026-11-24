@@ -20,6 +20,26 @@ jobs:
       - working-directory: token-wars
         run: npm test
 
+  # Real-process smoke test: boots the server, runs the sample bot and requires
+  # two completed matches + replay frames + the share page. This catches
+  # regressions the unit suite cannot see (boot errors, queue stalls, missing
+  # replay data, broken share markup).
+  demo-smoke:
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: token-wars/package-lock.json
+      - working-directory: token-wars
+        run: npm ci
+      - working-directory: token-wars
+        run: node scripts/smoke-demo.cjs
+
   # Smoke-test the Electron packaging pipeline. Non-blocking: packaging quirks
   # (icons, native rebuilds) shouldn't fail the test gate.
   build:
