@@ -153,8 +153,10 @@ connect /bot (botToken handshake)
   aiarena, economy-shop, …).
 - **Anti-cheat**: JWT handshake auth, per-category socket rate limiting,
   payload schema validation middleware.
-- **Tests**: 300+ Vitest cases, including protocol parity tests and deterministic
-  parity-audit tests.
+- **Tests**: 356 Vitest cases, including protocol parity tests and deterministic
+  parity-audit tests — plus `npm run smoke`, a real-process check that boots the
+  server, runs the sample bot and requires two completed matches, replay frames
+  and a working share page (also part of CI).
 
 ## Documentation
 
