@@ -2,6 +2,9 @@
  * aiarena 路由 — 遥测 trace 查询 + 公开排行榜
  *
  *   GET /api/ai-arena/leaderboard?track=agent&limit=20   公开（无需登录）
+ *   GET /api/ai-arena/matches/recent?track=&limit=     公开对局动态（无需登录）
+ *   GET /api/ai-arena/matches/live                     公开实时对局快照（无需登录）
+ *   GET /api/ai-arena/matches/:matchId/replay          公开对局回放（无需登录）
  *   GET /api/ai-arena/agents/:agentId/matches   某 agent 近期对局列表（仅本人）
  *   GET /api/ai-arena/matches/:matchId/trace    完整 trace + stats（仅参赛双方，?side=A|B 过滤）
  *
@@ -55,6 +58,14 @@ function makeAiarenaRouter({ aiarena, verifySession }) {
   // GET /api/ai-arena/matches/live — 正在进行的对局快照（观战页用，无需登录）
   router.get('/matches/live', (req, res) => {
     res.json({ entries: aiarena.getLiveMatches(), generatedAt: new Date().toISOString() });
+  });
+
+  // GET /api/ai-arena/matches/:matchId/replay — 公开回放（观战页用，无需登录）
+  // 只含地图几何、双方公开名次与位置/血量帧；完整遥测仍走需要 JWT 的 /trace
+  router.get('/matches/:matchId/replay', (req, res) => {
+    const replay = aiarena.getMatchReplay(req.params.matchId);
+    if (!replay) return res.status(404).json({ error: 'Match not found' });
+    res.json(replay);
   });
 
   // GET /api/ai-arena/agents/:agentId/matches

@@ -28,6 +28,11 @@ const {
 const AI_MATCH_TICK_MS = AI_ARENA_TIMING.MATCH_TICK_MS;
 const AI_MATCH_MAX_TIME_MS = AI_ARENA_TIMING.MATCH_MAX_TIME_MS;
 
+// 公开回放：每 2 tick（10fps）记录一帧位置/血量，单场最多 600 帧（≈60s）。
+// 观战页点击最近对局即可回放；超出部分截断，避免长局把 SQLite 撑大。
+const REPLAY_FRAME_EVERY = 2;
+const REPLAY_FRAME_CAP = 600;
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const _freshStats = () => ({
@@ -119,11 +124,25 @@ class ExternalMatchRunner {
       if (canActAtStart.A) await this._takeTurn('A', this.agentA, this.agentB, tick, now, timeLeftMs);
       if (canActAtStart.B) await this._takeTurn('B', this.agentB, this.agentA, tick, now, timeLeftMs);
       this._checkForfeits();
-      if (!this.agentA.alive || !this.agentB.alive) break;
+      const ended = !this.agentA.alive || !this.agentB.alive;
+      this._recordFrame(tick, ended); // 终局帧强制记录，保证回放停在死亡瞬间
+      if (ended) break;
       await sleep(this.tickIntervalMs);
     }
     this.match.totalTicks = tick;
     this.match.totalTimeMs = Date.now() - start;
+  }
+
+  /**
+   * 公开回放帧：位置/血量/存活/护盾。每 REPLAY_FRAME_EVERY tick 采样一次，
+   * 终局帧强制记录；单场封顶 REPLAY_FRAME_CAP（长局截断，避免存储膨胀）。
+   */
+  _recordFrame(tick, force = false) {
+    const frames = this.match.frames || (this.match.frames = []);
+    if (frames.length >= REPLAY_FRAME_CAP) return;
+    if (!force && tick % REPLAY_FRAME_EVERY !== 0) return;
+    const snap = (a) => ({ x: a.x, y: a.y, hp: a.hp, alive: a.alive, shieldActive: a.shieldActive });
+    frames.push({ t: tick, a: snap(this.agentA), b: snap(this.agentB) });
   }
 
   async _takeTurn(side, agent, enemy, tick, now, timeLeftMs) {

@@ -44,6 +44,13 @@ const LANGS = {
     joinCopied: 'Copied',
     joinDocs: 'Protocol & client examples',
     joinNote: 'Node 22.13+ · Python and LLM bots included',
+    replayTitle: 'Match replay',
+    replayPlay: 'Play',
+    replayPause: 'Pause',
+    replayClose: 'Close',
+    replayLoading: 'Loading replay…',
+    replayMissing: 'No replay stored for this match',
+    replayHint: 'Click a recent match to replay it',
   },
   zh: {
     title: 'AI 傀儡竞技场',
@@ -79,6 +86,13 @@ const LANGS = {
     joinCopied: '已复制',
     joinDocs: '协议与客户端示例',
     joinNote: 'Node 22.13+ · 含 Python 与 LLM bot',
+    replayTitle: '对局回放',
+    replayPlay: '播放',
+    replayPause: '暂停',
+    replayClose: '关闭',
+    replayLoading: '回放加载中…',
+    replayMissing: '该对局没有回放数据',
+    replayHint: '点击最近对局即可回放',
   },
 };
 
@@ -119,6 +133,9 @@ const state = {
   track: TRACK_IDS.includes(initialTrack) ? initialTrack : null,
   timer: null,
 };
+
+// 对局回放（点击最近对局 / ?match=<id> 深链）
+const replay = { data: null, idx: 0, timer: null, playing: false };
 const t = (key) => (LANGS[state.lang] || LANGS.en)[key] || key;
 
 const $ = (id) => document.getElementById(id);
@@ -152,6 +169,9 @@ function renderChrome() {
   $('join-docs').href = DOC_URL[state.lang] || DOC_URL.en;
   $('join-note').textContent = t('joinNote');
   if (!copyTimer) $('join-copy').textContent = t('joinCopy');
+  $('replay-title').textContent = t('replayTitle');
+  $('replay-toggle').textContent = replay.playing ? t('replayPause') : t('replayPlay');
+  $('replay-close').textContent = t('replayClose');
   for (const btn of document.querySelectorAll('[data-track]')) {
     const id = btn.getAttribute('data-track');
     btn.textContent = id ? t(id) : t('all');
@@ -199,6 +219,11 @@ function renderMatches(entries) {
   }
   for (const m of entries) {
     const row = el('div', 'match');
+    if (m.matchId) {
+      row.classList.add('clickable');
+      row.title = t('replayHint');
+      row.addEventListener('click', () => openReplay(m.matchId));
+    }
     const aWin = m.winner === 'A', bWin = m.winner === 'B';
     const a = el('span', `side ${aWin ? 'win' : ''}`, m.agentA.name || '?');
     const b = el('span', `side ${bWin ? 'win' : ''}`, m.agentB.name || '?');
@@ -327,6 +352,111 @@ function stopTimers() {
   if (liveTimer) clearInterval(liveTimer);
 }
 
+// --- 对局回放 -------------------------------------------------------------
+
+function setMatchParam(matchId) {
+  const q = new URLSearchParams(location.search);
+  if (matchId) q.set('match', matchId);
+  else q.delete('match');
+  const qs = q.toString();
+  try {
+    history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+  } catch { /* file:// 等环境下忽略 */ }
+}
+
+function stopReplayTimer() {
+  if (replay.timer) clearInterval(replay.timer);
+  replay.timer = null;
+  replay.playing = false;
+}
+
+function renderReplayFrame() {
+  if (!replay.data) return;
+  const frames = replay.data.frames;
+  const frame = frames[Math.min(replay.idx, frames.length - 1)];
+  if (!frame) return;
+  drawBoard($('replay-canvas'), {
+    width: replay.data.map.width,
+    height: replay.data.map.height,
+    obstacles: replay.data.map.obstacles,
+    agentA: frame.a,
+    agentB: frame.b,
+  });
+  $('replay-hp').textContent =
+    `HP ${frame.a.hp} / ${frame.b.hp} · ${frame.t} ${t('tick')} · ${replay.idx + 1}/${frames.length}`;
+}
+
+function playReplay() {
+  if (!replay.data) return;
+  stopReplayTimer();
+  replay.playing = true;
+  $('replay-toggle').textContent = t('replayPause');
+  replay.timer = setInterval(() => {
+    if (replay.idx >= replay.data.frames.length - 1) {
+      stopReplayTimer();
+      $('replay-toggle').textContent = t('replayPlay');
+      return;
+    }
+    replay.idx++;
+    renderReplayFrame();
+  }, 100);
+}
+
+function toggleReplay() {
+  if (!replay.data) return;
+  if (replay.playing) {
+    stopReplayTimer();
+    $('replay-toggle').textContent = t('replayPlay');
+    return;
+  }
+  if (replay.idx >= replay.data.frames.length - 1) replay.idx = 0;
+  playReplay();
+}
+
+function closeReplay() {
+  stopReplayTimer();
+  replay.data = null;
+  replay.idx = 0;
+  $('replay').hidden = true;
+  setMatchParam(null);
+}
+
+async function openReplay(matchId) {
+  stopReplayTimer();
+  replay.data = null;
+  replay.idx = 0;
+  const panel = $('replay');
+  panel.hidden = false;
+  $('replay-duel').replaceChildren();
+  $('replay-meta').textContent = '';
+  $('replay-hp').textContent = t('replayLoading');
+  $('replay-toggle').textContent = t('replayPlay');
+  setMatchParam(matchId);
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  try {
+    const res = await fetch(`/api/ai-arena/matches/${encodeURIComponent(matchId)}/replay`);
+    if (!res.ok) throw new Error('not found');
+    const data = await res.json();
+    if (!data.frames || !data.frames.length) throw new Error('empty');
+    replay.data = data;
+
+    const duel = el('div', 'duel');
+    duel.append(
+      el('span', `side ${data.winner === 'A' ? 'win' : ''}`, `◆ ${data.agentA.name}`),
+      el('span', 'vs', data.winner === 'draw' ? t('draw') : 'vs'),
+      el('span', `side ${data.winner === 'B' ? 'win' : ''}`, `${data.agentB.name} ◇`)
+    );
+    $('replay-duel').replaceChildren(duel);
+    const mapName = (MAP_NAMES[state.lang] || {})[data.map.id] || data.map.name;
+    $('replay-meta').textContent = `${trackName(data.track)} · ${mapName} · ${data.ticks} ${t('tick')}`;
+    renderReplayFrame();
+    playReplay();
+  } catch {
+    $('replay-hp').textContent = t('replayMissing');
+  }
+}
+
 function bind() {
   // 四条命令可直接粘贴（bash / zsh / PowerShell 通用，不依赖 &&）
   $('join-code').textContent = [
@@ -354,6 +484,8 @@ function bind() {
       $('join-copy').textContent = t('joinCopy');
     }, 1600);
   });
+  $('replay-close').addEventListener('click', closeReplay);
+  $('replay-toggle').addEventListener('click', toggleReplay);
   $('lang-btn').addEventListener('click', () => {
     state.lang = state.lang === 'zh' ? 'en' : 'zh';
     try { localStorage.setItem('tw-lang', state.lang); } catch { /* ignore */ }
@@ -384,6 +516,10 @@ bind();
 load();
 loadLive();
 schedule();
+
+// 分享链接可带 ?match=<id>，打开直接回放该场对局
+const initialMatch = new URLSearchParams(location.search).get('match');
+if (initialMatch) openReplay(initialMatch);
 
 // 页面不可见时停轮询（后台标签不消耗流量），回来立即补一帧
 document.addEventListener('visibilitychange', () => {

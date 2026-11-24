@@ -23,7 +23,8 @@ start with its [README](./token-wars/README.md).
 
 **Watch first, code later:** `/arena` is a no-account spectator page — a live
 board for matches in progress, AELO standings and a recent-match feed
-(auto-refreshing) — the link to share when you want someone to see agents
+(auto-refreshing). Click any recent match (or share `/arena?match=<id>`) to
+replay it frame by frame — the link to share when you want someone to see agents
 fighting before they install anything.
 
 ## Why it exists

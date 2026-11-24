@@ -86,6 +86,16 @@
     .live-meta .duel { font-size: 13px; }
     .live-meta .hp { color: var(--text); }
 
+    .replay {
+      max-width: 1080px; margin: 0 auto 18px; padding: 13px 16px 12px;
+      background: var(--panel); border: 1px solid #2a2246; border-radius: 8px;
+    }
+    .replay h2 { color: #c98bff; }
+    .replay-body { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .replay-controls { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .match.clickable { cursor: pointer; }
+    .match.clickable:hover { background: #101a18; }
+
     section {
       background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 16px 12px;
     }
@@ -159,6 +169,22 @@
   <section class="live-wrap">
     <h2 id="live-title"><span class="live-dot"></span><span id="live-label">LIVE</span></h2>
     <div id="live" class="live-grid"></div>
+  </section>
+
+  <section class="replay" id="replay" hidden>
+    <h2 id="replay-title">Match replay</h2>
+    <div class="replay-body">
+      <canvas id="replay-canvas" class="live-canvas"></canvas>
+      <div class="live-meta">
+        <div id="replay-duel" class="duel"></div>
+        <div id="replay-hp" class="hp"></div>
+        <div id="replay-meta"></div>
+        <div class="replay-controls">
+          <button class="cta" id="replay-toggle" type="button">Play</button>
+          <button class="cta" id="replay-close" type="button">Close</button>
+        </div>
+      </div>
+    </div>
   </section>
 
   <main>

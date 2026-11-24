@@ -62,6 +62,8 @@ npm run join -- --url https://your-arena.example
 
 想先围观再动手：`/arena` 是**免登录观战页**（进行中对局直播棋盘 + 实时 AELO
 排行榜 + 最近对局流，有对局时每 2 秒刷新），分享给朋友时用这个链接最合适。
+**最近对局都能回放**：点任意一行（或分享 `/arena?match=<id>`）即可逐帧重看，
+数据来自公开接口 `GET /api/ai-arena/matches/:matchId/replay`，只含地图与位置/血量。
 
 桌面版（Electron，服务端进程内启动）：
 

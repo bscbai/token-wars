@@ -41,6 +41,10 @@ const SEASON_BUFFS = {
 const TOURNAMENT_TOP_N = 16; // Top 16 enter elimination bracket
 const TOURNAMENT_MATCH_INTERVAL_MS = 30000; // 30s between tournament match broadcasts
 
+// 公开回放帧（内置对局）：每 2 回合采样一次位置/血量，单场封顶 600 帧
+const AI_REPLAY_FRAME_EVERY_ROUNDS = 2;
+const AI_REPLAY_MAX_FRAMES = 600;
+
 // AI Arena maps
 const AI_MAPS = {
   DATA_MINE: {
@@ -422,6 +426,7 @@ class AIArenaManager {
   simulateMatch(match, agentA, agentB, map) {
     let tick = 0;
     let elapsed = 0;
+    let round = 0;
 
     // Helper: is position walkable
     const isWalkable = (x, y) => {
@@ -451,10 +456,25 @@ class AIArenaManager {
         tick++;
         elapsed = tick * AI_MATCH_TICK_MS;
       });
+
+      // 公开回放：每 2 回合采样一帧（位置/血量/存活），观战页可点击回放
+      round++;
+      if (round % AI_REPLAY_FRAME_EVERY_ROUNDS === 0) {
+        this._recordFrame(match, agentA, agentB, tick);
+      }
     }
 
+    this._recordFrame(match, agentA, agentB, tick); // 终局帧
     match.totalTicks = tick;
     match.totalTimeMs = elapsed;
+  }
+
+  /** 回放帧：只含公开可见的位置/血量/存活/护盾，不含决策与遥测 */
+  _recordFrame(match, agentA, agentB, tick) {
+    const frames = match.frames || (match.frames = []);
+    if (frames.length >= AI_REPLAY_MAX_FRAMES) return;
+    const snap = (a) => ({ x: a.x, y: a.y, hp: a.hp, alive: a.alive, shieldActive: a.shieldActive });
+    frames.push({ t: tick, a: snap(agentA), b: snap(agentB) });
   }
 
   // --- External Agent（阶段 1：外部 agent 接入协议）---
@@ -1306,6 +1326,40 @@ class AIArenaManager {
         agentB: { name: m.agentBName, aelo: m.agentBAelo ?? null },
         winner: m.isDraw || m.winner === 'draw' ? 'draw' : (m.winner === m.agentA ? 'A' : 'B'),
       }));
+  }
+
+  /**
+   * 公开只读：单场回放（观战页用，无需登录）。
+   * 只返回地图几何 + 双方公开名次 + 回放帧（位置/血量/存活）；
+   * trace/log/审计/playerId 一律不出现（要完整遥测请走 JWT 的 /trace）。
+   * @returns {object|null} 未收录该对局时返回 null
+   */
+  getMatchReplay(matchId) {
+    const entry = this.matchHistory.find((m) => m.id === matchId);
+    if (!entry) return null;
+    const map = entry.mapData || {};
+    let winner = 'draw';
+    if (!entry.isDraw && entry.winner && entry.winner !== 'draw') {
+      winner = entry.winner === entry.agentA ? 'A' : 'B';
+    }
+    return {
+      matchId: entry.id,
+      track: entry.track || null,
+      external: !!entry.external,
+      winner,
+      ticks: entry.totalTicks || 0,
+      durationMs: entry.totalTimeMs || 0,
+      map: {
+        id: map.id || entry.map || null,
+        name: map.name || entry.map || null,
+        width: map.width || 20,
+        height: map.height || 20,
+        obstacles: Array.isArray(map.obstacles) ? map.obstacles : [],
+      },
+      agentA: { name: entry.agentAName || '?', aelo: entry.agentAAelo ?? null },
+      agentB: { name: entry.agentBName || '?', aelo: entry.agentBAelo ?? null },
+      frames: Array.isArray(entry.frames) ? entry.frames : [],
+    };
   }
 
   /**

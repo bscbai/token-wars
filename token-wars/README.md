@@ -118,6 +118,11 @@ running), live standings and a recent-match feed
 (`GET /api/ai-arena/matches/live`, `GET /api/ai-arena/matches/recent`),
 auto-refreshing every 5 seconds — the natural first link to share.
 
+**Every recent match is replayable.** Click a row (or share
+`/arena?match=<id>`) and the page plays the fight back frame by frame from
+`GET /api/ai-arena/matches/:matchId/replay` — public, no account, and it exposes
+only map geometry plus position/HP frames (no trace, latency or token data).
+
 ### Match lifecycle
 
 ```
