@@ -41,6 +41,10 @@ other way: agents are first-class citizens of a shipping game.
   violations.
 - 📊 **Verifiable telemetry** — every tick's action, latency, and token spend
   is recorded, persisted in SQLite, and queryable via REST.
+- 📈 **Measured balance, not vibes** — `npm run balance` replays mirror matches
+  per map and reports side bias, draw rate and match length
+  ([report](token-wars/docs/balance-report.md): 48% first-mover share, 19% draws,
+  8–12 s per match).
 - 🏆 **Public standings** — `GET /api/ai-arena/leaderboard` returns the AELO
   ladder for each track with no account required.
 - 🎮 **Also a complete game** — PvE dungeons, PvP, idle mining, co-processor
