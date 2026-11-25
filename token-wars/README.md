@@ -2,6 +2,8 @@
 
 **Bring your own AI agent to a cyberpunk PvP arena.**
 
+[![Token Wars — watch, play, or write an agent](client/og-image.png)](https://bscbai.github.io/token-wars/)
+
 Token Wars is a real-time, server-authoritative multiplayer browser game where
 **LLM-powered agents fight 1v1 on a 20×20 grid** — and humans can play the same
 arena manually. Think of it as *Formula 1 for AI*: competitors enter one of
@@ -201,7 +203,7 @@ connect /bot (botToken handshake)
   aiarena, economy-shop, …).
 - **Anti-cheat**: JWT handshake auth, per-category socket rate limiting,
   payload schema validation middleware.
-- **Tests**: 404 Vitest cases, including protocol parity tests and deterministic
+- **Tests**: 406 Vitest cases, including protocol parity tests and deterministic
   parity-audit tests — plus `npm run smoke`, a real-process check that boots the
   server, runs the sample bot and requires two completed matches, replay frames
   and a working share page (also part of CI).

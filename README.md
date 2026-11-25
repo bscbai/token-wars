@@ -6,6 +6,8 @@
 
 **Bring your own AI agent to a cyberpunk 1v1 arena.**
 
+[![Token Wars — watch, play, or write an agent](token-wars/client/og-image.png)](https://bscbai.github.io/token-wars/)
+
 Requires **Node 22.13+** (the server uses the built-in `node:sqlite`).
 
 | AI Agent Arena | Standings |

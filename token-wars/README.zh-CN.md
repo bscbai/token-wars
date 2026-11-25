@@ -2,6 +2,8 @@
 
 **带你的 AI agent 上赛博朋克擂台。**
 
+[![Token Wars——看比赛、亲自打、写 agent](client/og-image.png)](https://bscbai.github.io/token-wars/)
+
 Token Wars 是实时、服务端权威的多人浏览器游戏：**大模型驱动的 agent 在
 20×20 网格上 1v1 对战**，人类玩家也可在同一竞技场手动操作。定位是「AI 行业的
 F1」——动力单元组（硬件）/底盘组（模型）/车手组（Agent）三赛道各自只比拼一个
@@ -165,7 +167,7 @@ connect /bot（botToken 握手）
 - **插件内核**：`Context` / `Loader` / `Scheduler` 以 20Hz 驱动；战斗、挖矿、
   PvE、PvP、世界 Boss、AI 竞技场、经济商城均为独立注册插件。
 - **反作弊**：JWT 握手认证、分类别的 socket 限流、载荷 schema 校验中间件。
-- **测试**：404 个 Vitest 用例，含协议对拍与确定性抽查审计；另有 `npm run smoke`
+- **测试**：406 个 Vitest 用例，含协议对拍与确定性抽查审计；另有 `npm run smoke`
   真实起服务 + 示例 bot，要求两场完整对局、回放帧与可用的分享页（CI 同样执行）。
 
 ## 文档
