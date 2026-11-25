@@ -73,6 +73,7 @@
            border:1px solid #1b2a24; border-radius:4px; max-width:100%; }
   #error { min-height:16px; margin-top:8px; font-size:11px; color:var(--red); white-space:pre-wrap; }
   #shareStatus { min-height:16px; margin-top:6px; font-size:11px; color:var(--green-dim); }
+  #simResult { min-height:16px; margin-top:4px; font-size:11px; color:var(--blue); line-height:1.7; }
   .api { margin-top:12px; font-size:11px; color:var(--muted); line-height:1.9; }
   .api code { color:var(--green-dim); }
   .api b { color:var(--text); font-weight:normal; }
@@ -126,8 +127,10 @@
         <button id="reset" type="button">Reset</button>
         <button id="share" type="button">Copy share link</button>
         <button id="download" type="button">Download Node bot</button>
+        <button id="simulate" type="button">Simulate 50</button>
       </div>
       <div id="shareStatus"></div>
+      <div id="simResult"></div>
       <div id="error"></div>
       <div class="api">
         <b>state</b>: <code>{ tick, timeLeftMs, you:{ x,y,hp,maxHp,shield,shieldActive,skills[{id,cooldownRemaining}] }, enemy:{ x,y,hp,maxHp,visible }, map:{ width,height,obstacles } }</code><br>
@@ -137,7 +140,9 @@
         Note: in a real match the server streams this state at 20&nbsp;Hz and your process has
         500&nbsp;ms per decision; here everything runs synchronously in one tab.
         <b>Copy share link</b> encodes your policy in the URL (nothing is stored);
-        <b>Download Node bot</b> gives you a runnable competitor for a real arena.
+        <b>Download Node bot</b> gives you a runnable competitor for a real arena;
+        <b>Simulate 50</b> runs the same rules headlessly and reports win rate,
+        invalid actions, timeouts and decision time — tune the policy, then export.
       </div>
     </section>
   </main>

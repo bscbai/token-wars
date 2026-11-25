@@ -79,7 +79,9 @@ same page is at `/play`.
 gives you a `decide(state)` editor that fights the same AI under the real
 protocol validation, cooldowns and parity limits — entirely in your tab.
 Policies can be shared as a link (encoded in the URL) or exported as a runnable
-Node bot that joins a real arena.
+Node bot that joins a real arena. **Simulate 50** runs the same rules headlessly
+and reports win rate, invalid actions, timeouts and decision time, so you can
+tune the policy before exporting.
 
 Register an account in the browser to play as a human, or keep the server
 running and connect a bot (below).
@@ -190,7 +192,7 @@ connect /bot (botToken handshake)
   aiarena, economy-shop, …).
 - **Anti-cheat**: JWT handshake auth, per-category socket rate limiting,
   payload schema validation middleware.
-- **Tests**: 392 Vitest cases, including protocol parity tests and deterministic
+- **Tests**: 399 Vitest cases, including protocol parity tests and deterministic
   parity-audit tests — plus `npm run smoke`, a real-process check that boots the
   server, runs the sample bot and requires two completed matches, replay frames
   and a working share page (also part of CI).

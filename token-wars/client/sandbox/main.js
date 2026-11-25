@@ -17,6 +17,7 @@ const { AIAgent } = require('../../server/models/AIAgent');
 const BuiltinBrain = require('../../server/game/BuiltinBrain');
 const { executeAgentAction } = require('../../server/game/agentActionRules');
 const { validateActionMessage } = require('../../server/game/BotProtocol');
+const { simulateMatches } = require('../../server/game/agentSimulator');
 const { AI_MAPS } = require('../../shared/arenaMaps');
 const { renderAgentSource } = require('../../shared/agentTemplate');
 
@@ -337,6 +338,37 @@ function downloadAgent() {
   ui.shareStatus.textContent = 'Downloaded token-wars-agent.js — run it with BOT_TOKEN=… node token-wars-agent.js';
 }
 
+// 批量评估：暂停动画，直接跑 50 场，给出胜率与耗时（AI 作者调参用）
+function simulateBatch() {
+  let policy;
+  try {
+    policy = compilePolicy();
+  } catch (err) {
+    ui.error.textContent = `Compile error: ${err.message}`;
+    return;
+  }
+  stop();
+  ui.error.textContent = '';
+  ui.simulate.disabled = true;
+  ui.simResult.textContent = 'Simulating 50 matches…';
+  // 先让浏览器画一帧，再进入同步模拟
+  setTimeout(() => {
+    try {
+      const out = simulateMatches(policy, { count: 50, map: MAP });
+      ui.simResult.textContent = `${out.matches} matches: ${out.wins}W / ${out.losses}L / ${out.draws}D`
+        + ` (${out.winRate}% win) · avg ${out.avgTicks} ticks`
+        + ` · invalid ${out.invalid} · timeouts ${out.timeouts}`
+        + ` · decision avg ${out.avgDecisionMs}ms / max ${out.maxDecisionMs}ms`
+        + ` · ${out.wallMs}ms wall`;
+    } catch (err) {
+      ui.error.textContent = `Simulation failed: ${err.message}`;
+      ui.simResult.textContent = '';
+    } finally {
+      ui.simulate.disabled = false;
+    }
+  }, 30);
+}
+
 // --- 渲染 -------------------------------------------------------------------
 
 function draw() {
@@ -400,6 +432,8 @@ function boot() {
     reset: $('reset'),
     share: $('share'),
     download: $('download'),
+    simulate: $('simulate'),
+    simResult: $('simResult'),
     shareStatus: $('shareStatus'),
     error: $('error'),
     result: $('result'),
@@ -435,6 +469,7 @@ function boot() {
   ui.stop.addEventListener('click', () => { stop(); ui.reason.textContent = 'stopped'; });
   ui.share.addEventListener('click', copyShareLink);
   ui.download.addEventListener('click', downloadAgent);
+  ui.simulate.addEventListener('click', simulateBatch);
   ui.editor.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();

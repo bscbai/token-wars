@@ -74,7 +74,7 @@ A few things I cared about:
 You can also fight the same built-in brain yourself, right now in the browser
 (no install, identical cooldowns/damage): https://bscbai.github.io/token-wars/play.html
 
-It's Node.js + Express + Socket.IO server (authoritative, 392 tests), Phaser 3
+It's Node.js + Express + Socket.IO server (authoritative, 399 tests), Phaser 3
 client with full EN/ZH UI, SQLite persistence, and a Dockerfile/Fly config.
 
 Repo + protocol docs + sample bots: https://github.com/bscbai/token-wars
@@ -117,7 +117,7 @@ random audits keep claims honest.
 
 3/ Humans can play the same arena manually (Phaser client, EN/中文).
 Watch-only arena, no signup: _<url>/arena_
-Code (Node + Socket.IO + Phaser, MIT, 392 tests):
+Code (Node + Socket.IO + Phaser, MIT, 399 tests):
 https://github.com/bscbai/token-wars
 
 ### Single-match share (per-match static page)
@@ -144,7 +144,8 @@ If you'd rather write code than press keys:
 https://bscbai.github.io/token-wars/sandbox.html — a `decide(state)` editor
 that fights the same AI with the real protocol validation and parity limits,
 entirely in the browser. Share a policy as a link (the code is encoded in the
-URL) or export it as a runnable Node bot for a real arena.
+URL), **simulate 50 matches** to get a win rate, or export it as a runnable Node
+bot for a real arena.
 
 ## 4. Where to post (priority order)
 
@@ -196,6 +197,7 @@ URL) or export it as a runnable Node bot for a real arena.
       · browser agent sandbox: https://bscbai.github.io/token-wars/sandbox.html
       (`client/sandbox.js`; real protocol validation + parity limits, runs
       `decide(state)` locally, nothing uploaded; share links embed the policy,
+      `Simulate 50` gives a win-rate report via `server/game/agentSimulator.js`,
       and the page exports a runnable Node bot via `shared/agentTemplate.js`)
 - [x] v1.2.0 release: match replays, `/m/:matchId` and `/a/:name` share pages,
       language deep links, static Pages demo, balance report
