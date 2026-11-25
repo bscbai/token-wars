@@ -96,8 +96,8 @@ pm2 save
 
 Sometimes you only need a **view-only** page to share — no live matches, no bot
 connections. This ships a static bundle (recorded replays, per-match share
-pages, a browser-playable slice against the built-in AI, and a benchmark) that
-any static host can serve:
+pages, a browser-playable slice against the built-in AI, an agent sandbox, and a
+benchmark) that any static host can serve:
 
 ```bash
 cd token-wars
@@ -106,7 +106,10 @@ npm run demo:static        # → demo-site/index.html + benchmark.html + match-N
                            #   + replay.js (+ og-image.png, .nojekyll)
 ```
 
-Then, **from the repo root**:
+This repo deploys it automatically: `.github/workflows/pages.yml` runs
+`npm run demo:static` on every push to `main` and publishes `demo-site/` with
+GitHub's Pages actions. If you prefer the branch-based flow, publish the folder
+yourself from the repo root:
 
 ```bash
 git subtree split --prefix=token-wars/demo-site -b gh-pages-demo
