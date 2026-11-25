@@ -143,6 +143,8 @@ const I18N = {
     share: 'Copy share link',
     download: 'Download Node bot',
     simulate: 'Simulate 50',
+    simAll: 'Simulate all 5 maps',
+    simulatingAll: 'Simulating all 5 maps (20 matches each)…',
     llmPrompt: 'Copy LLM prompt',
     llmCopied: 'Prompt copied — paste it into ChatGPT/Claude, then paste the code back here.',
     fencesStripped: 'Markdown fences removed — the code inside was used.',
@@ -222,6 +224,8 @@ const I18N = {
     share: '复制分享链接',
     download: '下载 Node bot',
     simulate: '模拟 50 场',
+    simAll: '模拟五张地图',
+    simulatingAll: '正在模拟五张地图（各 20 场）…',
     llmPrompt: '复制 LLM 提示词',
     llmCopied: '提示词已复制——粘到 ChatGPT/Claude，再把生成的代码粘回编辑器。',
     fencesStripped: '已自动去掉 Markdown 代码围栏，直接使用其中的代码。',
@@ -294,6 +298,9 @@ const FMT = {
       + ` · decision avg ${o.avgDecisionMs}ms / max ${o.maxDecisionMs}ms`
       + ` · map ${map} · ${o.wallMs}ms wall`,
     simBaseline: (o) => ` · balanced preset ${o.winRate}% win for reference`,
+    simAllHeader: (t) => `${t.matches} matches vs the gatekeeper (20 per map):`
+      + ` ${t.wins}W / ${t.losses}L / ${t.draws}D`,
+    simAllRow: (map, o) => ` · ${map}: ${o.wins}W / ${o.losses}L (${o.winRate}%)`,
     simFailed: (m) => `Simulation failed: ${m}`,
     duelResult: (o, map) => `Duel ${o.matches}: you ${o.aWins}W / them ${o.bWins}W / ${o.draws}D`
       + ` (${o.winRateA}% vs ${o.winRateB}%) · avg ${o.avgTicks} ticks`
@@ -325,6 +332,9 @@ const FMT = {
       + ` · 决策 平均 ${o.avgDecisionMs}ms / 最大 ${o.maxDecisionMs}ms`
       + ` · 地图 ${map} · 总耗时 ${o.wallMs}ms`,
     simBaseline: (o) => ` · 参考：均衡预设胜率 ${o.winRate}%`,
+    simAllHeader: (t) => `${t.matches} 场对守门 AI（每图 20 场）：`
+      + `${t.wins}胜 / ${t.losses}负 / ${t.draws}平`,
+    simAllRow: (map, o) => ` · ${map}：${o.wins}胜 ${o.losses}负（${o.winRate}%）`,
     simFailed: (m) => `模拟失败：${m}`,
     duelResult: (o, map) => `对战 ${o.matches} 场：你 ${o.aWins}胜 / 对方 ${o.bWins}胜 / ${o.draws}平`
       + `（${o.winRateA}% vs ${o.winRateB}%）· 平均 ${o.avgTicks} tick`
@@ -791,6 +801,42 @@ function simulateBatch() {
   }, 30);
 }
 
+// 泛化评估：同一策略在五张图各跑 20 场，看对守门 AI 的胜率是否稳定
+function simulateAllMaps() {
+  let policy;
+  try {
+    policy = compilePolicy();
+  } catch (err) {
+    ui.error.textContent = f('compileError', err.message);
+    return;
+  }
+  stop();
+  ui.error.textContent = '';
+  ui.simulate.disabled = true;
+  ui.simAll.disabled = true;
+  ui.simResult.textContent = t('simulatingAll');
+  setTimeout(() => {
+    try {
+      const rows = MAP_LIST.map((m) => ({ map: m, out: simulateMatches(policy, { count: 20, map: m }) }));
+      const total = rows.reduce((acc, { out }) => {
+        acc.matches += out.matches;
+        acc.wins += out.wins;
+        acc.losses += out.losses;
+        acc.draws += out.draws;
+        return acc;
+      }, { matches: 0, wins: 0, losses: 0, draws: 0 });
+      ui.simResult.textContent = `${f('simAllHeader', total)}\n`
+        + rows.map(({ map, out }) => f('simAllRow', mapNameOf(map), out)).join('\n');
+    } catch (err) {
+      ui.error.textContent = f('simFailed', err.message);
+      ui.simResult.textContent = '';
+    } finally {
+      ui.simulate.disabled = false;
+      ui.simAll.disabled = false;
+    }
+  }, 30);
+}
+
 // 双策略对打：粘贴朋友的分享链接（#code=… 或 #vs=…）即可离线比一场
 function loadOpponentFromInput() {
   const raw = ui.duelLink.value.trim();
@@ -1062,6 +1108,7 @@ function boot() {
     share: $('share'),
     download: $('download'),
     simulate: $('simulate'),
+    simAll: $('simAll'),
     llm: $('llm'),
     simResult: $('simResult'),
     shareStatus: $('shareStatus'),
@@ -1123,6 +1170,7 @@ function boot() {
   ui.share.addEventListener('click', copyShareLink);
   ui.download.addEventListener('click', downloadAgent);
   ui.simulate.addEventListener('click', simulateBatch);
+  ui.simAll.addEventListener('click', simulateAllMaps);
   ui.llm.addEventListener('click', copyLlmPrompt);
   ui.duelRun.addEventListener('click', runDuel);
   ui.duelAll.addEventListener('click', runDuelAll);
