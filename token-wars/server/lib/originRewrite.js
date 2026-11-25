@@ -11,7 +11,7 @@
  * 代理头优先：x-forwarded-proto / x-forwarded-host（Fly、Railway、nginx 都会带）。
  */
 
-const ORIGIN_PLACEHOLDERS = ['https://token-wars.fly.dev', '__ORIGIN__'];
+const ORIGIN_PLACEHOLDERS = ['https://token-wars.fly.dev', '__ORIGIN__', '__PUBLIC_ORIGIN__'];
 
 /** 解析本次请求的公开 origin；拿不到 host 时返回 null（调用方跳过改写）。 */
 function resolveOrigin(req) {

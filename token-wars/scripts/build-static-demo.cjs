@@ -550,7 +550,12 @@ if (!fs.existsSync(playBundle)) {
   throw new Error('client/play.js 不存在，请先运行 `npm run play:build`');
 }
 fs.copyFileSync(playBundle, path.join(OUT_DIR, 'play.js'));
-fs.copyFileSync(path.join(__dirname, '..', 'client', 'play.html'), path.join(OUT_DIR, 'play.html'));
+fs.writeFileSync(
+  path.join(OUT_DIR, 'play.html'),
+  fs.readFileSync(path.join(__dirname, '..', 'client', 'play.html'), 'utf8')
+    .replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN),
+  'utf8',
+);
 
 console.log(JSON.stringify({
   out: OUT_FILE,

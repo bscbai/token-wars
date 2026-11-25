@@ -43,14 +43,17 @@ describe('rewriteOrigin', () => {
     '<meta property="og:url" content="__ORIGIN__/arena">',
     '<meta property="og:image" content="https://token-wars.fly.dev/og-image.png">',
     '<link rel="canonical" href="__ORIGIN__/arena">',
+    '<meta property="og:url" content="__PUBLIC_ORIGIN__/play.html">',
   ].join('\n');
 
-  it('同时替换 __ORIGIN__ 与历史写死的 fly.dev 域名', () => {
+  it('同时替换 __ORIGIN__、__PUBLIC_ORIGIN__ 与历史写死的 fly.dev 域名', () => {
     const out = rewriteOrigin(html, 'https://tw.example.com');
     expect(out).not.toContain('__ORIGIN__');
+    expect(out).not.toContain('__PUBLIC_ORIGIN__');
     expect(out).not.toContain('token-wars.fly.dev');
     expect(out).toContain('https://tw.example.com/arena');
     expect(out).toContain('https://tw.example.com/og-image.png');
+    expect(out).toContain('https://tw.example.com/play.html');
   });
 
   it('origin 为空时原样返回（不破坏页面）', () => {
