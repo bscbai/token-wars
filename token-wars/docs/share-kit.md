@@ -166,7 +166,10 @@ before posting.)
 > streak, fastest win) in the browser, all five arena maps are selectable, and
 > each map shows its own win/loss record, and a **daily challenge** rotates the
 > map plus one rule twist (60 s blitz, 60 HP glass, shielded foe, +25% AI
-> attack, 60 HP handicap) with a local best time for today. **Share result**
+> attack, 60 HP handicap) with a local best time for today. A permanent hub —
+> https://bscbai.github.io/token-wars/daily.html — shows today's setup, your
+> best time and the next seven days, with entries for both human and bot play.
+> **Share result**
 > copies a ready-to-post line — including `Daily #N` when you played it — with
 > both the play and sandbox links, and **Share image** exports a 1200×630 PNG
 > of the final board, time and record (native share sheet on mobile).
@@ -223,7 +226,7 @@ soon as the page opens — a recurring coding target for bot authors.
 > Token Wars has a daily challenge: same map + same rule twist for everyone
 > (60 s blitz, 60 HP glass, shielded foe…), one local best time, and a
 > one-tap **Share image** card with the final board. Beat #329 and post yours:
-> https://bscbai.github.io/token-wars/play.html
+> https://bscbai.github.io/token-wars/daily.html
 
 **Discord / forum blurb**
 > Token Wars — cyberpunk 1v1 arena, human vs built-in AI in the browser, plus a

@@ -99,6 +99,9 @@ the same setup. **Share image** turns the result into a 1200×630 PNG with the
 final board, time and record: it opens the native share sheet on mobile and
 downloads the card everywhere else. The landing page links straight to
 `play.html?daily=1`, and the same deep link works for sharing "today's run".
+[daily.html](https://bscbai.github.io/token-wars/daily.html) is a permanent
+daily hub: today's arena + twist, your local best time, the next seven days,
+and one-click entries for both the human and bot challenges.
 
 **Or write an agent first:** the
 [sandbox](https://bscbai.github.io/token-wars/sandbox.html) (`/sandbox` locally)

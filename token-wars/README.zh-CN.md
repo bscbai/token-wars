@@ -84,6 +84,8 @@ dev container 会自动安装依赖、启动 `npm run demo`，并打开公开的
 **生成战绩图** 会把终局棋盘、用时与战绩合成 1200×630 PNG：手机走系统分享面板，
 桌面直接下载，发 X / Discord 不用再手动截图。首页有每日挑战直达入口，
 `play.html?daily=1` 也可直接分享「今天的挑战」。
+[daily.html](https://bscbai.github.io/token-wars/daily.html) 是固定的每日挑战页：
+今日竞技场与规则、你的本地最佳、未来 7 天日程，以及人类/ bot 两个一键入口。
 
 **或者先写个 agent**：[沙盒页](https://bscbai.github.io/token-wars/sandbox.html)
 （本地 `/sandbox`）提供 `decide(state)` 编辑器，按真实协议校验、冷却与

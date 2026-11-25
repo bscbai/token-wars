@@ -11,6 +11,7 @@ const AI_MAPS = {
   DATA_MINE: {
     id: 'data_mine',
     name: '数据矿洞',
+    nameEn: 'Data Mine',
     width: 20,
     height: 20,
     obstacles: [
@@ -25,6 +26,7 @@ const AI_MAPS = {
   COMPUTE_SQUARE: {
     id: 'compute_square',
     name: '算力广场',
+    nameEn: 'Compute Square',
     width: 20,
     height: 20,
     obstacles: [
@@ -37,6 +39,7 @@ const AI_MAPS = {
   CACHE_MAZE: {
     id: 'cache_maze',
     name: '缓存迷宫',
+    nameEn: 'Cache Maze',
     width: 20,
     height: 20,
     obstacles: [
@@ -51,6 +54,7 @@ const AI_MAPS = {
   ARENA_DOME: {
     id: 'arena_dome',
     name: '竞技穹顶',
+    nameEn: 'Arena Dome',
     width: 20,
     height: 20,
     obstacles: [[5, 5], [14, 5], [5, 14], [14, 14]],
@@ -61,6 +65,7 @@ const AI_MAPS = {
   DATA_TORRENT: {
     id: 'data_torrent',
     name: '数据洪流',
+    nameEn: 'Data Torrent',
     width: 20,
     height: 20,
     obstacles: [[5, 9], [14, 9]],

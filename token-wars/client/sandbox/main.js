@@ -39,15 +39,8 @@ function dailyRules(mutator) {
   }
   return rules;
 }
-const MAP_EN = {
-  data_mine: 'Data Mine',
-  compute_square: 'Compute Square',
-  cache_maze: 'Cache Maze',
-  arena_dome: 'Arena Dome',
-  data_torrent: 'Data Torrent',
-};
 let selectedMap = MAP;
-const mapNameOf = (m) => (lang === 'zh' ? m.name : (MAP_EN[m.id] || m.id));
+const mapNameOf = (m) => (lang === 'zh' ? m.name : (m.nameEn || m.id));
 const mapLabel = () => mapNameOf(selectedMap);
 const PROTOCOL_VERSION = 1;
 
@@ -200,6 +193,7 @@ const I18N = {
     duelingAll: 'Dueling all 5 maps (20 matches each)…',
     copyResult: 'Copy result',
     footerPlay: 'Play as a human',
+    footerDaily: 'Daily challenge',
     footerMatches: 'Recorded matches',
     footerQuickstart: '5-minute quickstart',
     footerProtocol: 'Bot protocol',
@@ -297,6 +291,7 @@ const I18N = {
     duelingAll: '正在跑 5 张地图（每图 20 场）…',
     copyResult: '复制战绩',
     footerPlay: '亲自试玩',
+    footerDaily: '每日挑战',
     footerMatches: '录制对局',
     footerQuickstart: '5 分钟上手',
     footerProtocol: 'Bot 协议',
@@ -1477,7 +1472,7 @@ function populateMaps() {
   MAP_LIST.forEach((m) => {
     const opt = document.createElement('option');
     opt.value = m.id;
-    opt.textContent = lang === 'zh' ? m.name : (MAP_EN[m.id] || m.id);
+    opt.textContent = mapNameOf(m);
     ui.mapSelect.appendChild(opt);
   });
   const next = MAP_LIST.some((m) => m.id === prev) ? prev : MAP.id;

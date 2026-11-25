@@ -25,13 +25,6 @@ const MATCH_MAX_MS = 120000;
 const CELL = 24;
 
 const MAP_LIST = Object.values(AI_MAPS);
-const MAP_EN = {
-  data_mine: 'Data Mine',
-  compute_square: 'Compute Square',
-  cache_maze: 'Cache Maze',
-  arena_dome: 'Arena Dome',
-  data_torrent: 'Data Torrent',
-};
 const MAP_KEY = 'tw-play-map';
 let MAP = AI_MAPS.DATA_MINE;
 const brain = new BuiltinBrain();
@@ -75,6 +68,7 @@ const I18N = {
       way to feel what a bot opponent is like before you
       <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">write your own</a>.`,
     footerMatches: 'Recorded matches',
+    footerDaily: 'Daily challenge',
     footerAgent: 'Write an agent',
     footerBenchmark: 'Benchmark v0',
     footerProtocol: 'Bot protocol',
@@ -135,6 +129,7 @@ const I18N = {
       <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">写自己的 agent</a>
       之前，最快感受 bot 对手的方式。`,
     footerMatches: '录制对局',
+    footerDaily: '每日挑战',
     footerAgent: '写个 agent',
     footerBenchmark: '基准测试 v0',
     footerProtocol: 'Bot 协议',
@@ -365,7 +360,7 @@ function freshAgents() {
   enemy.y = MAP.spawnB.y;
 }
 
-const mapNameOf = (m) => (lang === 'zh' ? m.name : (MAP_EN[m.id] || m.id));
+const mapNameOf = (m) => (lang === 'zh' ? m.name : (m.nameEn || m.id));
 
 function populateMaps() {
   if (!ui.mapSelect) return;

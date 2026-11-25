@@ -15,6 +15,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { writeIcon } = require('./lib/pwa-icon.cjs');
+const { AI_MAPS } = require('../shared/arenaMaps');
+const { MAP_IDS, MUTATORS } = require('../shared/dailyChallenge');
 const PKG = require('../package.json');
 const { Store } = require('../server/data/Store');
 const Player = require('../server/models/Player');
@@ -548,6 +550,8 @@ const INDEX_STRINGS = {
     galleryDownload: 'Download desktop builds',
     galleryRun: 'Run it locally',
     footerPlay: 'Play vs the AI',
+    footerDaily: 'Daily challenge',
+    dailyPageHref: './daily.html',
     footerSandbox: 'Write an agent',
     footerProtocol: 'Bot protocol',
     footerBenchmark: 'Benchmark v0',
@@ -620,6 +624,8 @@ const INDEX_STRINGS = {
     galleryDownload: '下载桌面版',
     galleryRun: '本地运行',
     footerPlay: '对战内置 AI',
+    footerDaily: '每日挑战',
+    dailyPageHref: './daily.zh.html',
     footerSandbox: '写个 agent',
     footerProtocol: 'Bot 协议',
     footerBenchmark: '基准测试 v0',
@@ -779,6 +785,7 @@ npm run join -- --url &lt;arena-url&gt;</pre>
 
   <footer>
     <a href="${S.playHref}">${S.footerPlay}</a>
+    <a href="${S.dailyPageHref}">${S.footerDaily}</a>
     <a href="${S.sandboxHref}">${S.footerSandbox}</a>
     <a href="https://github.com/bscbai/token-wars">GitHub</a>
     <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">${S.footerProtocol}</a>
@@ -926,6 +933,201 @@ select(0);
 `;
 }
 
+const DAILY_STRINGS = {
+  en: {
+    htmlLang: 'en',
+    title: 'Token Wars Daily Challenge — a new map and rule twist every day',
+    description: 'One arena plus one rule twist every day: beat the gatekeeper, keep your best time, share the card — or run your own decide(state) agent on the same challenge.',
+    kicker: 'DAILY CHALLENGE',
+    todayLabel: 'Today',
+    play: "▶ Play today's challenge",
+    bot: 'Run a bot on it',
+    bestNone: 'Not played today — your best time will appear here.',
+    bestWin: 'Your best today: {t}s.',
+    bestLoss: 'Played today — no win yet.',
+    scheduleTitle: 'Next 7 days',
+    colDate: 'Date',
+    colNo: '#',
+    colMap: 'Arena',
+    colRule: 'Rule twist',
+    todayTag: 'today',
+    howTitle: 'How it works',
+    how1: 'Everyone gets the same arena and rule twist that day.',
+    how2: 'Best time and attempts stay in your browser (localStorage).',
+    how3: 'Share result or the card image — friends replay the exact same setup.',
+    shareText: 'Token Wars daily challenge: one map and one rule twist for everyone, every day. Beat the gatekeeper and share your card.',
+    otherLang: '中文',
+    otherHref: './daily.zh.html',
+    footerHome: 'Recorded matches',
+    footerPlay: 'Play vs the AI',
+    footerBot: 'Write an agent',
+    footerGitHub: 'GitHub',
+  },
+  zh: {
+    htmlLang: 'zh-CN',
+    title: 'Token Wars 每日挑战——每天一张地图与一条规则变体',
+    description: '每天一张竞技场 + 一条规则变体：打赢守门 AI、记录最佳用时、分享战绩图，或用你自己的 decide(state) agent 跑同一套挑战。',
+    kicker: '每日挑战',
+    todayLabel: '今天',
+    play: '▶ 挑战今天',
+    bot: '用 bot 跑一遍',
+    bestNone: '今天还没挑战——最佳用时会显示在这里。',
+    bestWin: '今日最佳：{t} 秒。',
+    bestLoss: '今天已挑战，尚无胜场。',
+    scheduleTitle: '未来 7 天',
+    colDate: '日期',
+    colNo: '期数',
+    colMap: '竞技场',
+    colRule: '规则变体',
+    todayTag: '今天',
+    howTitle: '怎么玩',
+    how1: '每天所有人拿到同一张地图与同一条规则变体。',
+    how2: '最佳用时与尝试次数只保存在你的浏览器（localStorage）。',
+    how3: '分享战绩或战绩图——朋友打开就是同一套配置。',
+    shareText: 'Token Wars 每日挑战：每天一张地图 + 一条规则变体，打赢守门 AI 再分享战绩图。',
+    otherLang: 'EN',
+    otherHref: './daily.html',
+    footerHome: '录制对局',
+    footerPlay: '对战内置 AI',
+    footerBot: '写个 agent',
+    footerGitHub: 'GitHub',
+  },
+};
+
+function dailyPage(lang) {
+  const S = DAILY_STRINGS[lang];
+  const maps = MAP_IDS.map((id) => {
+    const m = Object.values(AI_MAPS).find((x) => x.id === id);
+    return { id, name: lang === 'zh' ? m.name : m.nameEn };
+  });
+  const muts = MUTATORS.map((m) => ({ id: m.id, label: lang === 'zh' ? m.zh : m.en }));
+  const payload = JSON.stringify({ epoch: Date.UTC(2026, 0, 1), maps, muts, s: S })
+    .replace(/</g, '\\u003c');
+  const langQ = lang === 'zh' ? '&lang=zh' : '&lang=en';
+  const self = lang === 'zh' ? 'daily.zh.html' : 'daily.html';
+  return `<!DOCTYPE html>
+<html lang="${S.htmlLang}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${S.title}</title>
+<meta name="description" content="${S.description}">
+<meta property="og:title" content="${S.title}">
+<meta property="og:description" content="${S.description}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="__PUBLIC_ORIGIN__/${self}">
+<link rel="canonical" href="__PUBLIC_ORIGIN__/${self}">
+<link rel="alternate" hreflang="en" href="__PUBLIC_ORIGIN__/daily.html">
+<link rel="alternate" hreflang="zh" href="__PUBLIC_ORIGIN__/daily.zh.html">
+<meta property="og:image" content="__PUBLIC_ORIGIN__/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${S.title}">
+<meta name="twitter:description" content="${S.description}">
+<meta name="twitter:image" content="__PUBLIC_ORIGIN__/og-image.png">
+<link rel="icon" href="./og-image.png" type="image/png">
+<style>${BASE_CSS}
+  .daily-hero { max-width: 1000px; margin: 8px auto 0; position: relative; }
+  .daily-badge { display:inline-block; padding:1px 7px; margin-left:6px; font-size:10px; letter-spacing:1px;
+                 color:var(--green); border:1px solid #1b3a30; border-radius:4px; vertical-align:middle; }
+  #todayLine { margin-top:10px; font-size:16px; color:var(--text); }
+  #todayLine b { color:var(--green); font-weight:normal; }
+  #best { margin-top:8px; font-size:12px; color:var(--muted); }
+  .schedule { width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
+  .schedule th, .schedule td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); }
+  .schedule th { color:var(--muted); font-weight:normal; letter-spacing:1px; }
+  .schedule tr.is-today td { color:var(--green); }
+  .how { max-width:1000px; margin:18px auto 0; }
+  .how ul { list-style:none; display:grid; gap:6px; font-size:12px; color:var(--muted); line-height:1.8; }
+  .how li::before { content:'▸ '; color:var(--green-dim); }
+</style>
+</head>
+<body>
+  <header class="daily-hero">
+    <a class="lang-switch" href="${S.otherHref}" hreflang="${lang === 'en' ? 'zh' : 'en'}">${S.otherLang}</a>
+    <div class="kicker">${S.kicker}</div>
+    <h1>TOKEN WARS<span class="caret">_</span></h1>
+    <p id="todayLine">
+      <b id="todayNo">#1</b>
+      <span id="todayMap"></span> · <span id="todayMut"></span>
+      <span class="daily-badge" id="todayBadge">${S.todayLabel}</span>
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="./play.html?daily=1${langQ}">${S.play}</a>
+      <a class="btn" href="./sandbox.html?daily=1${langQ}">${S.bot}</a>
+    </div>
+    <p id="best">${S.bestNone}</p>
+  </header>
+
+  <section class="start">
+    <h2>${S.scheduleTitle}</h2>
+    <div id="schedule"></div>
+  </section>
+
+  <section class="how">
+    <h2>${S.howTitle}</h2>
+    <ul>
+      <li>${S.how1}</li>
+      <li>${S.how2}</li>
+      <li>${S.how3}</li>
+    </ul>
+  </section>
+
+  <footer>
+    <a href="./index.html">${S.footerHome}</a>
+    <a href="./play.html${lang === 'zh' ? '?lang=zh' : ''}">${S.footerPlay}</a>
+    <a href="./sandbox.html${lang === 'zh' ? '?lang=zh' : ''}">${S.footerBot}</a>
+    <a href="https://github.com/bscbai/token-wars">${S.footerGitHub}</a>
+  </footer>
+
+<script>
+const D = ${payload};
+const $ = (id) => document.getElementById(id);
+const dayOf = (d) => Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - D.epoch) / 86400000);
+const infoOf = (d) => {
+  const day = dayOf(d);
+  const mi = ((day % D.maps.length) + D.maps.length) % D.maps.length;
+  const ri = ((Math.floor(day / D.maps.length) % D.muts.length) + D.muts.length) % D.muts.length;
+  return { number: day + 1, map: D.maps[mi], mut: D.muts[ri] };
+};
+const now = new Date();
+const today = infoOf(now);
+$('todayNo').textContent = '#' + today.number;
+$('todayMap').textContent = today.map.name;
+$('todayMut').textContent = today.mut.label;
+
+const key = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
+  + '-' + String(now.getDate()).padStart(2, '0');
+let rec = null;
+try {
+  const saved = JSON.parse(localStorage.getItem('tw-play-record-v1'));
+  rec = saved && saved.daily && saved.daily[key];
+} catch (e) { /* 隐私模式 */ }
+if (!rec) $('best').textContent = D.s.bestNone;
+else if (rec.won > 0) $('best').textContent = D.s.bestWin.replace('{t}', (rec.bestMs / 1000).toFixed(1));
+else $('best').textContent = D.s.bestLoss;
+
+const head = '<tr><th>' + D.s.colDate + '</th><th>' + D.s.colNo + '</th><th>'
+  + D.s.colMap + '</th><th>' + D.s.colRule + '</th></tr>';
+const rows = [];
+for (let i = 0; i < 7; i++) {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+  const info = infoOf(d);
+  const date = String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  rows.push('<tr' + (i === 0 ? ' class="is-today"' : '') + '><td>' + date
+    + (i === 0 ? '<span class="daily-badge">' + D.s.todayTag + '</span>' : '')
+    + '</td><td>#' + info.number + '</td><td>' + info.map.name + '</td><td>'
+    + info.mut.label + '</td></tr>');
+}
+$('schedule').innerHTML = '<table class="schedule"><thead>' + head + '</thead><tbody>'
+  + rows.join('') + '</tbody></table>';
+</script>
+</body>
+</html>
+`;
+}
+
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const fill = (page) => page.replace('__DATA__', JSON.stringify(data)).replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN);
 fs.writeFileSync(OUT_FILE, fill(withPwa(
@@ -940,6 +1142,31 @@ fs.writeFileSync(zhIndexFile, fill(withPwa(
 if (fs.statSync(OUT_FILE).size === 0 || fs.statSync(zhIndexFile).size === 0) {
   throw new Error('index page empty');
 }
+
+// 每日挑战落地页（中英）：稳定的分享 URL + 7 天日程 + 今日本地最佳
+const dailyPages = [];
+for (const lang of ['en', 'zh']) {
+  const name = lang === 'zh' ? 'daily.zh.html' : 'daily.html';
+  const html = dailyPage(lang)
+    .replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN)
+    .replace('</footer>', `${shareRow(
+      `${PUBLIC_ORIGIN}/${name}`,
+      DAILY_STRINGS[lang].shareText,
+      lang === 'zh' ? '分享' : 'Share',
+    )}\n</footer>`);
+  const built = withPwa(html, gameJsonLd(
+    lang,
+    `${PUBLIC_ORIGIN}/${name}`,
+    DAILY_STRINGS[lang].description,
+  ));
+  fs.writeFileSync(path.join(OUT_DIR, name), built, 'utf8');
+  if (!built.includes('play.html?daily=1') || !built.includes('id="schedule"')
+    || !built.includes('twitter.com/intent/tweet')) {
+    throw new Error(`daily page invalid: ${name}`);
+  }
+  dailyPages.push(name);
+}
+
 fs.writeFileSync(path.join(OUT_DIR, '.nojekyll'), '', 'utf8');
 fs.copyFileSync(OG_IMAGE_SRC, path.join(OUT_DIR, 'og-image.png')); // 分享卡图片（GitHub Pages 同目录）
 // 完整游戏截图（大厅 / 挖矿 / 副本），首页展示「不止是竞技场」
@@ -988,6 +1215,8 @@ const sitemapUrls = [
   `${PUBLIC_ORIGIN}/sandbox.html`,
   `${PUBLIC_ORIGIN}/benchmark.html`,
   `${PUBLIC_ORIGIN}/benchmark.zh.html`,
+  `${PUBLIC_ORIGIN}/daily.html`,
+  `${PUBLIC_ORIGIN}/daily.zh.html`,
   ...matches.flatMap((_, i) => [matchPageUrl(i, 'en'), matchPageUrl(i, 'zh')]),
 ];
 fs.writeFileSync(
@@ -1057,6 +1286,7 @@ const CACHE = `tw-static-${cacheTag}`;
 const CORE = [
   './', './index.html', './index.zh.html', './play.html', './play.js',
   './sandbox.html', './sandbox.js', './benchmark.html', './benchmark.zh.html',
+  './daily.html', './daily.zh.html',
   './replay.js', './og-image.png', './icon-192.png', './icon-512.png',
   './manifest.webmanifest',
 ];

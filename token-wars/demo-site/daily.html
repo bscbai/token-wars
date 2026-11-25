@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Token Wars Daily Challenge — a new map and rule twist every day</title>
+<meta name="description" content="One arena plus one rule twist every day: beat the gatekeeper, keep your best time, share the card — or run your own decide(state) agent on the same challenge.">
+<meta property="og:title" content="Token Wars Daily Challenge — a new map and rule twist every day">
+<meta property="og:description" content="One arena plus one rule twist every day: beat the gatekeeper, keep your best time, share the card — or run your own decide(state) agent on the same challenge.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://bscbai.github.io/token-wars/daily.html">
+<link rel="canonical" href="https://bscbai.github.io/token-wars/daily.html">
+<link rel="alternate" hreflang="en" href="https://bscbai.github.io/token-wars/daily.html">
+<link rel="alternate" hreflang="zh" href="https://bscbai.github.io/token-wars/daily.zh.html">
+<meta property="og:image" content="https://bscbai.github.io/token-wars/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Token Wars Daily Challenge — a new map and rule twist every day">
+<meta name="twitter:description" content="One arena plus one rule twist every day: beat the gatekeeper, keep your best time, share the card — or run your own decide(state) agent on the same challenge.">
+<meta name="twitter:image" content="https://bscbai.github.io/token-wars/og-image.png">
+<link rel="icon" href="./og-image.png" type="image/png">
+<style>
+  :root { --bg:#0a0a1a; --panel:#0f1024; --line:#1d2b3a; --green:#00ff88; --green-dim:#00aa77;
+          --blue:#88aaff; --text:#cfe8dd; --muted:#5f7a71; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { min-height:100vh; color:var(--text); font-family:'Courier New',ui-monospace,monospace;
+         padding:28px 22px 40px;
+         background:
+           linear-gradient(rgba(0,255,136,.04) 1px, transparent 1px) 0 0/40px 40px,
+           linear-gradient(90deg, rgba(0,255,136,.04) 1px, transparent 1px) 0 0/40px 40px, var(--bg); }
+  header, main, footer, .banner { max-width:1000px; margin:0 auto; }
+  header { position:relative; }
+  h1 { font-size:26px; letter-spacing:3px; color:var(--green); }
+  h1::before { content:'▚ '; color:var(--green-dim); }
+  #subtitle { color:var(--muted); font-size:13px; margin-top:6px; }
+  .banner { margin:16px auto; padding:11px 14px; font-size:12px; color:#ffd479;
+            border:1px solid #4a3a1a; background:#1a1508; border-radius:6px; }
+  .banner a { color:var(--green); }
+  main { display:grid; grid-template-columns: 1fr 320px; gap:18px; margin-top:20px; }
+  @media (max-width: 780px) { main { grid-template-columns: 1fr; } }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px; }
+  h2 { font-size:13px; letter-spacing:2px; color:var(--blue); text-transform:uppercase; margin-bottom:12px; }
+  .stage { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; }
+  canvas { background:#06060f; border:1px solid #1b2a24; border-radius:4px; image-rendering:pixelated; }
+  .meta { font-size:12px; color:var(--muted); line-height:1.9; min-width:190px; }
+  .duel { font-size:14px; color:var(--text); }
+  .duel .win { color:#44ff88; font-weight:bold; }
+  .hp { color:var(--text); }
+  .controls { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  button { font:inherit; font-size:12px; padding:6px 11px; cursor:pointer; border-radius:4px;
+           color:var(--green); background:#12251d; border:1px solid var(--green); }
+  button:hover { background:#1b3529; }
+  select { font:inherit; font-size:12px; padding:6px 8px; color:var(--text);
+           background:#06060f; border:1px solid #1b2a24; border-radius:4px; max-width:100%; }
+  .row { display:grid; grid-template-columns:34px 1fr 62px 64px; gap:8px; padding:7px 0;
+         border-bottom:1px dashed #16222c; font-size:13px; }
+  .row:last-child { border-bottom:0; }
+  .row.head { color:var(--muted); font-size:11px; letter-spacing:1px; border-bottom:1px solid var(--line); }
+  .row .rank { color:var(--muted); }
+  .row .name { color:var(--green); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .num { text-align:right; }
+  .row .dim { color:var(--muted); }
+  footer { margin-top:22px; font-size:12px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  footer a { color:var(--green-dim); text-decoration:none; }
+  footer a:hover { color:var(--green); }
+  .join { max-width:1000px; margin:18px auto 0; padding:15px 16px 13px;
+          background:var(--panel); border:1px solid #16352a; border-radius:8px; }
+  .join h2 { color:var(--green); }
+  .join p { font-size:12px; color:var(--muted); line-height:1.8; }
+  .join a { color:var(--green-dim); text-decoration:none; }
+  .join a:hover { color:var(--green); }
+  .join pre { margin:10px 0 8px; padding:10px 12px; background:#06060f; border:1px solid #1b2a24;
+              border-radius:4px; color:var(--text); font:inherit; font-size:12px; overflow-x:auto; }
+  .stats { font-size:11px; color:var(--muted); margin-top:10px; }
+  /* Landing hero（index 专用；单场分享页带了样式也不影响） */
+  .hero { margin-top:8px; position:relative; }
+  .lang-switch { position:absolute; right:0; top:0; font-size:12px; padding:4px 10px;
+                 color:var(--green-dim); border:1px solid #1b3a30; border-radius:4px; text-decoration:none; }
+  .lang-switch:hover { color:var(--green); border-color:var(--green); }
+  .kicker { font-size:11px; letter-spacing:3px; color:var(--green-dim); }
+  .hero h1 { font-size:clamp(30px, 6vw, 46px); letter-spacing:4px; margin-top:8px; }
+  .hero h1 .caret { color:var(--muted); }
+  .tagline { margin-top:10px; font-size:14px; line-height:1.9; color:var(--text); }
+  .tagline b { color:var(--green); font-weight:normal; }
+  .cta { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  .btn { display:inline-block; font-size:13px; padding:9px 16px; border-radius:4px; text-decoration:none;
+         color:var(--green); border:1px solid var(--green); background:#12251d; }
+  .btn:hover { background:#1b3529; }
+  .btn.primary { background:var(--green); color:#04110b; font-weight:bold; }
+  .btn.primary:hover { background:#5cffb0; }
+  .btn.ghost { background:transparent; color:var(--green-dim); border-color:#1b3a30; }
+  .hero-stats { margin-top:12px; font-size:11px; color:var(--muted); letter-spacing:1px; }
+  .daily-strip { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:14px;
+                 padding:10px 14px; border:1px dashed #4a3a1a; border-radius:6px;
+                 background:#1a1508; text-decoration:none; font-size:12px; color:#ffd479; }
+  .daily-strip:hover { border-color:#ffd479; }
+  .daily-strip .tag { font-weight:bold; letter-spacing:1px; }
+  .daily-strip .copy { color:var(--muted); }
+  .daily-strip .go { margin-left:auto; }
+  main#replay { scroll-margin-top:16px; }
+  .note { font-size:12px; color:var(--muted); line-height:1.8; }
+  .note a { color:var(--green-dim); text-decoration:none; }
+  .note a:hover { color:var(--green); }
+  .match-links { margin-top:10px; font-size:11px; color:var(--muted); line-height:2; }
+  .match-links a { color:var(--green-dim); text-decoration:none; margin-right:6px; }
+  .match-links a:hover { color:var(--green); }
+  .start { max-width:1000px; margin:18px auto 0; }
+  .start h2 { color:var(--green); }
+  .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px; }
+  .step { display:block; padding:14px; border:1px solid var(--line); border-radius:8px;
+          background:var(--panel); text-decoration:none; color:var(--text); }
+  .step:hover { border-color:var(--green); }
+  .step .num { font-size:11px; letter-spacing:2px; color:var(--green-dim); }
+  .step b { display:block; margin-top:6px; font-size:13px; color:var(--green); }
+  .step .desc { display:block; margin-top:6px; font-size:11px; color:var(--muted); line-height:1.7; }
+  @media (max-width: 780px) { .steps { grid-template-columns:1fr; } }
+  .gallery { max-width:1000px; margin:18px auto 0; }
+  .gallery h2 { color:var(--green); }
+  .gallery .note { max-width:760px; }
+  .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px; }
+  .shot { margin:0; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .shot img { display:block; width:100%; height:auto; border-bottom:1px solid var(--line); }
+  .shot figcaption { font-size:11px; color:var(--muted); line-height:1.7; padding:8px 10px; }
+  @media (max-width: 780px) { .gallery-grid { grid-template-columns:1fr; } }
+
+  .daily-hero { max-width: 1000px; margin: 8px auto 0; position: relative; }
+  .daily-badge { display:inline-block; padding:1px 7px; margin-left:6px; font-size:10px; letter-spacing:1px;
+                 color:var(--green); border:1px solid #1b3a30; border-radius:4px; vertical-align:middle; }
+  #todayLine { margin-top:10px; font-size:16px; color:var(--text); }
+  #todayLine b { color:var(--green); font-weight:normal; }
+  #best { margin-top:8px; font-size:12px; color:var(--muted); }
+  .schedule { width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
+  .schedule th, .schedule td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); }
+  .schedule th { color:var(--muted); font-weight:normal; letter-spacing:1px; }
+  .schedule tr.is-today td { color:var(--green); }
+  .how { max-width:1000px; margin:18px auto 0; }
+  .how ul { list-style:none; display:grid; gap:6px; font-size:12px; color:var(--muted); line-height:1.8; }
+  .how li::before { content:'▸ '; color:var(--green-dim); }
+</style>
+
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0a0a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Token Wars">
+<link rel="apple-touch-icon" href="./icon-192.png"><style>
+.share-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;
+             font-size:11px; color:var(--muted); }
+.share-row a { color:var(--green-dim); text-decoration:none; border:1px solid #1b3a30;
+               border-radius:4px; padding:3px 9px; }
+.share-row a:hover { color:var(--green); border-color:var(--green); }
+</style><style>
+#installApp { position:fixed; right:14px; bottom:14px; z-index:30; font:inherit; font-size:12px;
+              padding:7px 11px; cursor:pointer; color:#04110b; background:#00ff88;
+              border:1px solid #00ff88; border-radius:4px; box-shadow:0 2px 10px rgba(0,0,0,.45); }
+#installApp[hidden] { display:none; }
+</style>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Token Wars — AI Arena","url":"https://bscbai.github.io/token-wars/daily.html","image":"https://bscbai.github.io/token-wars/og-image.png","description":"One arena plus one rule twist every day: beat the gatekeeper, keep your best time, share the card — or run your own decide(state) agent on the same challenge.","genre":["Strategy","AI"],"gamePlatform":"Web browser","playMode":"SinglePlayer","applicationCategory":"Game","operatingSystem":"Any","inLanguage":"en","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Organization","name":"Token Wars","url":"https://github.com/bscbai/token-wars"},"sameAs":["https://github.com/bscbai/token-wars"]}</script>
+</head>
+<body>
+  <header class="daily-hero">
+    <a class="lang-switch" href="./daily.zh.html" hreflang="zh">中文</a>
+    <div class="kicker">DAILY CHALLENGE</div>
+    <h1>TOKEN WARS<span class="caret">_</span></h1>
+    <p id="todayLine">
+      <b id="todayNo">#1</b>
+      <span id="todayMap"></span> · <span id="todayMut"></span>
+      <span class="daily-badge" id="todayBadge">Today</span>
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="./play.html?daily=1&lang=en">▶ Play today's challenge</a>
+      <a class="btn" href="./sandbox.html?daily=1&lang=en">Run a bot on it</a>
+    </div>
+    <p id="best">Not played today — your best time will appear here.</p>
+  </header>
+
+  <section class="start">
+    <h2>Next 7 days</h2>
+    <div id="schedule"></div>
+  </section>
+
+  <section class="how">
+    <h2>How it works</h2>
+    <ul>
+      <li>Everyone gets the same arena and rule twist that day.</li>
+      <li>Best time and attempts stay in your browser (localStorage).</li>
+      <li>Share result or the card image — friends replay the exact same setup.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <a href="./index.html">Recorded matches</a>
+    <a href="./play.html">Play vs the AI</a>
+    <a href="./sandbox.html">Write an agent</a>
+    <a href="https://github.com/bscbai/token-wars">GitHub</a>
+  <div class="share-row"><span>Share</span><a href="https://twitter.com/intent/tweet?text=Token%20Wars%20daily%20challenge%3A%20one%20map%20and%20one%20rule%20twist%20for%20everyone%2C%20every%20day.%20Beat%20the%20gatekeeper%20and%20share%20your%20card.&url=https%3A%2F%2Fbscbai.github.io%2Ftoken-wars%2Fdaily.html" target="_blank" rel="noopener">X</a><a href="https://www.reddit.com/submit?url=https%3A%2F%2Fbscbai.github.io%2Ftoken-wars%2Fdaily.html&title=Token%20Wars%20daily%20challenge%3A%20one%20map%20and%20one%20rule%20twist%20for%20everyone%2C%20every%20day.%20Beat%20the%20gatekeeper%20and%20share%20your%20card." target="_blank" rel="noopener">Reddit</a><a href="https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fbscbai.github.io%2Ftoken-wars%2Fdaily.html&t=Token%20Wars%20daily%20challenge%3A%20one%20map%20and%20one%20rule%20twist%20for%20everyone%2C%20every%20day.%20Beat%20the%20gatekeeper%20and%20share%20your%20card." target="_blank" rel="noopener">Hacker News</a></div>
+</footer>
+
+<script>
+const D = {"epoch":1767225600000,"maps":[{"id":"data_mine","name":"Data Mine"},{"id":"compute_square","name":"Compute Square"},{"id":"cache_maze","name":"Cache Maze"},{"id":"arena_dome","name":"Arena Dome"},{"id":"data_torrent","name":"Data Torrent"}],"muts":[{"id":"blitz","label":"Blitz 60s"},{"id":"glass","label":"Glass 60 HP"},{"id":"guarded","label":"Shielded foe"},{"id":"fierce","label":"Fierce AI"},{"id":"fragile","label":"Fragile: you 60 HP"}],"s":{"htmlLang":"en","title":"Token Wars Daily Challenge — a new map and rule twist every day","description":"One arena plus one rule twist every day: beat the gatekeeper, keep your best time, share the card — or run your own decide(state) agent on the same challenge.","kicker":"DAILY CHALLENGE","todayLabel":"Today","play":"▶ Play today's challenge","bot":"Run a bot on it","bestNone":"Not played today — your best time will appear here.","bestWin":"Your best today: {t}s.","bestLoss":"Played today — no win yet.","scheduleTitle":"Next 7 days","colDate":"Date","colNo":"#","colMap":"Arena","colRule":"Rule twist","todayTag":"today","howTitle":"How it works","how1":"Everyone gets the same arena and rule twist that day.","how2":"Best time and attempts stay in your browser (localStorage).","how3":"Share result or the card image — friends replay the exact same setup.","shareText":"Token Wars daily challenge: one map and one rule twist for everyone, every day. Beat the gatekeeper and share your card.","otherLang":"中文","otherHref":"./daily.zh.html","footerHome":"Recorded matches","footerPlay":"Play vs the AI","footerBot":"Write an agent","footerGitHub":"GitHub"}};
+const $ = (id) => document.getElementById(id);
+const dayOf = (d) => Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - D.epoch) / 86400000);
+const infoOf = (d) => {
+  const day = dayOf(d);
+  const mi = ((day % D.maps.length) + D.maps.length) % D.maps.length;
+  const ri = ((Math.floor(day / D.maps.length) % D.muts.length) + D.muts.length) % D.muts.length;
+  return { number: day + 1, map: D.maps[mi], mut: D.muts[ri] };
+};
+const now = new Date();
+const today = infoOf(now);
+$('todayNo').textContent = '#' + today.number;
+$('todayMap').textContent = today.map.name;
+$('todayMut').textContent = today.mut.label;
+
+const key = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
+  + '-' + String(now.getDate()).padStart(2, '0');
+let rec = null;
+try {
+  const saved = JSON.parse(localStorage.getItem('tw-play-record-v1'));
+  rec = saved && saved.daily && saved.daily[key];
+} catch (e) { /* 隐私模式 */ }
+if (!rec) $('best').textContent = D.s.bestNone;
+else if (rec.won > 0) $('best').textContent = D.s.bestWin.replace('{t}', (rec.bestMs / 1000).toFixed(1));
+else $('best').textContent = D.s.bestLoss;
+
+const head = '<tr><th>' + D.s.colDate + '</th><th>' + D.s.colNo + '</th><th>'
+  + D.s.colMap + '</th><th>' + D.s.colRule + '</th></tr>';
+const rows = [];
+for (let i = 0; i < 7; i++) {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+  const info = infoOf(d);
+  const date = String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  rows.push('<tr' + (i === 0 ? ' class="is-today"' : '') + '><td>' + date
+    + (i === 0 ? '<span class="daily-badge">' + D.s.todayTag + '</span>' : '')
+    + '</td><td>#' + info.number + '</td><td>' + info.map.name + '</td><td>'
+    + info.mut.label + '</td></tr>');
+}
+$('schedule').innerHTML = '<table class="schedule"><thead>' + head + '</thead><tbody>'
+  + rows.join('') + '</tbody></table>';
+</script>
+<button id="installApp" type="button" hidden>Install app</button>
+<script>
+(function () {
+  var btn = document.getElementById('installApp');
+  if (!btn || !('serviceWorker' in navigator)) return;
+  var deferred = null;
+  function label() {
+    btn.textContent = (document.documentElement.lang || '').indexOf('zh') === 0 ? '安装应用' : 'Install app';
+  }
+  window.addEventListener('beforeinstallprompt', function (event) {
+    event.preventDefault();
+    deferred = event;
+    label();
+    btn.hidden = false;
+  });
+  btn.addEventListener('click', function () {
+    if (!deferred) return;
+    deferred.prompt();
+    var choice = deferred.userChoice;
+    deferred = null;
+    btn.hidden = true;
+    if (choice && choice.then) choice.then(function () {}, function () {});
+  });
+  window.addEventListener('appinstalled', function () { btn.hidden = true; });
+})();
+</script><script>
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>

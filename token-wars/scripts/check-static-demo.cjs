@@ -50,7 +50,7 @@ for (const file of htmlFiles) {
   }
 
   // 双语页必须互相声明 hreflang
-  if (/^(index|benchmark|match-\d+)(\.zh)?\.html$/.test(file)) {
+  if (/^(index|benchmark|daily|match-\d+)(\.zh)?\.html$/.test(file)) {
     const langs = [...html.matchAll(/hreflang="(en|zh)" href="([^"]+)"/g)].map((m) => m[1]);
     if (!langs.includes('en') || !langs.includes('zh')) where('缺少 hreflang 互指');
   }
