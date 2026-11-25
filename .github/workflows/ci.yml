@@ -62,6 +62,8 @@ jobs:
       - working-directory: token-wars
         run: npm run demo:static
       - working-directory: token-wars
+        run: npm run demo:check
+      - working-directory: token-wars
         run: |
           test -s demo-site/index.html
           test -s demo-site/benchmark.html

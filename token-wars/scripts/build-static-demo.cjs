@@ -623,6 +623,7 @@ function indexPage(lang) {
 <meta property="og:description" content="${S.description}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="__PUBLIC_ORIGIN__/${lang === 'en' ? '' : 'index.zh.html'}">
+<link rel="canonical" href="__PUBLIC_ORIGIN__/${lang === 'en' ? '' : 'index.zh.html'}">
 <link rel="alternate" hreflang="en" href="__PUBLIC_ORIGIN__/">
 <link rel="alternate" hreflang="zh" href="__PUBLIC_ORIGIN__/index.zh.html">
 <meta property="og:image" content="__PUBLIC_ORIGIN__/og-image.png">
