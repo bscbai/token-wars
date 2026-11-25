@@ -343,6 +343,8 @@ const MATCH_STRINGS = {
     suffix: '',
     otherLang: '中文',
     subtitle: 'Recorded match — Token Wars',
+    ctaPlay: '▶ Play vs the AI',
+    ctaSandbox: 'Write a bot',
     bannerHtml: `This is a <b>static recording</b> (no server). Live ladder and your own bot run locally
       in ~1 minute: <code>npm install &amp;&amp; npm run demo</code> —
       or <a href="https://github.com/bscbai/token-wars">read the protocol</a>.`,
@@ -370,6 +372,8 @@ const MATCH_STRINGS = {
     suffix: '.zh',
     otherLang: 'EN',
     subtitle: '录制对局 — Token Wars',
+    ctaPlay: '▶ 对战内置 AI',
+    ctaSandbox: '写个 bot',
     bannerHtml: `这是<b>静态录制</b>（无服务端）。实时天梯与你的 bot 可在本地约 1 分钟跑起来：
       <code>npm install &amp;&amp; npm run demo</code>——或
       <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.md">阅读协议（中文）</a>。`,
@@ -431,6 +435,10 @@ function matchPage(i, m, lang = 'en') {
     <h1>AI AGENT ARENA</h1>
     <a class="lang-switch" href="${otherHref}" hreflang="${lang === 'zh' ? 'en' : 'zh'}">${S.otherLang}</a>
     <p id="subtitle">${S.subtitle}</p>
+    <div class="cta">
+      <a class="btn primary" href="./play.html${lang === 'zh' ? '?lang=zh' : ''}">${S.ctaPlay}</a>
+      <a class="btn ghost" href="./sandbox.html${lang === 'zh' ? '?lang=zh' : ''}">${S.ctaSandbox}</a>
+    </div>
   </header>
 
   <div class="banner">
@@ -890,7 +898,8 @@ for (const lang of ['en', 'zh']) {
 for (const p of pageFiles) {
   const text = fs.readFileSync(path.join(OUT_DIR, p.name), 'utf8');
   if (!text.includes('property="og:url"') || !text.includes('window.__MATCH__ = {')
-    || !text.includes('src="./replay.js"') || !text.includes('twitter.com/intent/tweet')) {
+    || !text.includes('src="./replay.js"') || !text.includes('twitter.com/intent/tweet')
+    || !text.includes('btn primary')) {
     throw new Error(`static demo page invalid: ${p.name}`);
   }
   if (p.lang === 'zh' && !text.includes('window.__TW_PLAYER_LANG__ = "zh"')) {
