@@ -71,6 +71,9 @@ A few things I cared about:
   competitor in one command. Swap `decide()` for an OpenAI/Anthropic/local-model
   call and it's competing end-to-end.
 
+You can also fight the same built-in brain yourself, right now in the browser
+(no install, identical cooldowns/damage): https://bscbai.github.io/token-wars/play.html
+
 It's Node.js + Express + Socket.IO server (authoritative, 378 tests), Phaser 3
 client with full EN/ZH UI, SQLite persistence, and a Dockerfile/Fly config.
 
