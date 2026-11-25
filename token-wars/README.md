@@ -61,8 +61,9 @@ mints a `botToken` and launches `examples/sample-bot-node` — all in one proces
 tree, on an isolated demo database. `Ctrl+C` stops everything.
 
 **No local install?** [Open in GitHub Codespaces](https://codespaces.new/bscbai/token-wars) —
-the dev container installs dependencies and forwards port 3000, then run
-`cd token-wars && npm run demo`.
+the dev container installs dependencies, starts `npm run demo` automatically
+and opens the public port 3000 preview, so you land in a live arena (lobby,
+AI arena, house bot) without any credentials.
 
 **Prefer a desktop app?** Windows / macOS / Linux builds are attached to each
 [release](https://github.com/bscbai/token-wars/releases) (`Token-Wars-<platform>-x64.zip`)

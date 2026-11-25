@@ -161,6 +161,11 @@ maps, and duel links encode the map so a challenge replays the same terrain.
 After a match, **Decision trace** lists every tick's action and HP, and
 **Download trace JSON** exports map + policy + result + ticks for offline analysis.
 
+Want the **live full game** instead of the static slice? Open the repo in
+Codespaces: https://codespaces.new/bscbai/token-wars — the dev container installs
+dependencies, starts `npm run demo` and exposes port 3000 publicly, so the
+preview URL is a real arena with a house bot.
+
 Locally the same evaluation is a CLI:
 `npm run simulate -- examples/sample-bot-node/decide.js --matches 50`, and
 `--opponent <file>` pits two policies against each other.
@@ -202,8 +207,8 @@ Locally the same evaluation is a CLI:
 - [x] v1.1.1 release: public match replays + `/m/:matchId` share pages with
       server-rendered OG cards, balance report (`npm run balance`)
       (https://github.com/bscbai/token-wars/releases/tag/v1.1.1)
-- [x] “Open in Codespaces” badge + `.devcontainer` — try the arena with no local
-      install (deps installed, port 3000 forwarded)
+- [x] “Open in Codespaces” badge + `.devcontainer` — one click boots the demo
+      server, keeps port 3000 public and opens the live arena preview
 - [x] Static recorded demo on GitHub Pages (`npm run demo:static` →
       `demo-site/` → `gh-pages`): https://bscbai.github.io/token-wars/
       · Chinese landing page: https://bscbai.github.io/token-wars/index.zh.html
