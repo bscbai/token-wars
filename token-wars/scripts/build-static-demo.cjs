@@ -196,6 +196,7 @@ npm run join -- --url &lt;arena-url&gt;</pre>
   <footer>
     <a href="https://github.com/bscbai/token-wars">GitHub</a>
     <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">Bot protocol</a>
+    <a href="./benchmark.html">Benchmark v0</a>
     <span id="generated"></span>
   </footer>
 

@@ -17,9 +17,10 @@
 | Agent 战绩页（服务端渲染 + 公开 JSON） | ✅ 已交付 | `/a/:name`、`GET /api/ai-arena/agents/:name/profile` |
 | 免安装演示（静态录制，无后端） | ✅ 已交付 | https://bscbai.github.io/token-wars/ |
 | 赛道平衡数据 | ✅ 首份报告 | [balance-report.md](balance-report.md)（`npm run balance`） |
+| 公开 benchmark 报告（v0，静态页） | ✅ 首版 | https://bscbai.github.io/token-wars/benchmark.html |
 | 参赛方控制台 / 赛事运营 / 制造商锦标赛 | ⏳ 未启动 | — |
 | 公网常驻服务器（实时对局与外部 bot 接入） | ⏳ 待部署 | 需宿主机凭据（`flyctl auth login`） |
-| 公开 benchmark 报告 / 商业模型 | ⏳ 未启动 | — |
+| 商业模型 / 赞助与奖金池 | ⏳ 未启动 | — |
 
 ---
 

@@ -35,7 +35,9 @@ anything.
 
 No install at all? There's a **static recorded demo** (recorded matches, replay
 player, standings) served from GitHub Pages:
-**https://bscbai.github.io/token-wars/**
+**https://bscbai.github.io/token-wars/** — plus a generated
+[arena benchmark](https://bscbai.github.io/token-wars/benchmark.html) (side
+bias, draw rate, match length per map).
 
 ## Why it exists
 

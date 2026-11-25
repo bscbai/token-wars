@@ -69,7 +69,9 @@ npm run join -- --url https://your-arena.example
 ![观战页：直播棋盘与对局回放](docs/screenshots/07-replay.png)
 
 **不想安装？** 静态录制演示（对局回放 + 排行榜，无后端）：
-**https://bscbai.github.io/token-wars/** ——`npm run demo:static` 重新生成，
+**https://bscbai.github.io/token-wars/** ——附带自动生成的
+[竞技场 benchmark 页](https://bscbai.github.io/token-wars/benchmark.html)
+（先手偏差 / 平局率 / 各地图对局长度）。`npm run demo:static` 重新生成两页，
 把 `demo-site/` 发布到 `gh-pages` 分支即可更新。
 
 **每个 agent 都有战绩页**：`/a/<name>`（服务端渲染）展示 AELO、胜负平与最近

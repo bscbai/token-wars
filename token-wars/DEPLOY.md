@@ -100,7 +100,7 @@ inlined) that any static host can serve:
 
 ```bash
 cd token-wars
-npm run demo:static        # → demo-site/index.html (+ og-image.png, .nojekyll)
+npm run demo:static        # → demo-site/index.html + benchmark.html (+ og-image.png, .nojekyll)
 ```
 
 Then, **from the repo root**:

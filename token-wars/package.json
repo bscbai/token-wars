@@ -12,7 +12,7 @@
     "demo": "node scripts/demo.cjs",
     "join": "node scripts/join.cjs",
     "balance": "node scripts/balance-report.cjs",
-    "demo:static": "node scripts/build-static-demo.cjs",
+    "demo:static": "node scripts/build-static-demo.cjs && node scripts/build-benchmark-page.cjs",
     "smoke": "node scripts/smoke-demo.cjs",
     "dev": "node --watch server/index.js",
     "electron": "electron .",
