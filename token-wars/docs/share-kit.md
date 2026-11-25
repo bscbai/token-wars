@@ -1,7 +1,9 @@
 ﻿# Token Wars — Global Launch Kit
 
 Ready-to-use materials for sharing Token Wars with AI enthusiasts worldwide.
-Repo: https://github.com/bscbai/token-wars · Live demo: _<fill after deploy>_
+Repo: https://github.com/bscbai/token-wars
+Static demo (always up): https://bscbai.github.io/token-wars/
+Realtime server: _<fill after `flyctl deploy` / any host>_
 
 ---
 
@@ -31,12 +33,25 @@ Repo: https://github.com/bscbai/token-wars · Live demo: _<fill after deploy>_
    queryable via REST — claims about your model are verifiable, not vibes.
 4. Server-authoritative: no client can cheat movement/cooldowns/damage/costs.
 
+### Fact sheet (for newsletters / press / curators)
+
+- **Name**: Token Wars
+- **Genre**: real-time 1v1 AI arena (browser + desktop)
+- **Platform**: any modern browser; Windows/macOS/Linux zips on Releases
+- **Price**: free; MIT-licensed source
+- **Languages**: English and 中文
+- **Modes**: human vs built-in AI · AI-agent vs AI-agent ladder · browser bot sandbox
+- **Runs**: static demo on GitHub Pages (no server) · full game locally or in Codespaces
+- **Tech**: Node.js + Express + Socket.IO (server-authoritative), Phaser 3, SQLite
+- **Links**: play / sandbox / replays / benchmark / GitHub (see §3)
+
 ## 2. Repo metadata (set manually on GitHub)
 
 - **Description**: Bring your own AI agent to a cyberpunk PvP arena — 20 Hz bot
   protocol, parity rules, full decision telemetry. Humans and agents, one game.
-- **Topics**: `ai` `llm` `multiplayer` `game` `phaser` `nodejs` `socket-io`
+- **Topics** (15): `ai` `llm` `multiplayer` `game` `phaser` `nodejs` `socket-io`
   `ai-agents` `competitive-programming` `cyberpunk` `bot-framework`
+  `ai-arena` `browser-game` `indie-game` `pwa`
 - **Website**: https://bscbai.github.io/token-wars/ (set on the repo — the
   playable static demo, not a placeholder)
 - **Discussions**: enabled; the launch note is pinned at
@@ -146,9 +161,14 @@ before posting.)
 > Then bring your own agent: https://github.com/bscbai/token-wars
 >
 > The page is bilingual (header toggle or `?lang=zh`), so the same link works
-> for English- and Chinese-speaking friends. It also keeps a local record
-> (wins/losses, streak, fastest win) in the browser, and **Share result** copies
-> a ready-to-post line with both the play and sandbox links.
+> for English- and Chinese-speaking friends. First visit shows a short how-to and
+> pauses the match until you're ready. It keeps a local record (wins/losses,
+> streak, fastest win) in the browser, and **Share result** copies a ready-to-post
+> line with both the play and sandbox links.
+>
+> It is also an installable PWA: an **Install app** button appears when the
+> browser supports it, and the play/sandbox pages keep working offline after the
+> first visit.
 
 If you'd rather write code than press keys:
 https://bscbai.github.io/token-wars/sandbox.html — a `decide(state)` editor
@@ -165,6 +185,32 @@ maps, and duel links encode the map so a challenge replays the same terrain.
 which makes generalization gaps obvious.
 After a match, **Decision trace** lists every tick's action and HP, and
 **Download trace JSON** exports map + policy + result + ticks for offline analysis.
+**Copy LLM prompt** copies the full spec (state shape, legal actions, timeout
+rules, strategy hints) for ChatGPT/Claude, and the sandbox accepts the fenced
+code block it returns. **Simulate 50** also prints the Balanced preset's win rate
+on the same map as a baseline, and **Simulate all 5 maps** runs the same
+comparison against the gatekeeper per map (20 matches each), so "80% wins" has
+context.
+
+### Short posts (copy-paste)
+
+**X / single post**
+> Built Token Wars: a browser arena where you fight the AI yourself, or write a
+> decide(state) bot and watch it fight. Same server rules for both. Free, no
+> install, installable as a PWA, works offline after first load:
+> https://bscbai.github.io/token-wars/play.html
+
+**X / bot angle**
+> Give your LLM a body: Token Wars is a 1v1 grid arena with a decide(state) API.
+> The sandbox copies a ready prompt for ChatGPT/Claude, simulates 50 matches,
+> scores your policy on all 5 maps, and exports a runnable Node bot:
+> https://bscbai.github.io/token-wars/sandbox.html
+
+**Discord / forum blurb**
+> Token Wars — cyberpunk 1v1 arena, human vs built-in AI in the browser, plus a
+> bot sandbox with the real protocol. No signup: play _<play url>_, write a bot
+> _<sandbox url>_, watch replays _<demo url>_. Feedback welcome:
+> https://github.com/bscbai/token-wars
 
 Want the **live full game** instead of the static slice? Open the repo in
 Codespaces: https://codespaces.new/bscbai/token-wars — the dev container installs
@@ -237,5 +283,22 @@ Locally the same evaluation is a CLI:
 - [x] Desktop builds (Windows/macOS/Linux zips) attached to releases by the
       `Desktop release` workflow (tag push or manual dispatch; unsigned, no
       installer) — a no-Node download path for non-technical players
-- [ ] README demo URL filled in both README.md and README.zh-CN.md
+- [x] v1.30.0: five-map simulation vs the gatekeeper (per-map win rates),
+      sandbox baseline, LLM prompt copy, first-visit how-to, PWA install +
+      offline, X/Reddit/HN share buttons, CI checks OG/canonical/links on all
+      46 pages (`npm run demo:check`)
+- [ ] Realtime URL (Fly/Render/Codespaces) filled into §1/§3 and both READMEs
+- [ ] One external match on the live server captured for the post-launch loop
+
+### 5-minute pre-post check
+
+1. Open `/`, `/play.html`, `/sandbox.html`, `/match-01.html` on a phone —
+   no horizontal scroll, no console errors.
+2. Paste each link into the target composer and confirm the preview card renders.
+3. Run `npm run demo:static && npm run demo:check` (or check the latest CI run
+   is green) before linking a just-deployed tag.
+4. Re-read the release notes of the tag you are linking; they must mention play,
+   sandbox and the desktop zips.
+5. If the community requires it, post in the showcase thread first, then the
+   standalone post.
 
