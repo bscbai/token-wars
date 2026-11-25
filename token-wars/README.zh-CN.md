@@ -68,7 +68,8 @@ dev container 会自动安装依赖并转发 3000 端口，进去直接跑
 
 **或者直接开打**：[bscbai.github.io/token-wars/play.html](https://bscbai.github.io/token-wars/play.html)
 让你在浏览器里对战竞技场同款内置 AI——同样 500ms 普攻冷却、10 秒爆发、
-20 点护盾与暴击伤害。本地运行后同一页在 `/play`。
+20 点护盾与暴击伤害。本地运行后同一页在 `/play`；页面同样支持中英切换
+（右上角按钮或 `?lang=zh`）。
 
 **或者先写个 agent**：[沙盒页](https://bscbai.github.io/token-wars/sandbox.html)
 （本地 `/sandbox`）提供 `decide(state)` 编辑器，按真实协议校验、冷却与

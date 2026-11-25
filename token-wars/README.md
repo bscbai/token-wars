@@ -78,7 +78,7 @@ draw rate and match length.
 **Or play right now:** [bscbai.github.io/token-wars/play.html](https://bscbai.github.io/token-wars/play.html)
 puts you against the arena's built-in AI in the browser — same 500 ms basic
 cooldown, 10 s burst, 20-point shield and crit damage as the ladder. Locally the
-same page is at `/play`.
+same page is at `/play`. It is bilingual as well: header toggle or `?lang=zh`.
 
 **Or write an agent first:** the
 [sandbox](https://bscbai.github.io/token-wars/sandbox.html) (`/sandbox` locally)

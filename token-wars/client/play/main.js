@@ -26,6 +26,93 @@ const CELL = 24;
 const MAP = AI_MAPS.DATA_MINE;
 const brain = new BuiltinBrain();
 
+const I18N = {
+  en: {
+    subtitle: "Human vs the arena's built-in AI — same rules, in your browser.",
+    banner: `This is a playable slice, not the full game. The opponent is the exact
+      <code>BuiltinBrain</code> that competes on the arena ladder, with the same
+      500&nbsp;ms basic cooldown, 10&nbsp;s burst, 3&nbsp;s dash, 20-point shield and
+      12%&nbsp;crit damage. The complete game (mining, ladder, bots) runs locally with
+      <code>npm start</code>. <a href="./index.html">Watch recorded matches →</a>
+      · <a href="./sandbox.html">Write an agent →</a>`,
+    match: 'Match',
+    you: 'YOU',
+    skillAttack: 'J Attack',
+    skillBurst: 'K Burst',
+    skillShield: 'L Shield',
+    skillDash: '␣ Dash',
+    restart: 'Restart (R)',
+    controlsNote: `<b>WASD / arrows</b> move · <b>J</b> attack (range ≤ 2) · <b>K</b> burst
+      (1.5×, 10 s) · <b>L</b> shield (absorbs 20) · <b>Space</b> dash toward the
+      enemy · <b>R</b> restart. Touch: use the pad and buttons above.`,
+    agentNote: `Because the AI is the same code as the server, this is also the fastest
+      way to feel what a bot opponent is like before you
+      <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">write your own</a>.`,
+    footerMatches: 'Recorded matches',
+    footerAgent: 'Write an agent',
+    footerBenchmark: 'Benchmark v0',
+    footerProtocol: 'Bot protocol',
+    padAria: 'movement',
+    up: 'up',
+    left: 'left',
+    down: 'down',
+    right: 'right',
+    resultWin: 'YOU WIN',
+    resultLoss: 'GATEKEEPER WINS',
+    resultDraw: 'DRAW',
+    hintAttack: 'Attack needs range ≤ 2',
+    hintBurst: 'Burst needs range ≤ 2',
+  },
+  zh: {
+    subtitle: '人类 vs 竞技场内置 AI——同一套规则，全部在浏览器里。',
+    banner: `这是可玩的切片，不是完整游戏。对手是竞技场天梯上同一个
+      <code>BuiltinBrain</code>，500&nbsp;ms 普攻冷却、10&nbsp;s 爆发、3&nbsp;s 冲刺、
+      20 点护盾、12%&nbsp;暴击伤害完全一致。完整游戏（挖矿、排位、bot）可在本地
+      <code>npm start</code> 运行。<a href="./index.html">看录制对局 →</a>
+      · <a href="./sandbox.html">写个 agent →</a>`,
+    match: '对局',
+    you: '你',
+    skillAttack: 'J 普攻',
+    skillBurst: 'K 爆发',
+    skillShield: 'L 护盾',
+    skillDash: '␣ 冲刺',
+    restart: '重开 (R)',
+    controlsNote: `<b>WASD / 方向键</b> 移动 · <b>J</b> 普攻（距离 ≤ 2）· <b>K</b> 爆发
+      （1.5×，10 s）· <b>L</b> 护盾（吸收 20）· <b>空格</b> 向敌方冲刺 · <b>R</b> 重开。
+      触屏：用上方方向键和技能按钮。`,
+    agentNote: `对手与服务端是同一份代码，所以这也是在
+      <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">写自己的 agent</a>
+      之前，最快感受 bot 对手的方式。`,
+    footerMatches: '录制对局',
+    footerAgent: '写个 agent',
+    footerBenchmark: '基准测试 v0',
+    footerProtocol: 'Bot 协议',
+    padAria: '方向',
+    up: '上',
+    left: '左',
+    down: '下',
+    right: '右',
+    resultWin: '你赢了',
+    resultLoss: 'GATEKEEPER 获胜',
+    resultDraw: '平局',
+    hintAttack: '普攻需要距离 ≤ 2',
+    hintBurst: '爆发需要距离 ≤ 2',
+  },
+};
+
+function initialLang() {
+  const q = new URLSearchParams(location.search).get('lang');
+  if (q === 'zh' || q === 'en') return q;
+  try {
+    const stored = localStorage.getItem('tw-play-lang');
+    if (stored === 'zh' || stored === 'en') return stored;
+  } catch { /* 隐私模式忽略 */ }
+  return (navigator.language || 'en').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+}
+
+let lang = initialLang();
+const t = (key) => (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
+
 const ui = {};
 let you = null;
 let enemy = null;
@@ -34,6 +121,7 @@ let ended = false;
 let timer = null;
 let elapsed = 0;
 let held = new Set();
+let lastResult = null;
 
 function isWalkable(x, y) {
   if (x < 0 || y < 0 || x >= MAP.width || y >= MAP.height) return false;
@@ -61,6 +149,7 @@ function reset() {
   elapsed = 0;
   ended = false;
   running = true;
+  lastResult = null;
   ui.result.textContent = '';
   ui.result.classList.remove('show');
   start();
@@ -115,7 +204,7 @@ function playerAct(now) {
 
 function tryAttack(now) {
   if (!running || ended) return;
-  if (dist(you, enemy) > 2) return flashHint('Attack needs range ≤ 2');
+  if (dist(you, enemy) > 2) return flashHint('hintAttack');
   if (you.skillOnCooldown('basic_attack', now)) return;
   you.useSkill('basic_attack', now, 1);
   const dmg = rollArenaDamage(you.atk, 1.0, enemy.def);
@@ -126,7 +215,7 @@ function tryAttack(now) {
 
 function tryBurst(now) {
   if (!running || ended) return;
-  if (dist(you, enemy) > 2) return flashHint('Burst needs range ≤ 2');
+  if (dist(you, enemy) > 2) return flashHint('hintBurst');
   if (you.skillOnCooldown('token_burst', now)) return;
   you.useSkill('token_burst', now, 3);
   const dmg = rollArenaDamage(you.atk, 1.5, enemy.def);
@@ -158,8 +247,8 @@ function tryDash(now) {
 }
 
 let hintTimer = null;
-function flashHint(text) {
-  ui.hint.textContent = text;
+function flashHint(key) {
+  ui.hint.textContent = t(key);
   if (hintTimer) clearTimeout(hintTimer);
   hintTimer = setTimeout(() => { ui.hint.textContent = ''; }, 1200);
 }
@@ -198,11 +287,17 @@ function finish(result) {
   ended = true;
   running = false;
   stop();
-  const text = result === 'win' ? 'YOU WIN' : (result === 'loss' ? 'GATEKEEPER WINS' : 'DRAW');
-  ui.result.textContent = text;
-  ui.result.classList.add('show');
-  ui.result.dataset.result = result;
+  lastResult = result;
+  renderResult();
   updateHud();
+}
+
+function renderResult() {
+  if (!lastResult) return;
+  const key = lastResult === 'win' ? 'resultWin' : (lastResult === 'loss' ? 'resultLoss' : 'resultDraw');
+  ui.result.textContent = t(key);
+  ui.result.classList.add('show');
+  ui.result.dataset.result = lastResult;
 }
 
 // --- 渲染 -------------------------------------------------------------------
@@ -248,6 +343,7 @@ function draw() {
 function pct(a) { return Math.max(0, Math.round((a.hp / a.maxHp) * 100)); }
 
 function updateHud() {
+  if (!you) return;
   ui.hpYou.textContent = `${pct(you)}`;
   ui.hpEnemy.textContent = `${pct(enemy)}`;
   ui.barYou.style.width = `${pct(you)}%`;
@@ -259,16 +355,31 @@ function updateHud() {
     el.textContent = label;
     el.classList.toggle('ready', ready);
   };
-  pill(ui.skillAttack, 'basic_attack', 'J 普攻');
-  pill(ui.skillBurst, 'token_burst', 'K 爆发');
-  pill(ui.skillShield, 'shield', 'L 护盾');
-  pill(ui.skillDash, 'dodge_roll', '␣ 冲刺');
-  ui.shieldTag.textContent = you.shieldActive ? `SHIELD ${you.shield}` : '';
+  pill(ui.skillAttack, 'basic_attack', t('skillAttack'));
+  pill(ui.skillBurst, 'token_burst', t('skillBurst'));
+  pill(ui.skillShield, 'shield', t('skillShield'));
+  pill(ui.skillDash, 'dodge_roll', t('skillDash'));
+  ui.shieldTag.textContent = you.shieldActive
+    ? (lang === 'zh' ? `护盾 ${you.shield}` : `SHIELD ${you.shield}`)
+    : '';
 }
 
 function formatClock(ms) {
   const s = Math.ceil(ms / 1000);
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function applyLang(next) {
+  if (next === 'zh' || next === 'en') lang = next;
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+  ui.lang.textContent = lang === 'zh' ? 'EN' : '中文';
+  ui.lang.setAttribute('aria-label', lang === 'zh' ? 'Switch to English' : '切换到中文');
+  ui.hint.textContent = '';
+  renderResult();
+  updateHud();
 }
 
 // --- 输入 -------------------------------------------------------------------
@@ -328,13 +439,20 @@ function boot() {
     skillBurst: $('skillBurst'),
     skillShield: $('skillShield'),
     skillDash: $('skillDash'),
+    lang: $('lang'),
     padUp: $('padUp'),
     padDown: $('padDown'),
     padLeft: $('padLeft'),
     padRight: $('padRight'),
   });
   bindInput();
+  ui.lang.addEventListener('click', () => {
+    const next = lang === 'zh' ? 'en' : 'zh';
+    try { localStorage.setItem('tw-play-lang', next); } catch { /* 隐私模式忽略 */ }
+    applyLang(next);
+  });
   reset();
+  applyLang();
 }
 
 if (document.readyState === 'loading') {
