@@ -163,8 +163,9 @@ before posting.)
 > The page is bilingual (header toggle or `?lang=zh`), so the same link works
 > for English- and Chinese-speaking friends. First visit shows a short how-to and
 > pauses the match until you're ready. It keeps a local record (wins/losses,
-> streak, fastest win) in the browser, and **Share result** copies a ready-to-post
-> line with both the play and sandbox links.
+> streak, fastest win) in the browser, all five arena maps are selectable, and
+> each map shows its own win/loss record; **Share result** copies a
+> ready-to-post line with both the play and sandbox links.
 >
 > It is also an installable PWA: an **Install app** button appears when the
 > browser supports it, and the play/sandbox pages keep working offline after the

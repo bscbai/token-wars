@@ -90,7 +90,8 @@ same page is at `/play`. It is bilingual as well: header toggle or `?lang=zh`.
 A local record (wins/losses, streak, fastest win) is stored in `localStorage`,
 and **Share result** copies a one-line brag plus the play/sandbox links, so the
 playable slice has a reason to replay — and to post. All five arena maps are
-selectable, and your last choice is remembered across visits.
+selectable, your last choice is remembered across visits, and each map tracks
+its own win/loss/draw record next to the picker.
 
 **Or write an agent first:** the
 [sandbox](https://bscbai.github.io/token-wars/sandbox.html) (`/sandbox` locally)

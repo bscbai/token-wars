@@ -159,6 +159,7 @@ const FMT = {
       + (r.best ? ` · fastest ${r.best}s` : ''),
     resultStats: (o) => `${o.time}s · ${o.wins}W–${o.losses}L${o.draws ? `–${o.draws}D` : ''}`
       + (o.newBest ? ' · NEW BEST' : ''),
+    mapRecord: (r) => `${r.wins}W–${r.losses}L${r.draws ? `–${r.draws}D` : ''}`,
     shareText: (o) => {
       const score = `${o.wins}W–${o.losses}L${o.draws ? `–${o.draws}D` : ''}`;
       const line = o.result === 'win'
@@ -175,6 +176,7 @@ const FMT = {
       + (r.best ? ` · 最快 ${r.best}秒` : ''),
     resultStats: (o) => `${o.time}秒 · ${o.wins}胜–${o.losses}负${o.draws ? `–${o.draws}平` : ''}`
       + (o.newBest ? ' · 新纪录' : ''),
+    mapRecord: (r) => `${r.wins}胜${r.losses}负${r.draws ? `${r.draws}平` : ''}`,
     shareText: (o) => {
       const score = `${o.wins}胜–${o.losses}负${o.draws ? `–${o.draws}平` : ''}`;
       const line = o.result === 'win'
@@ -192,12 +194,18 @@ const PLAY_URL = 'https://bscbai.github.io/token-wars/play.html';
 const SANDBOX_URL = 'https://bscbai.github.io/token-wars/sandbox.html';
 
 const RECORD_KEY = 'tw-play-record-v1';
-const defaultRecord = () => ({ wins: 0, losses: 0, draws: 0, streak: 0, bestStreak: 0, bestWinMs: null });
+const defaultRecord = () => ({
+  wins: 0, losses: 0, draws: 0, streak: 0, bestStreak: 0, bestWinMs: null, byMap: {},
+});
 
 function loadRecord() {
   try {
     const parsed = JSON.parse(localStorage.getItem(RECORD_KEY));
-    if (parsed && typeof parsed.wins === 'number') return { ...defaultRecord(), ...parsed };
+    if (parsed && typeof parsed.wins === 'number') {
+      const merged = { ...defaultRecord(), ...parsed };
+      if (!merged.byMap || typeof merged.byMap !== 'object') merged.byMap = {};
+      return merged;
+    }
   } catch { /* 隐私模式/损坏数据 */ }
   return defaultRecord();
 }
@@ -216,6 +224,11 @@ function updateRecordLine() {
     ...record,
     best: record.bestWinMs ? secs(record.bestWinMs) : null,
   });
+}
+
+function updateMapRecord() {
+  if (!ui.mapRecord) return;
+  ui.mapRecord.textContent = f('mapRecord', record.byMap[MAP.id] || { wins: 0, losses: 0, draws: 0 });
 }
 
 // 首访操作说明：暂停比赛，关掉后继续；之后可从页脚「操作说明」再打开
@@ -308,6 +321,7 @@ function reset() {
   draw();
   updateHud();
   updateRecordLine();
+  updateMapRecord();
 }
 
 function start() {
@@ -467,6 +481,16 @@ function finish(result) {
   } else {
     record.draws++;
   }
+  const bucket = record.byMap[MAP.id] || { wins: 0, losses: 0, draws: 0, bestWinMs: null };
+  if (result === 'win') {
+    bucket.wins++;
+    if (!bucket.bestWinMs || ms < bucket.bestWinMs) bucket.bestWinMs = ms;
+  } else if (result === 'loss') {
+    bucket.losses++;
+  } else {
+    bucket.draws++;
+  }
+  record.byMap[MAP.id] = bucket;
   saveRecord();
   lastResult = result;
   lastOutcome = {
@@ -476,6 +500,7 @@ function finish(result) {
   };
   renderResult();
   updateRecordLine();
+  updateMapRecord();
   updateHud();
   ui.share.hidden = false;
 }
@@ -581,6 +606,7 @@ function applyLang(next) {
   populateMaps();
   renderResult();
   updateRecordLine();
+  updateMapRecord();
   updateHud();
 }
 
@@ -655,6 +681,7 @@ function boot() {
     skillDash: $('skillDash'),
     lang: $('lang'),
     mapSelect: $('mapSelect'),
+    mapRecord: $('mapRecord'),
     padUp: $('padUp'),
     padDown: $('padDown'),
     padLeft: $('padLeft'),
