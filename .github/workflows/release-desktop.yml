@@ -47,21 +47,22 @@ jobs:
           cache: 'npm'
           cache-dependency-path: token-wars/package-lock.json
 
-      # Electron 的二进制由 postinstall 下载，偶发 503；重试并确认 dist 存在
-      - name: Install dependencies (retry Electron download)
+      - name: Install dependencies
+        working-directory: token-wars
+        run: npm ci
+
+      # electron-packager 在本地没有 Electron 二进制时会自行下载（偶发 503），
+      # 因此整步重试，而不是只重试 npm ci。
+      - name: Package (retry Electron download)
         working-directory: token-wars
         shell: bash
         run: |
           for attempt in 1 2 3; do
-            if npm ci; then break; fi
-            echo "npm ci failed (attempt $attempt) — retrying"
-            sleep 10
+            if node scripts/build-electron.js --${{ matrix.target }}; then exit 0; fi
+            echo "packaging failed (attempt $attempt) — retrying"
+            sleep 20
           done
-          test -d node_modules/electron/dist
-
-      - name: Package
-        working-directory: token-wars
-        run: node scripts/build-electron.js --${{ matrix.target }}
+          exit 1
 
       - name: Zip (unix)
         if: runner.os != 'Windows'
