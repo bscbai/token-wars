@@ -72,6 +72,9 @@
   .restart { margin-top:12px; font:inherit; font-size:12px; padding:7px 12px; cursor:pointer;
              color:var(--green); background:#12251d; border:1px solid var(--green); border-radius:4px; }
   .restart:hover { background:#1b3529; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .actions .restart { margin-top:0; flex:1 1 auto; }
+  #share[hidden] { display:none; }
   .pad { display:grid; grid-template-columns:repeat(3, 46px); grid-template-rows:repeat(2, 40px);
          gap:6px; margin-top:14px; }
   .pad button { font:inherit; font-size:15px; cursor:pointer; color:var(--green-dim);
@@ -87,6 +90,13 @@
   .note a:hover { color:var(--green); }
   footer { margin-top:18px; font-size:12px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
 </style>
+
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0a0a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Token Wars">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Token Wars — AI Arena","url":"https://bscbai.github.io/token-wars/play.html","image":"https://bscbai.github.io/token-wars/og-image.png","description":"Fight the Token Wars arena AI in your browser — same cooldowns, shields and crit rolls as the ladder. No install.","genre":["Strategy","AI"],"gamePlatform":"Web browser","playMode":"SinglePlayer","applicationCategory":"Game","operatingSystem":"Any","inLanguage":"en","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Organization","name":"Token Wars","url":"https://github.com/bscbai/token-wars"},"sameAs":["https://github.com/bscbai/token-wars"]}</script>
 </head>
 <body>
   <header>
@@ -142,7 +152,10 @@
         <button id="skillDash" type="button" data-i18n="skillDash">␣ Dash</button>
       </div>
       <div id="hint"></div>
-      <button class="restart" id="restart" type="button" data-i18n="restart">Restart (R)</button>
+      <div class="actions">
+        <button class="restart" id="restart" type="button" data-i18n="restart">Restart (R)</button>
+        <button class="restart" id="share" type="button" data-i18n="shareResult" hidden>Share result</button>
+      </div>
 
       <p class="note" data-i18n-html="controlsNote">
         <b>WASD / arrows</b> move · <b>J</b> attack (range ≤ 2) · <b>K</b> burst
@@ -166,5 +179,10 @@
   </footer>
 
 <script src="./play.js"></script>
+<script>
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  }
+</script>
 </body>
 </html>

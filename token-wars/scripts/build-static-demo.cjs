@@ -10,9 +10,12 @@
 
 'use strict';
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { writeIcon } = require('./lib/pwa-icon.cjs');
+const PKG = require('../package.json');
 const { Store } = require('../server/data/Store');
 const Player = require('../server/models/Player');
 const { AIAgent } = require('../server/models/AIAgent');
@@ -22,6 +25,49 @@ const OUT_DIR = path.join(__dirname, '..', 'demo-site');
 const OUT_FILE = path.join(OUT_DIR, 'index.html');
 const OG_IMAGE_SRC = path.join(__dirname, '..', 'client', 'og-image.png');
 const PUBLIC_ORIGIN = 'https://bscbai.github.io/token-wars';
+
+// 可安装 + 离线：manifest、图标、service worker 全部构建时生成（不存二进制素材）
+const PWA_TAGS = `
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0a0a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Token Wars">
+<link rel="apple-touch-icon" href="./icon-192.png">`;
+
+const SW_REGISTER = `<script>
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  }
+</script>`;
+
+/**
+ * 给生成的页面加上 PWA 头与 SW 注册；jsonLd 存在时同时输出结构化数据，
+ * 让搜索引擎和社交平台能识别这是可玩的游戏页。
+ */
+function withPwa(html, jsonLd) {
+  const ld = jsonLd
+    ? `\n<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`
+    : '';
+  return html.replace('</head>', `${PWA_TAGS}${ld}\n</head>`).replace('</body>', `${SW_REGISTER}\n</body>`);
+}
+
+const gameJsonLd = (lang, pageUrl, description) => ({
+  '@context': 'https://schema.org',
+  '@type': 'VideoGame',
+  name: lang === 'zh' ? 'Token Wars — AI 竞技场' : 'Token Wars — AI Arena',
+  url: pageUrl,
+  image: `${PUBLIC_ORIGIN}/og-image.png`,
+  description,
+  genre: ['Strategy', 'AI'],
+  gamePlatform: 'Web browser',
+  playMode: 'SinglePlayer',
+  applicationCategory: 'Game',
+  operatingSystem: 'Any',
+  inLanguage: lang === 'zh' ? 'zh-CN' : 'en',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  author: { '@type': 'Organization', name: 'Token Wars', url: 'https://github.com/bscbai/token-wars' },
+  sameAs: ['https://github.com/bscbai/token-wars'],
+});
 
 const store = new Store(':memory:', { migrate: false });
 const owner = new Player('static-demo-owner');
@@ -743,9 +789,15 @@ select(0);
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const fill = (page) => page.replace('__DATA__', JSON.stringify(data)).replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN);
-fs.writeFileSync(OUT_FILE, fill(indexPage('en')), 'utf8');
+fs.writeFileSync(OUT_FILE, fill(withPwa(
+  indexPage('en'),
+  gameJsonLd('en', `${PUBLIC_ORIGIN}/`, INDEX_STRINGS.en.description),
+)), 'utf8');
 const zhIndexFile = path.join(OUT_DIR, 'index.zh.html');
-fs.writeFileSync(zhIndexFile, fill(indexPage('zh')), 'utf8');
+fs.writeFileSync(zhIndexFile, fill(withPwa(
+  indexPage('zh'),
+  gameJsonLd('zh', `${PUBLIC_ORIGIN}/index.zh.html`, INDEX_STRINGS.zh.description),
+)), 'utf8');
 if (fs.statSync(OUT_FILE).size === 0 || fs.statSync(zhIndexFile).size === 0) {
   throw new Error('index page empty');
 }
@@ -770,7 +822,7 @@ for (const lang of ['en', 'zh']) {
   matches.forEach((m, i) => {
     const name = matchFile(i, lang);
     const file = path.join(OUT_DIR, name);
-    fs.writeFileSync(file, matchPage(i, m, lang), 'utf8');
+    fs.writeFileSync(file, withPwa(matchPage(i, m, lang)), 'utf8');
     pageFiles.push({ name, bytes: fs.statSync(file).size, lang });
   });
 }
@@ -823,12 +875,110 @@ for (const demo of browserDemos) {
     throw new Error(`client/${demo.bundle} 不存在，请先运行 \`npm run play:build\``);
   }
   fs.copyFileSync(bundleSrc, path.join(OUT_DIR, demo.bundle));
-  fs.writeFileSync(
-    path.join(OUT_DIR, demo.page),
-    fs.readFileSync(path.join(__dirname, '..', 'client', demo.page), 'utf8')
-      .replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN),
-    'utf8',
+  const page = fs.readFileSync(path.join(__dirname, '..', 'client', demo.page), 'utf8')
+    .replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN);
+  const jsonLd = demo.page === 'play.html'
+    ? gameJsonLd('en', `${PUBLIC_ORIGIN}/play.html`,
+      'Fight the Token Wars arena AI in your browser — same cooldowns, shields and crit rolls as the ladder. No install.')
+    : {
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      name: 'Token Wars Bot Sandbox',
+      url: `${PUBLIC_ORIGIN}/sandbox.html`,
+      applicationCategory: 'DeveloperApplication',
+      operatingSystem: 'Web browser',
+      description: 'Write a decide(state) policy and fight the arena AI offline under the real protocol rules, then export a runnable Node bot.',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      isPartOf: { '@type': 'VideoGame', name: 'Token Wars', url: `${PUBLIC_ORIGIN}/` },
+    };
+  fs.writeFileSync(path.join(OUT_DIR, demo.page), withPwa(page, jsonLd), 'utf8');
+}
+
+// Service worker：导航走网络优先（新版本立刻生效），静态资源命中缓存后后台更新
+const cacheTag = crypto.createHash('sha256')
+  .update(PKG.version)
+  .update(fs.readFileSync(path.join(OUT_DIR, 'play.js')))
+  .update(fs.readFileSync(path.join(OUT_DIR, 'sandbox.js')))
+  .digest('hex')
+  .slice(0, 10);
+const CACHE = `tw-static-${cacheTag}`;
+const CORE = [
+  './', './index.html', './index.zh.html', './play.html', './play.js',
+  './sandbox.html', './sandbox.js', './benchmark.html', './benchmark.zh.html',
+  './replay.js', './og-image.png', './icon-192.png', './icon-512.png',
+  './manifest.webmanifest',
+];
+fs.writeFileSync(path.join(OUT_DIR, 'sw.js'), `/* Token Wars static shell — generated by scripts/build-static-demo.cjs */
+const CACHE = '${CACHE}';
+const SCOPE = self.registration.scope;
+const CORE = ${JSON.stringify(CORE, null, 2)};
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(CORE)).then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
   );
+});
+
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req)
+        .then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); return res; })
+        .catch(() => caches.match(req).then((hit) => hit || caches.match(SCOPE + 'index.html'))),
+    );
+    return;
+  }
+  event.respondWith(
+    caches.match(req).then((hit) => {
+      const refresh = fetch(req)
+        .then((res) => {
+          if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+          return res;
+        })
+        .catch(() => hit);
+      return hit || refresh;
+    }),
+  );
+});
+`, 'utf8');
+fs.writeFileSync(path.join(OUT_DIR, 'manifest.webmanifest'), `${JSON.stringify({
+  name: 'Token Wars — AI Arena',
+  short_name: 'Token Wars',
+  description: 'Fight the arena AI in your browser, or write a decide(state) bot and duel it offline.',
+  lang: 'en',
+  start_url: './play.html',
+  scope: './',
+  display: 'standalone',
+  background_color: '#0a0a1a',
+  theme_color: '#0a0a1a',
+  categories: ['games', 'developer'],
+  icons: [
+    { src: './icon-192.png', sizes: '192x192', type: 'image/png' },
+    { src: './icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+  ],
+}, null, 2)}\n`, 'utf8');
+writeIcon(path.join(OUT_DIR, 'icon-192.png'), 192);
+writeIcon(path.join(OUT_DIR, 'icon-512.png'), 512);
+
+// PWA 自检：页面引用 manifest + 结构化数据、SW 缓存名一致、图标注册齐全
+const indexHtml = fs.readFileSync(OUT_FILE, 'utf8');
+if (!indexHtml.includes('rel="manifest"') || !indexHtml.includes('application/ld+json')) {
+  throw new Error('index page missing manifest or structured data');
+}
+if (!fs.readFileSync(path.join(OUT_DIR, 'sw.js'), 'utf8').includes(CACHE)) {
+  throw new Error('sw.js cache tag mismatch');
+}
+const manifest = JSON.parse(fs.readFileSync(path.join(OUT_DIR, 'manifest.webmanifest'), 'utf8'));
+if (manifest.icons.length !== 2 || manifest.start_url !== './play.html') {
+  throw new Error('manifest.webmanifest invalid');
 }
 
 console.log(JSON.stringify({

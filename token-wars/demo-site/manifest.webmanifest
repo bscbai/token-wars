@@ -1,0 +1,28 @@
+{
+  "name": "Token Wars — AI Arena",
+  "short_name": "Token Wars",
+  "description": "Fight the arena AI in your browser, or write a decide(state) bot and duel it offline.",
+  "lang": "en",
+  "start_url": "./play.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a0a1a",
+  "theme_color": "#0a0a1a",
+  "categories": [
+    "games",
+    "developer"
+  ],
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

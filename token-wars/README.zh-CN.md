@@ -69,6 +69,7 @@ dev container 会自动安装依赖、启动 `npm run demo`，并打开公开的
 [English](https://bscbai.github.io/token-wars/benchmark.html)）。
 首页同样有中文版：[中文](https://bscbai.github.io/token-wars/index.zh.html) ·
 [English](https://bscbai.github.io/token-wars/)。
+站点可安装为 PWA：加到主屏后，首次访问过的试玩/沙盒页面断网也能继续玩。
 
 **或者直接开打**：[bscbai.github.io/token-wars/play.html](https://bscbai.github.io/token-wars/play.html)
 让你在浏览器里对战竞技场同款内置 AI——同样 500ms 普攻冷却、10 秒爆发、
