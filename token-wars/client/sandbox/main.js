@@ -145,6 +145,7 @@ const I18N = {
     simulate: 'Simulate 50',
     llmPrompt: 'Copy LLM prompt',
     llmCopied: 'Prompt copied — paste it into ChatGPT/Claude, then paste the code back here.',
+    fencesStripped: 'Markdown fences removed — the code inside was used.',
     api: `<b>state</b>: <code>{ tick, timeLeftMs, you:{ x,y,hp,maxHp,shield,shieldActive,skills[{id,cooldownRemaining}] }, enemy:{ x,y,hp,maxHp,visible }, map:{ width,height,obstacles } }</code><br>
       <b>return</b>: <code>{type:'move',x,y}</code> · <code>{type:'attack'}</code> ·
       <code>{type:'skill',id:'token_burst'|'dodge_roll'|'shield'}</code> ·
@@ -223,6 +224,7 @@ const I18N = {
     simulate: '模拟 50 场',
     llmPrompt: '复制 LLM 提示词',
     llmCopied: '提示词已复制——粘到 ChatGPT/Claude，再把生成的代码粘回编辑器。',
+    fencesStripped: '已自动去掉 Markdown 代码围栏，直接使用其中的代码。',
     api: `<b>state</b>：<code>{ tick, timeLeftMs, you:{ x,y,hp,maxHp,shield,shieldActive,skills[{id,cooldownRemaining}] }, enemy:{ x,y,hp,maxHp,visible }, map:{ width,height,obstacles } }</code><br>
       <b>返回</b>：<code>{type:'move',x,y}</code> · <code>{type:'attack'}</code> ·
       <code>{type:'skill',id:'token_burst'|'dodge_roll'|'shield'}</code> ·
@@ -462,8 +464,16 @@ function resetStats() {
   };
 }
 
+// LLM 回复常带 ```js 围栏或前后说明：抽出第一个代码块再编译
+function normalizePolicyCode(src) {
+  const text = (src || '').trim();
+  const fenced = text.match(/```[a-zA-Z0-9+#-]*[ \t]*\r?\n([\s\S]*?)```/);
+  if (fenced) return fenced[1].trim();
+  return text.replace(/^```[a-zA-Z0-9+#-]*[ \t]*\r?\n?/, '').replace(/```[ \t]*$/, '').trim();
+}
+
 function compilePolicy(code = ui.editor.value) {
-  const factory = new Function(`${code}\n;return typeof decide === 'function' ? decide : null;`);
+  const factory = new Function(`${normalizePolicyCode(code)}\n;return typeof decide === 'function' ? decide : null;`);
   const fn = factory();
   if (typeof fn !== 'function') throw new Error(t('decideMissing'));
   return fn;
@@ -473,6 +483,7 @@ function start() {
   stop();
   lastError = '';
   ui.error.textContent = '';
+  if (ui.shareStatus.textContent === t('fencesStripped')) ui.shareStatus.textContent = '';
   ui.result.classList.remove('show');
   ui.resultText.textContent = '';
   lastResult = null;
@@ -492,6 +503,9 @@ function start() {
   resetStats();
   try {
     policy = compilePolicy();
+    if (normalizePolicyCode(ui.editor.value) !== ui.editor.value.trim()) {
+      ui.shareStatus.textContent = t('fencesStripped');
+    }
   } catch (err) {
     running = false;
     lastError = err.message;
@@ -560,7 +574,7 @@ function downloadTrace() {
     map: selectedMap.id,
     result: lastResult,
     reason: lastReasonKey,
-    policy: ui.editor.value,
+    policy: normalizePolicyCode(ui.editor.value),
     stats: { ...stats },
     ticks: trace,
   };
@@ -713,7 +727,7 @@ async function copyLlmPrompt() {
 }
 
 async function copyShareLink() {
-  const code = ui.editor.value;
+  const code = normalizePolicyCode(ui.editor.value);
   if (code.length > MAX_HASH_CHARS) {
     ui.shareStatus.textContent = t('shareTooLarge');
     return;
@@ -729,7 +743,7 @@ async function copyShareLink() {
 }
 
 function downloadAgent() {
-  const src = renderAgentSource(ui.editor.value);
+  const src = renderAgentSource(normalizePolicyCode(ui.editor.value));
   const blob = new Blob([src], { type: 'text/javascript' });
   const href = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -800,8 +814,8 @@ function loadOpponentFromInput() {
 }
 
 function duelUrl() {
-  const code = ui.editor.value;
-  const opp = ui.opponentEditor.value;
+  const code = normalizePolicyCode(ui.editor.value);
+  const opp = normalizePolicyCode(ui.opponentEditor.value);
   if (code.length + opp.length > MAX_HASH_CHARS) return null;
   return `${location.href.split('#')[0]}#code=${encodeCode(code)}&vs=${encodeCode(opp)}&map=${selectedMap.id}`;
 }
