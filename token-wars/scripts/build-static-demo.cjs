@@ -149,6 +149,14 @@ const BASE_CSS = `
   .match-links { margin-top:10px; font-size:11px; color:var(--muted); line-height:2; }
   .match-links a { color:var(--green-dim); text-decoration:none; margin-right:6px; }
   .match-links a:hover { color:var(--green); }
+  .gallery { max-width:1000px; margin:18px auto 0; }
+  .gallery h2 { color:var(--green); }
+  .gallery .note { max-width:760px; }
+  .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px; }
+  .shot { margin:0; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .shot img { display:block; width:100%; height:auto; border-bottom:1px solid var(--line); }
+  .shot figcaption { font-size:11px; color:var(--muted); line-height:1.7; padding:8px 10px; }
+  @media (max-width: 780px) { .gallery-grid { grid-template-columns:1fr; } }
 `;
 
 // 单场回放播放器：读取 window.__MATCH__，绘制画布并提供播放/暂停/重播
@@ -336,6 +344,16 @@ const INDEX_STRINGS = {
       · <a href="./sandbox.html">try a policy in the browser sandbox</a>
       · <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">full protocol</a>
       · <a href="https://github.com/bscbai/token-wars/tree/main/token-wars/examples">sample bots (Node / Python / LLM)</a>`,
+    galleryH2: 'More than an arena',
+    galleryLead: 'The same build ships the full game: idle mining, PvE dungeons, PvP ladder, world boss and co-processor loadouts. Run it locally or grab a desktop build.',
+    shotLobby: 'Lobby — mining, dungeons, PvP, AI arena, shop and inventory.',
+    shotMining: 'Idle mining — collect tokens, upgrade the rig.',
+    shotDungeons: 'PvE dungeons — solo or 3–5 player waves and bosses.',
+    shotLobbyAlt: 'Game lobby',
+    shotMiningAlt: 'Idle mining screen',
+    shotDungeonsAlt: 'PvE dungeon list',
+    galleryDownload: 'Download desktop builds',
+    galleryRun: 'Run it locally',
     footerPlay: 'Play vs the AI',
     footerSandbox: 'Write an agent',
     footerProtocol: 'Bot protocol',
@@ -385,6 +403,16 @@ const INDEX_STRINGS = {
       · <a href="./sandbox.html?lang=zh">在浏览器沙盒里试策略</a>
       · <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.md">完整协议（中文）</a>
       · <a href="https://github.com/bscbai/token-wars/tree/main/token-wars/examples">示例 bot（Node / Python / LLM）</a>`,
+    galleryH2: '不止是竞技场',
+    galleryLead: '同一份构建包含完整游戏：挂机挖矿、PvE 副本、PvP 排位、世界 Boss 与协处理器装配。可在本地运行，或直接下载桌面版。',
+    shotLobby: '大厅——挖矿、副本、PvP、AI 竞技场、商店与背包。',
+    shotMining: '挂机挖矿——收集 Token、升级矿机。',
+    shotDungeons: 'PvE 副本——单人或多人的怪物波次与 Boss。',
+    shotLobbyAlt: '游戏大厅',
+    shotMiningAlt: '挂机挖矿界面',
+    shotDungeonsAlt: 'PvE 副本列表',
+    galleryDownload: '下载桌面版',
+    galleryRun: '本地运行',
     footerPlay: '对战内置 AI',
     footerSandbox: '写个 agent',
     footerProtocol: 'Bot 协议',
@@ -482,7 +510,30 @@ function indexPage(lang) {
     </section>
   </main>
 
-  <section class="join">
+  <section class="gallery">
+    <h2>${S.galleryH2}</h2>
+    <p class="note">${S.galleryLead}</p>
+    <div class="gallery-grid">
+      <figure class="shot">
+        <img src="./shot-lobby.png" width="1024" height="683" loading="lazy" alt="${S.shotLobbyAlt}">
+        <figcaption>${S.shotLobby}</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="./shot-mining.png" width="1024" height="683" loading="lazy" alt="${S.shotMiningAlt}">
+        <figcaption>${S.shotMining}</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="./shot-dungeons.png" width="1024" height="683" loading="lazy" alt="${S.shotDungeonsAlt}">
+        <figcaption>${S.shotDungeons}</figcaption>
+      </figure>
+    </div>
+    <div class="cta">
+      <a class="btn" href="https://github.com/bscbai/token-wars/releases">${S.galleryDownload}</a>
+      <a class="btn ghost" href="#join">${S.galleryRun}</a>
+    </div>
+  </section>
+
+  <section class="join" id="join">
     <h2>${S.h2Join}</h2>
     <p>${S.joinIntro}</p>
     <pre>git clone https://github.com/bscbai/token-wars.git
@@ -644,6 +695,17 @@ if (fs.statSync(OUT_FILE).size === 0 || fs.statSync(zhIndexFile).size === 0) {
 }
 fs.writeFileSync(path.join(OUT_DIR, '.nojekyll'), '', 'utf8');
 fs.copyFileSync(OG_IMAGE_SRC, path.join(OUT_DIR, 'og-image.png')); // 分享卡图片（GitHub Pages 同目录）
+// 完整游戏截图（大厅 / 挖矿 / 副本），首页展示「不止是竞技场」
+const SHOT_DIR = path.join(__dirname, '..', 'docs', 'screenshots');
+for (const [src, out] of [
+  ['02-lobby.png', 'shot-lobby.png'],
+  ['04-mining.png', 'shot-mining.png'],
+  ['05-dungeons.png', 'shot-dungeons.png'],
+]) {
+  const from = path.join(SHOT_DIR, src);
+  if (!fs.existsSync(from)) throw new Error(`screenshot missing: ${src}`);
+  fs.copyFileSync(from, path.join(OUT_DIR, out));
+}
 fs.writeFileSync(path.join(OUT_DIR, 'replay.js'), PLAYER_JS, 'utf8');
 
 // 单场分享页：OG 卡按场次生成，便于把某一场直接发到社区
