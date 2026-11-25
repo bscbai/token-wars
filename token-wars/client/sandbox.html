@@ -157,6 +157,7 @@
         <p class="note" style="margin-top:8px">
           Paste a friend's share link — a solo link (<code>#code=…</code>) or a duel
           link — to load their policy, then duel offline. Nothing is uploaded.
+          <b>Copy result</b> gives a postable summary plus the duel link.
         </p>
         <div class="duel-link">
           <input id="duelLink" placeholder="https://bscbai.github.io/token-wars/sandbox.html#code=…">
@@ -164,7 +165,10 @@
           <button id="duelShare" type="button">Copy duel link</button>
         </div>
         <textarea id="opponentEditor" spellcheck="false" aria-label="opponent code"></textarea>
-        <div class="controls"><button id="duelRun" type="button">Duel 50</button></div>
+        <div class="controls">
+          <button id="duelRun" type="button">Duel 50</button>
+          <button id="duelCopy" type="button">Copy result</button>
+        </div>
         <div id="duelResult"></div>
       </details>
     </section>

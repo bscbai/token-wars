@@ -113,6 +113,7 @@ let tick = 0;
 let stats = null;
 let lastAction = '-';
 let lastError = '';
+let lastDuel = null;
 
 const isWalkable = (x, y) => x >= 0 && y >= 0 && x < MAP.width && y < MAP.height
   && !MAP.obstacles.some(([ox, oy]) => ox === x && oy === y);
@@ -390,21 +391,42 @@ function loadOpponentFromInput() {
     return;
   }
   ui.opponentEditor.value = code;
+  lastDuel = null;
   ui.duelResult.textContent = 'Opponent loaded — click "Duel 50".';
 }
 
-function copyDuelLink() {
+function duelUrl() {
   const code = ui.editor.value;
   const opp = ui.opponentEditor.value;
-  if (code.length + opp.length > MAX_HASH_CHARS) {
+  if (code.length + opp.length > MAX_HASH_CHARS) return null;
+  return `${location.href.split('#')[0]}#code=${encodeCode(code)}&vs=${encodeCode(opp)}`;
+}
+
+function copyDuelLink() {
+  const url = duelUrl();
+  if (!url) {
     ui.duelResult.textContent = 'Policies too large for a link — use Download instead.';
     return;
   }
-  const url = `${location.href.split('#')[0]}#code=${encodeCode(code)}&vs=${encodeCode(opp)}`;
   history.replaceState(null, '', url);
   navigator.clipboard.writeText(url)
     .then(() => { ui.duelResult.textContent = 'Duel link copied — it opens both policies.'; })
     .catch(() => { window.prompt('Copy this duel link', url); });
+}
+
+function copyDuelResult() {
+  if (!lastDuel) {
+    ui.duelResult.textContent = 'Run a duel first — then this copies a postable result.';
+    return;
+  }
+  const url = duelUrl();
+  const text = `Token Wars duel — 50 headless matches, my decide(state) vs a friend's:`
+    + ` you ${lastDuel.aWins}W / them ${lastDuel.bWins}W / ${lastDuel.draws}D`
+    + ` (${lastDuel.winRateA}% vs ${lastDuel.winRateB}%), avg ${lastDuel.avgTicks} ticks.`
+    + (url ? ` Beat it: ${url}` : '');
+  navigator.clipboard.writeText(text)
+    .then(() => { ui.duelResult.textContent = 'Result copied — paste it in Discord, X or a PR.'; })
+    .catch(() => { window.prompt('Copy this result', text); });
 }
 
 function runDuel() {
@@ -420,10 +442,12 @@ function runDuel() {
   stop();
   ui.error.textContent = '';
   ui.duelRun.disabled = true;
+  lastDuel = null;
   ui.duelResult.textContent = 'Dueling 50 matches…';
   setTimeout(() => {
     try {
       const out = simulateMatchesBetween(mine, theirs, { count: 50, map: MAP });
+      lastDuel = out;
       ui.duelResult.textContent = `Duel ${out.matches}: you ${out.aWins}W / them ${out.bWins}W / ${out.draws}D`
         + ` (${out.winRateA}% vs ${out.winRateB}%) · avg ${out.avgTicks} ticks`
         + ` · your invalid ${out.aInvalid} / timeouts ${out.aTimeouts}`
@@ -510,6 +534,7 @@ function boot() {
     duelLink: $('duelLink'),
     duelLoad: $('duelLoad'),
     duelShare: $('duelShare'),
+    duelCopy: $('duelCopy'),
     error: $('error'),
     result: $('result'),
     resultText: $('resultText'),
@@ -554,6 +579,7 @@ function boot() {
   ui.duelRun.addEventListener('click', runDuel);
   ui.duelLoad.addEventListener('click', loadOpponentFromInput);
   ui.duelShare.addEventListener('click', copyDuelLink);
+  ui.duelCopy.addEventListener('click', copyDuelResult);
   ui.editor.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
