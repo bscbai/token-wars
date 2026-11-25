@@ -4,7 +4,10 @@
  * 关注点：规则复用（协议/动作/内置 AI）、计数汇总、异常与超时兜底。
  */
 
-const { simulateMatch, simulateMatches } = require('../server/game/agentSimulator');
+const {
+  simulateMatch, simulateMatches, simulateDuel, simulateMatchesBetween,
+} = require('../server/game/agentSimulator');
+const sample = require('../examples/sample-bot-node/decide');
 
 const idle = () => ({ type: 'idle' });
 const invalid = () => ({ type: 'teleport' });
@@ -42,6 +45,47 @@ describe('simulateMatch', () => {
     expect(out.result).toBe('loss');
     expect(out.reason).toMatch(/timeouts/);
     expect(out.timeouts).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('simulateDuel', () => {
+  const play = (state) => sample.decide(state, state.map);
+
+  it('会走位/攻击的一侧击败只会 idle 的一侧（两种朝向）', () => {
+    const aIdle = simulateDuel(idle, play);
+    expect(aIdle.winner).toBe('B');
+    expect(aIdle.ticks).toBeGreaterThan(0);
+
+    const bIdle = simulateDuel(play, idle);
+    expect(bIdle.winner).toBe('A');
+  });
+
+  it('双方都 idle 时 120 秒判平局', () => {
+    const out = simulateDuel(idle, idle);
+    expect(out.winner).toBe('draw');
+    expect(out.reason).toMatch(/120 s/);
+  });
+
+  it('抛错一侧判负并记录错误', () => {
+    const out = simulateDuel(() => { throw new Error('boom'); }, play);
+    expect(out.winner).toBe('B');
+    expect(out.a.error).toBe('boom');
+  });
+
+  it('非法动作过多的一侧判负', () => {
+    const out = simulateDuel(invalid, play);
+    expect(out.winner).toBe('B');
+    expect(out.a.invalid).toBeGreaterThan(10);
+  });
+});
+
+describe('simulateMatchesBetween', () => {
+  it('汇总双方胜负与违规计数', () => {
+    const out = simulateMatchesBetween(idle, invalid, { count: 2 });
+    expect(out.matches).toBe(2);
+    expect(out.aWins + out.bWins + out.draws).toBe(2);
+    expect(out.bInvalid).toBeGreaterThan(10);
+    expect(out.winRateA + out.winRateB).toBeLessThanOrEqual(100);
   });
 });
 

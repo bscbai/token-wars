@@ -185,4 +185,148 @@ function simulateMatches(policy, options = {}) {
   return summary;
 }
 
-module.exports = { simulateMatch, simulateMatches, DEFAULT_MAP };
+// --- 两个外部策略对打（CLI --opponent / 未来沙盒对战） ------------------------
+
+function freshSideStats() {
+  return { invalid: 0, timeouts: 0, consecutiveTimeouts: 0, decisions: 0, totalMs: 0, maxMs: 0, error: null };
+}
+
+function sideSummary(stats) {
+  return {
+    invalid: stats.invalid,
+    timeouts: stats.timeouts,
+    decisions: stats.decisions,
+    avgDecisionMs: stats.decisions ? Math.round((stats.totalMs / stats.decisions) * 100) / 100 : 0,
+    maxDecisionMs: Math.round(stats.maxMs * 100) / 100,
+    error: stats.error || undefined,
+  };
+}
+
+/**
+ * 两个 decide(state) 策略互打一场（无内置 AI），规则与线上一致。
+ * @returns {{ winner:'A'|'B'|'draw', ticks:number, reason:string,
+ *             a:object, b:object }}
+ */
+function simulateDuel(policyA, policyB, options = {}) {
+  const map = options.map || DEFAULT_MAP;
+  const deadlineMs = options.deadlineMs || DEADLINE_MS;
+  const maxMs = options.maxMs || MAX_MS;
+
+  const agentA = new AIAgent('sim-duel-a', [], 'A');
+  agentA.x = map.spawnA.x;
+  agentA.y = map.spawnA.y;
+  const agentB = new AIAgent('sim-duel-b', [], 'B');
+  agentB.x = map.spawnB.x;
+  agentB.y = map.spawnB.y;
+
+  const isWalkable = (x, y) => isWalkableOn(map, x, y);
+  const sa = freshSideStats();
+  const sb = freshSideStats();
+  let tick = 0;
+  let elapsed = 0;
+  let finished = null;
+
+  const act = (policy, me, foe, stats, side) => {
+    me.tickShield();
+    const state = buildState(me, foe, tick, 1_000_000 + elapsed, elapsed, map);
+    const started = performance.now();
+    let action;
+    try {
+      action = policy(structuredClone(state));
+    } catch (err) {
+      stats.error = err.message;
+      finished = { winner: side === 'A' ? 'B' : 'A', reason: `${side} decide() threw` };
+      return;
+    }
+    const decidedIn = performance.now() - started;
+    stats.decisions++;
+    stats.totalMs += decidedIn;
+    stats.maxMs = Math.max(stats.maxMs, decidedIn);
+
+    if (decidedIn > deadlineMs) {
+      stats.timeouts++;
+      stats.consecutiveTimeouts++;
+      return;
+    }
+    stats.consecutiveTimeouts = 0;
+    const validation = validateActionMessage(
+      { protocolVersion: PROTOCOL_VERSION, matchId: 'duel', tick, action, tokensUsed: 0 },
+      { width: map.width, height: map.height },
+    );
+    if (!validation.valid) {
+      stats.invalid++;
+      return;
+    }
+    const applied = executeAgentAction(me, foe, validation.action, { now: 1_000_000 + elapsed, map, isWalkable });
+    if (applied.invalid) stats.invalid++;
+  };
+
+  while (elapsed < maxMs && !finished) {
+    tick++;
+    elapsed = tick * TICK_MS;
+    const canAct = [agentA.alive, agentB.alive];
+
+    if (canAct[0]) act(policyA, agentA, agentB, sa, 'A');
+    if (canAct[1] && !finished) act(policyB, agentB, agentA, sb, 'B');
+
+    if (!finished) {
+      if (sa.consecutiveTimeouts >= TIMEOUT_LIMIT) finished = { winner: 'B', reason: 'A had 3 consecutive timeouts' };
+      else if (sb.consecutiveTimeouts >= TIMEOUT_LIMIT) finished = { winner: 'A', reason: 'B had 3 consecutive timeouts' };
+      else if (sa.invalid > VIOLATION_LIMIT) finished = { winner: 'B', reason: 'A sent more than 10 invalid actions' };
+      else if (sb.invalid > VIOLATION_LIMIT) finished = { winner: 'A', reason: 'B sent more than 10 invalid actions' };
+      else if (!agentA.alive && !agentB.alive) finished = { winner: 'draw', reason: 'both died on the same tick' };
+      else if (!agentA.alive) finished = { winner: 'B', reason: 'A hp reached 0' };
+      else if (!agentB.alive) finished = { winner: 'A', reason: 'B hp reached 0' };
+    }
+  }
+
+  return {
+    winner: finished ? finished.winner : 'draw',
+    reason: finished ? finished.reason : '120 s match limit',
+    ticks: tick,
+    a: sideSummary(sa),
+    b: sideSummary(sb),
+  };
+}
+
+/**
+ * 批量两个策略互打。
+ * @returns {{ matches:number, aWins:number, bWins:number, draws:number,
+ *             avgTicks:number, aInvalid:number, bInvalid:number,
+ *             aTimeouts:number, bTimeouts:number, aErrors:number, bErrors:number,
+ *             winRateA:number, winRateB:number, wallMs:number }}
+ */
+function simulateMatchesBetween(policyA, policyB, options = {}) {
+  const count = Math.max(1, Math.min(200, options.count || 50));
+  const started = performance.now();
+  const out = {
+    matches: count, aWins: 0, bWins: 0, draws: 0, totalTicks: 0, avgTicks: 0,
+    aInvalid: 0, bInvalid: 0, aTimeouts: 0, bTimeouts: 0, aErrors: 0, bErrors: 0,
+    winRateA: 0, winRateB: 0, wallMs: 0,
+  };
+
+  for (let i = 0; i < count; i++) {
+    const one = simulateDuel(policyA, policyB, options);
+    if (one.winner === 'A') out.aWins++;
+    else if (one.winner === 'B') out.bWins++;
+    else out.draws++;
+    out.totalTicks += one.ticks;
+    out.aInvalid += one.a.invalid;
+    out.bInvalid += one.b.invalid;
+    out.aTimeouts += one.a.timeouts;
+    out.bTimeouts += one.b.timeouts;
+    if (one.a.error) out.aErrors++;
+    if (one.b.error) out.bErrors++;
+  }
+
+  out.avgTicks = Math.round(out.totalTicks / count);
+  out.winRateA = Math.round((out.aWins / count) * 100);
+  out.winRateB = Math.round((out.bWins / count) * 100);
+  out.wallMs = Math.round(performance.now() - started);
+  delete out.totalTicks;
+  return out;
+}
+
+module.exports = {
+  simulateMatch, simulateMatches, simulateDuel, simulateMatchesBetween, DEFAULT_MAP,
+};

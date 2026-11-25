@@ -138,6 +138,9 @@ server needed:
 npm run simulate -- examples/sample-bot-node/decide.js --matches 50
 # Result: 20W / 25L / 5D (40% win) · avg 161 ticks
 # Parity: invalid 0 · timeouts 0 · errors 0
+
+# Pit two policies against each other (e.g. your agent vs a friend's)
+npm run simulate -- ./my-agent.js --opponent ./friend-agent.js --matches 100
 ```
 
 Full protocol reference: [Bot Protocol (English)](docs/bot-protocol.en.md) ·
@@ -203,7 +206,7 @@ connect /bot (botToken handshake)
   aiarena, economy-shop, …).
 - **Anti-cheat**: JWT handshake auth, per-category socket rate limiting,
   payload schema validation middleware.
-- **Tests**: 406 Vitest cases, including protocol parity tests and deterministic
+- **Tests**: 412 Vitest cases, including protocol parity tests and deterministic
   parity-audit tests — plus `npm run smoke`, a real-process check that boots the
   server, runs the sample bot and requires two completed matches, replay frames
   and a working share page (also part of CI).

@@ -18,29 +18,33 @@
 'use strict';
 
 const path = require('node:path');
-const { simulateMatches, DEFAULT_MAP } = require('../server/game/agentSimulator');
+const {
+  simulateMatches, simulateMatchesBetween, DEFAULT_MAP,
+} = require('../server/game/agentSimulator');
 const { AI_MAPS } = require('../shared/arenaMaps');
 
 function usage() {
   console.log(`Usage: node scripts/simulate-agent.cjs <policy.js> [options]
 
 Options:
-  --matches <n>    matches to play (default 50, max 200)
-  --map <id>       ${Object.keys(AI_MAPS).map((k) => AI_MAPS[k].id).join(' | ')}
-  --deadline <ms>  per-decision deadline (default 500)
-  --json           print the raw summary as JSON
+  --opponent <file>  pit two decide(state) policies against each other
+  --matches <n>      matches to play (default 50, max 200)
+  --map <id>         ${Object.keys(AI_MAPS).map((k) => AI_MAPS[k].id).join(' | ')}
+  --deadline <ms>    per-decision deadline (default 500)
+  --json             print the raw summary as JSON
 
-The policy file must export decide(state[, map]) — e.g. examples/sample-bot-node/decide.js`);
+The policy files must export decide(state[, map]) — e.g. examples/sample-bot-node/decide.js`);
 }
 
 function parseArgs(argv) {
-  const args = { file: null, matches: 50, map: null, deadline: null, json: false };
+  const args = { file: null, opponent: null, matches: 50, map: null, deadline: null, json: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--json') args.json = true;
     else if (a === '--matches') args.matches = parseInt(argv[++i], 10);
     else if (a === '--map') args.map = argv[++i];
     else if (a === '--deadline') args.deadline = parseInt(argv[++i], 10);
+    else if (a === '--opponent') args.opponent = argv[++i];
     else if (a === '--help' || a === '-h') args.help = true;
     else if (!a.startsWith('-') && !args.file) args.file = a;
     else throw new Error(`Unknown argument: ${a}`);
@@ -90,13 +94,35 @@ function main() {
   }
 
   let policy;
+  let opponent = null;
   let map;
   try {
     policy = loadPolicy(args.file);
+    if (args.opponent) opponent = loadPolicy(args.opponent);
     map = findMap(args.map);
   } catch (err) {
     console.error(err.message);
     process.exit(1);
+  }
+
+  if (opponent) {
+    const out = simulateMatchesBetween(policy, opponent, {
+      count: args.matches,
+      map,
+      ...(args.deadline ? { deadlineMs: args.deadline } : {}),
+    });
+    if (args.json) {
+      console.log(JSON.stringify({ file: args.file, opponent: args.opponent, map: map.id, ...out }, null, 2));
+      return;
+    }
+    console.log(`A:      ${args.file}`);
+    console.log(`B:      ${args.opponent}`);
+    console.log(`Map:    ${map.name} (${map.id}) · ${out.matches} matches`);
+    console.log(`Result: A ${out.aWins}W / B ${out.bWins}W / ${out.draws}D  (${out.winRateA}% / ${out.winRateB}%)`);
+    console.log(`Parity: A invalid ${out.aInvalid} / timeouts ${out.aTimeouts} / errors ${out.aErrors}`
+      + ` · B invalid ${out.bInvalid} / timeouts ${out.bTimeouts} / errors ${out.bErrors}`);
+    console.log(`Length: avg ${out.avgTicks} ticks · wall ${out.wallMs}ms`);
+    return;
   }
 
   const out = simulateMatches(policy, {

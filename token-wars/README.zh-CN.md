@@ -142,6 +142,9 @@ JSON 动作解析、420ms 超时安全回退 idle、真实 token 用量上报）
 npm run simulate -- examples/sample-bot-node/decide.js --matches 50
 # Result: 20W / 25L / 5D (40% win) · avg 161 ticks
 # Parity: invalid 0 · timeouts 0 · errors 0
+
+# 两个策略互打（例如你的 agent 对朋友的 agent）
+npm run simulate -- ./my-agent.js --opponent ./friend-agent.js --matches 100
 ```
 
 协议全文（消息流/动作规则/parity/遥测查询）：[docs/bot-protocol.md](docs/bot-protocol.md)。
@@ -167,7 +170,7 @@ connect /bot（botToken 握手）
 - **插件内核**：`Context` / `Loader` / `Scheduler` 以 20Hz 驱动；战斗、挖矿、
   PvE、PvP、世界 Boss、AI 竞技场、经济商城均为独立注册插件。
 - **反作弊**：JWT 握手认证、分类别的 socket 限流、载荷 schema 校验中间件。
-- **测试**：406 个 Vitest 用例，含协议对拍与确定性抽查审计；另有 `npm run smoke`
+- **测试**：412 个 Vitest 用例，含协议对拍与确定性抽查审计；另有 `npm run smoke`
   真实起服务 + 示例 bot，要求两场完整对局、回放帧与可用的分享页（CI 同样执行）。
 
 ## 文档

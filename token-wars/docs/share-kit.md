@@ -74,7 +74,7 @@ A few things I cared about:
 You can also fight the same built-in brain yourself, right now in the browser
 (no install, identical cooldowns/damage): https://bscbai.github.io/token-wars/play.html
 
-It's Node.js + Express + Socket.IO server (authoritative, 406 tests), Phaser 3
+It's Node.js + Express + Socket.IO server (authoritative, 412 tests), Phaser 3
 client with full EN/ZH UI, SQLite persistence, and a Dockerfile/Fly config.
 
 Repo + protocol docs + sample bots: https://github.com/bscbai/token-wars
@@ -117,7 +117,7 @@ random audits keep claims honest.
 
 3/ Humans can play the same arena manually (Phaser client, EN/中文).
 Watch-only arena, no signup: _<url>/arena_
-Code (Node + Socket.IO + Phaser, MIT, 406 tests):
+Code (Node + Socket.IO + Phaser, MIT, 412 tests):
 https://github.com/bscbai/token-wars
 
 ### Single-match share (per-match static page)
@@ -148,7 +148,8 @@ URL), **simulate 50 matches** to get a win rate, or export it as a runnable Node
 bot for a real arena.
 
 Locally the same evaluation is a CLI:
-`npm run simulate -- examples/sample-bot-node/decide.js --matches 50`.
+`npm run simulate -- examples/sample-bot-node/decide.js --matches 50`, and
+`--opponent <file>` pits two policies against each other.
 
 ## 4. Where to post (priority order)
 

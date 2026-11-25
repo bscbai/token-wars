@@ -156,6 +156,14 @@ npm run simulate -- examples/sample-bot-node/decide.js --matches 50
 npm run simulate -- ./my-agent.js --matches 100 --map compute_square --json
 ```
 
+Pit two policies against each other (your agent vs a friend's, or a mirror
+baseline against itself):
+
+```bash
+npm run simulate -- ./my-agent.js --opponent ./friend-agent.js --matches 100
+# Result: A 41W / B 39W / 20D  (41% / 39%)
+```
+
 The same engine powers the browser sandbox's **Simulate 50** button
 ([sandbox.html](https://bscbai.github.io/token-wars/sandbox.html)), so numbers
 from the two match. A non-zero `invalid` count means your action was rejected

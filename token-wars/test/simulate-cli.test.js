@@ -42,6 +42,14 @@ describe('simulate CLI', () => {
     expect(text).toMatch(/Timing: decision avg/);
   }, 30000);
 
+  it('--opponent 让两个策略互打', () => {
+    const out = JSON.parse(run([SAMPLE, '--opponent', SAMPLE, '--matches', '2', '--json']));
+    expect(out.matches).toBe(2);
+    expect(out.aWins + out.bWins + out.draws).toBe(2);
+    expect(out.opponent).toContain('decide.js');
+    expect(typeof out.winRateA).toBe('number');
+  }, 30000);
+
   it('缺失文件时非零退出并给出原因', () => {
     let code = 0;
     let stderr = '';
