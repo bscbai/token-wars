@@ -72,6 +72,7 @@
   select { font:inherit; font-size:12px; padding:7px 8px; color:var(--text); background:#06060f;
            border:1px solid #1b2a24; border-radius:4px; max-width:100%; }
   #error { min-height:16px; margin-top:8px; font-size:11px; color:var(--red); white-space:pre-wrap; }
+  #shareStatus { min-height:16px; margin-top:6px; font-size:11px; color:var(--green-dim); }
   .api { margin-top:12px; font-size:11px; color:var(--muted); line-height:1.9; }
   .api code { color:var(--green-dim); }
   .api b { color:var(--text); font-weight:normal; }
@@ -123,7 +124,10 @@
         <button id="run" type="button">Run (Ctrl+Enter)</button>
         <button id="stop" type="button">Stop</button>
         <button id="reset" type="button">Reset</button>
+        <button id="share" type="button">Copy share link</button>
+        <button id="download" type="button">Download Node bot</button>
       </div>
+      <div id="shareStatus"></div>
       <div id="error"></div>
       <div class="api">
         <b>state</b>: <code>{ tick, timeLeftMs, you:{ x,y,hp,maxHp,shield,shieldActive,skills[{id,cooldownRemaining}] }, enemy:{ x,y,hp,maxHp,visible }, map:{ width,height,obstacles } }</code><br>
@@ -132,6 +136,8 @@
         <code>{type:'shield'}</code> · <code>{type:'idle'}</code><br>
         Note: in a real match the server streams this state at 20&nbsp;Hz and your process has
         500&nbsp;ms per decision; here everything runs synchronously in one tab.
+        <b>Copy share link</b> encodes your policy in the URL (nothing is stored);
+        <b>Download Node bot</b> gives you a runnable competitor for a real arena.
       </div>
     </section>
   </main>
