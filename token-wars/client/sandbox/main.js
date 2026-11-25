@@ -18,6 +18,7 @@ const BuiltinBrain = require('../../server/game/BuiltinBrain');
 const { executeAgentAction } = require('../../server/game/agentActionRules');
 const { validateActionMessage } = require('../../server/game/BotProtocol');
 const { AI_MAPS } = require('../../shared/arenaMaps');
+const { renderAgentSource } = require('../../shared/agentTemplate');
 
 const TICK_MS = 50;
 const MATCH_MAX_MS = 120000;
@@ -276,6 +277,66 @@ function step() {
   if (elapsed >= MATCH_MAX_MS) return finish('draw', '120 s match limit');
 }
 
+// --- 分享与导出 ---------------------------------------------------------------
+
+const MAX_HASH_CHARS = 20000;
+
+function encodeCode(code) {
+  const bytes = new TextEncoder().encode(code);
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function decodeCode(encoded) {
+  try {
+    const b64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const bin = atob(padded);
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
+function codeFromHash() {
+  const m = /(?:^|[#&])code=([^&]+)/.exec(location.hash || '');
+  return m ? decodeCode(m[1]) : null;
+}
+
+async function copyShareLink() {
+  const code = ui.editor.value;
+  if (code.length > MAX_HASH_CHARS) {
+    ui.shareStatus.textContent = 'Policy too large for a link — use Download instead.';
+    return;
+  }
+  const url = `${location.href.split('#')[0]}#code=${encodeCode(code)}`;
+  history.replaceState(null, '', url);
+  try {
+    await navigator.clipboard.writeText(url);
+    ui.shareStatus.textContent = 'Share link copied — it opens this policy and runs it.';
+  } catch {
+    window.prompt('Copy this link', url);
+  }
+}
+
+function downloadAgent() {
+  const src = renderAgentSource(ui.editor.value);
+  const blob = new Blob([src], { type: 'text/javascript' });
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = 'token-wars-agent.js';
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a); // 部分浏览器要求锚点在文档里才会触发下载
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 2000);
+  ui.shareStatus.textContent = 'Downloaded token-wars-agent.js — run it with BOT_TOKEN=… node token-wars-agent.js';
+}
+
 // --- 渲染 -------------------------------------------------------------------
 
 function draw() {
@@ -337,6 +398,9 @@ function boot() {
     run: $('run'),
     stop: $('stop'),
     reset: $('reset'),
+    share: $('share'),
+    download: $('download'),
+    shareStatus: $('shareStatus'),
     error: $('error'),
     result: $('result'),
     resultText: $('resultText'),
@@ -358,12 +422,19 @@ function boot() {
     ui.preset.appendChild(opt);
   });
   ui.editor.value = SAMPLE_BALANCED;
+  const shared = codeFromHash();
+  if (shared) {
+    ui.editor.value = shared;
+    ui.shareStatus.textContent = 'Loaded a shared policy from the link.';
+  }
   ui.preset.addEventListener('change', () => {
     const preset = PRESETS.find((p) => p.id === ui.preset.value) || PRESETS[0];
     ui.editor.value = preset.code;
   });
   ui.run.addEventListener('click', start);
   ui.stop.addEventListener('click', () => { stop(); ui.reason.textContent = 'stopped'; });
+  ui.share.addEventListener('click', copyShareLink);
+  ui.download.addEventListener('click', downloadAgent);
   ui.editor.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();

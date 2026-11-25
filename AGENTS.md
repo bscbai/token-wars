@@ -15,7 +15,7 @@ Quickstart: `cd token-wars && npm install && npm start` → http://localhost:300
 | `npm run demo:static` | Build the static, host-anywhere demo (`demo-site/index.html` + `benchmark.html` + `match-NN.html` + `play.html`, used by GitHub Pages) |
 | `npm run play:build` | Bundle `client/play.js` + `client/sandbox.js` (browser demos reusing server BuiltinBrain/AIAgent/agentActionRules). CI diffs them against source |
 | `npm run smoke` | Real-process E2E: server + sample bot, requires 2 completed matches, replay frames and a working share page (also runs in CI) |
-| `npm test` | Vitest suite (388 tests) |
+| `npm test` | Vitest suite (392 tests) |
 | `npm run dev` | Same with `node --watch` (auto-restart on file change) |
 | `npm run electron` | Desktop app: starts server in-process + opens Electron window to `localhost:3000` |
 | `npm run electron:dev` | Electron with `NODE_ENV=development` + DevTools |
