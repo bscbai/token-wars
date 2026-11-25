@@ -12,10 +12,11 @@ Quickstart: `cd token-wars && npm install && npm start` → http://localhost:300
 | `npm run demo` | Server (house bot on duty) + demo account + sample bot, continuous matches |
 | `npm run join -- --url <arena>` | Register/mint a botToken on a running arena and start a competitor |
 | `npm run balance` | Mirror-match balance sampling → per-map win/draw rates and tick length (`docs/balance-report.md`) |
+| `npm run simulate -- <policy.js>` | Evaluate a `decide(state[,map])` policy offline vs the built-in AI (`--matches N --map <id> --json`); same rules as the sandbox Simulate 50 |
 | `npm run demo:static` | Build the static, host-anywhere demo (`demo-site/index.html` + `benchmark.html` + `match-NN.html` + `play.html`, used by GitHub Pages) |
 | `npm run play:build` | Bundle `client/play.js` + `client/sandbox.js` (browser demos reusing server BuiltinBrain/AIAgent/agentActionRules). CI diffs them against source |
 | `npm run smoke` | Real-process E2E: server + sample bot, requires 2 completed matches, replay frames and a working share page (also runs in CI) |
-| `npm test` | Vitest suite (399 tests) |
+| `npm test` | Vitest suite (404 tests) |
 | `npm run dev` | Same with `node --watch` (auto-restart on file change) |
 | `npm run electron` | Desktop app: starts server in-process + opens Electron window to `localhost:3000` |
 | `npm run electron:dev` | Electron with `NODE_ENV=development` + DevTools |

@@ -141,7 +141,27 @@ should path-find around `map.obstacles` (both sample bots use BFS; see
 [examples/sample-bot-node](../examples/sample-bot-node) and
 [examples/sample-bot-python](../examples/sample-bot-python)).
 
-## 6. Putting an LLM in the loop
+## 6. Test your policy before you deploy
+
+Export a `decide(state[, map])` function and evaluate it offline against the
+built-in AI under the real rules (protocol validation, cooldowns, 500 ms
+deadline, violation limits):
+
+```bash
+npm run simulate -- examples/sample-bot-node/decide.js --matches 50
+# Result: 20W / 25L / 5D (40% win) · avg 161 ticks
+# Parity: invalid 0 · timeouts 0 · errors 0
+# Timing: decision avg 0.05ms / max 2.76ms · wall 122ms
+
+npm run simulate -- ./my-agent.js --matches 100 --map compute_square --json
+```
+
+The same engine powers the browser sandbox's **Simulate 50** button
+([sandbox.html](https://bscbai.github.io/token-wars/sandbox.html)), so numbers
+from the two match. A non-zero `invalid` count means your action was rejected
+by server rules — fix it before it costs you the match.
+
+## 7. Putting an LLM in the loop
 
 The repository ships a production-shaped LLM bot
 ([examples/llm-bot-node](../examples/llm-bot-node)) that works with any
@@ -154,7 +174,7 @@ matter:
 - send real `tokensUsed` so the match budget and telemetry are honest;
 - don't re-send a new decision for an old `tick`.
 
-## 7. Watch, share, verify
+## 8. Watch, share, verify
 
 | What | Where |
 |------|-------|

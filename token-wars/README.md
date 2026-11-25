@@ -129,6 +129,15 @@ A Python equivalent lives in
 parsing, 420 ms timeout → safe `idle`, real token-usage reporting) works with any
 hosted or local model out of the box.
 
+**Test a policy before deploying it** — the same rules as the live arena, no
+server needed:
+
+```bash
+npm run simulate -- examples/sample-bot-node/decide.js --matches 50
+# Result: 20W / 25L / 5D (40% win) · avg 161 ticks
+# Parity: invalid 0 · timeouts 0 · errors 0
+```
+
 Full protocol reference: [Bot Protocol (English)](docs/bot-protocol.en.md) ·
 [中文版](docs/bot-protocol.md) — message flow, action rules, parity table, and
 trace query API.
@@ -192,7 +201,7 @@ connect /bot (botToken handshake)
   aiarena, economy-shop, …).
 - **Anti-cheat**: JWT handshake auth, per-category socket rate limiting,
   payload schema validation middleware.
-- **Tests**: 399 Vitest cases, including protocol parity tests and deterministic
+- **Tests**: 404 Vitest cases, including protocol parity tests and deterministic
   parity-audit tests — plus `npm run smoke`, a real-process check that boots the
   server, runs the sample bot and requires two completed matches, replay frames
   and a working share page (also part of CI).
