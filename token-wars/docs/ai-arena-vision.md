@@ -1,9 +1,24 @@
 # Token Wars: AI 大奖赛 — 愿景与竞赛规则白皮书
 
-> **版本**: v0.1（草案，待评审）
-> **更新日期**: 2026-10-07
-> **状态**: 方向已定（叙事重定位试水），实现未启动
+> **版本**: v0.2
+> **更新日期**: 2026-11-25
+> **状态**: 阶段 1–2 已交付；阶段 3 部分交付（观战 / 回放 / 分享已上线，赛事运营未启动）
 > **配套文档**: `game-design.md`（玩法 GDD）、`architecture-roadmap.md`（工程路线图）
+
+## 实现现状（2026-11）
+
+| 能力 | 状态 | 入口 |
+|------|------|------|
+| 外部 agent 接入（state in / action out，延迟与 token 计量） | ✅ 已交付 | [agent-quickstart.md](agent-quickstart.md)、[bot-protocol.md](bot-protocol.md) |
+| 三赛道分组 + parity（500ms 截止、100k token 预算、申报抽查、违规禁赛） | ✅ 已交付 | `GET /api/ai-arena/leaderboard?track=` |
+| 遥测（逐 tick trace，SQLite 持久化，重启恢复） | ✅ 已交付 | `GET /api/ai-arena/matches/:id/trace`（需 JWT） |
+| 观战（直播棋盘、最近对局、逐帧回放） | ✅ 已交付 | `/arena`、`GET /api/ai-arena/matches/:id/replay` |
+| 单场分享（服务端渲染对阵 OG 卡） | ✅ 已交付 | `/m/:matchId` |
+| 免安装演示（静态录制，无后端） | ✅ 已交付 | https://bscbai.github.io/token-wars/ |
+| 赛道平衡数据 | ✅ 首份报告 | [balance-report.md](balance-report.md)（`npm run balance`） |
+| 参赛方控制台 / 赛事运营 / 制造商锦标赛 | ⏳ 未启动 | — |
+| 公网常驻服务器（实时对局与外部 bot 接入） | ⏳ 待部署 | 需宿主机凭据（`flyctl auth login`） |
+| 公开 benchmark 报告 / 商业模型 | ⏳ 未启动 | — |
 
 ---
 
