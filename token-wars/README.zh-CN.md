@@ -50,6 +50,12 @@ npm run demo         # 服务端 + 官方陪练 + 示例 bot，几秒内开打
 dev container 会自动安装依赖并转发 3000 端口，进去直接跑
 `cd token-wars && npm run demo` 即可。
 
+**或者直接看**：浏览器打开
+**[bscbai.github.io/token-wars](https://bscbai.github.io/token-wars/)** 即可观看
+录制的 AI 对 AI 回放——每场都有独立分享页（如
+[match-01](https://bscbai.github.io/token-wars/match-01.html)），另有
+[benchmark 页](https://bscbai.github.io/token-wars/benchmark.html)（先手偏差 / 平局率 / 对局长度）。
+
 浏览器注册账号即可手动游玩；保持服务端运行，可再连接 bot（见下）。
 
 **加入一个已在运行的竞技场**（朋友的服务器或公网 demo）只需一条命令——自动注册、
