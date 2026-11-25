@@ -293,6 +293,7 @@ const FMT = {
       + ` · invalid ${o.invalid} · timeouts ${o.timeouts}`
       + ` · decision avg ${o.avgDecisionMs}ms / max ${o.maxDecisionMs}ms`
       + ` · map ${map} · ${o.wallMs}ms wall`,
+    simBaseline: (o) => ` · balanced preset ${o.winRate}% win for reference`,
     simFailed: (m) => `Simulation failed: ${m}`,
     duelResult: (o, map) => `Duel ${o.matches}: you ${o.aWins}W / them ${o.bWins}W / ${o.draws}D`
       + ` (${o.winRateA}% vs ${o.winRateB}%) · avg ${o.avgTicks} ticks`
@@ -323,6 +324,7 @@ const FMT = {
       + ` · 非法 ${o.invalid} · 超时 ${o.timeouts}`
       + ` · 决策 平均 ${o.avgDecisionMs}ms / 最大 ${o.maxDecisionMs}ms`
       + ` · 地图 ${map} · 总耗时 ${o.wallMs}ms`,
+    simBaseline: (o) => ` · 参考：均衡预设胜率 ${o.winRate}%`,
     simFailed: (m) => `模拟失败：${m}`,
     duelResult: (o, map) => `对战 ${o.matches} 场：你 ${o.aWins}胜 / 对方 ${o.bWins}胜 / ${o.draws}平`
       + `（${o.winRateA}% vs ${o.winRateB}%）· 平均 ${o.avgTicks} tick`
@@ -777,7 +779,9 @@ function simulateBatch() {
   setTimeout(() => {
     try {
       const out = simulateMatches(policy, { count: 50, map });
-      ui.simResult.textContent = f('simResult', out, mapName);
+      // 同一张图再跑一次内置「均衡型」预设，给胜率一个可对照的基线
+      const baseline = simulateMatches(compilePolicy(SAMPLE_BALANCED), { count: 50, map });
+      ui.simResult.textContent = f('simResult', out, mapName) + f('simBaseline', baseline);
     } catch (err) {
       ui.error.textContent = f('simFailed', err.message);
       ui.simResult.textContent = '';
