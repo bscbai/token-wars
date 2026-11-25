@@ -45,14 +45,20 @@ describe('rollArenaDamage', () => {
     expect(rollArenaDamage(1, 1.0, 999, seq([0.5, 0]))).toBe(1);
   });
 
-  it('内置 brain 与外部 runner 两条路径都走该实现', () => {
+  it('内置 brain、外部 runner 与浏览器沙盒都走该实现', () => {
     const fs = require('fs');
     const path = require('path');
     const root = path.join(__dirname, '..', 'server', 'game');
-    for (const file of ['BuiltinBrain.js', 'ExternalMatchRunner.js']) {
+    // 具体掷骰集中在 arenaDamage，两条执行路径都引用它（规则模块与沙盒共用）
+    for (const file of ['BuiltinBrain.js', 'agentActionRules.js']) {
       const src = fs.readFileSync(path.join(root, file), 'utf8');
       expect(src).toContain('rollArenaDamage');
       expect(src).not.toMatch(/calcDamage\(/);
     }
+    // ExternalMatchRunner 只负责流程，伤害交给 agentActionRules
+    const runner = fs.readFileSync(path.join(root, 'ExternalMatchRunner.js'), 'utf8');
+    expect(runner).toContain('executeAgentAction');
+    expect(runner).not.toContain('rollArenaDamage');
+    expect(runner).not.toMatch(/calcDamage\(/);
   });
 });

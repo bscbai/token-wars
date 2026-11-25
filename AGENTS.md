@@ -13,16 +13,16 @@ Quickstart: `cd token-wars && npm install && npm start` → http://localhost:300
 | `npm run join -- --url <arena>` | Register/mint a botToken on a running arena and start a competitor |
 | `npm run balance` | Mirror-match balance sampling → per-map win/draw rates and tick length (`docs/balance-report.md`) |
 | `npm run demo:static` | Build the static, host-anywhere demo (`demo-site/index.html` + `benchmark.html` + `match-NN.html` + `play.html`, used by GitHub Pages) |
-| `npm run play:build` | Bundle `client/play.js` (browser playable slice; reuses server BuiltinBrain/AIAgent). CI diffs it against source |
+| `npm run play:build` | Bundle `client/play.js` + `client/sandbox.js` (browser demos reusing server BuiltinBrain/AIAgent/agentActionRules). CI diffs them against source |
 | `npm run smoke` | Real-process E2E: server + sample bot, requires 2 completed matches, replay frames and a working share page (also runs in CI) |
-| `npm test` | Vitest suite (378 tests) |
+| `npm test` | Vitest suite (388 tests) |
 | `npm run dev` | Same with `node --watch` (auto-restart on file change) |
 | `npm run electron` | Desktop app: starts server in-process + opens Electron window to `localhost:3000` |
 | `npm run electron:dev` | Electron with `NODE_ENV=development` + DevTools |
 | `npm run build` | Package desktop app for current platform → `dist/` (electron-packager) |
 | `npm run build:win` / `:mac` / `:linux` / `:all` | Cross-platform builds → `dist/` |
 
-No lint/typecheck scripts. The Phaser client needs no build step; the only generated artifact is `client/play.js` (`npm run play:build`, committed so `/play` works after `npm start`).
+No lint/typecheck scripts. The Phaser client needs no build step; the only generated artifacts are `client/play.js` and `client/sandbox.js` (`npm run play:build`, committed so `/play` and `/sandbox` work after `npm start`).
 
 ## Two runtimes
 

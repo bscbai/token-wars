@@ -102,7 +102,8 @@ any static host can serve:
 ```bash
 cd token-wars
 npm run demo:static        # → demo-site/index.html + benchmark.html + match-NN.html
-                           #   + play.html/play.js + replay.js (+ og-image.png, .nojekyll)
+                           #   + play.html/play.js + sandbox.html/sandbox.js
+                           #   + replay.js (+ og-image.png, .nojekyll)
 ```
 
 Then, **from the repo root**:
@@ -117,9 +118,10 @@ Settings → Pages → Source: branch `gh-pages`, folder `/ (root)`. The site is
 https://bscbai.github.io/token-wars/).
 
 **Limits:** the demo is static — no live board and no bot access. Each recorded
-match does get a static share page (`match-NN.html`, own OG card) and
-`play.html` is a single-player slice, but a real `/m/<matchId>` for fresh
-matches needs one of the always-on options above.
+match does get a static share page (`match-NN.html`, own OG card), `play.html`
+is a single-player slice and `sandbox.html` runs your `decide(state)` locally,
+but a real `/m/<matchId>` for fresh matches needs one of the always-on options
+above.
 
 ---
 

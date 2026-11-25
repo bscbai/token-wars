@@ -55,6 +55,9 @@ app.get('/arena', (req, res, next) => sendHtml(req, res, next, path.join(CLIENT_
 // 浏览器试玩页：/play（与服务端同款 BuiltinBrain 对手，零安装体验）
 app.get('/play', (req, res, next) => sendHtml(req, res, next, path.join(CLIENT_DIR, 'play.html')));
 
+// 浏览器 Agent 沙盒：/sandbox（写 decide(state) 打同款 AI，规则复用服务端）
+app.get('/sandbox', (req, res, next) => sendHtml(req, res, next, path.join(CLIENT_DIR, 'sandbox.html')));
+
 app.use(express.static(path.join(__dirname, '..', 'client'), { etag: false, lastModified: false, setHeaders: (res) => { res.set('Cache-Control', 'no-store'); } }));
 app.use('/shared', express.static(path.join(__dirname, '..', 'shared')));
 

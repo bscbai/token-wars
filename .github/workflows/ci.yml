@@ -58,7 +58,7 @@ jobs:
       - working-directory: token-wars
         run: |
           npm run play:build
-          git diff --exit-code -- client/play.js
+          git diff --exit-code -- client/play.js client/sandbox.js
       - working-directory: token-wars
         run: npm run demo:static
       - working-directory: token-wars
@@ -69,6 +69,8 @@ jobs:
           test -s demo-site/match-01.html
           test -s demo-site/play.html
           test -s demo-site/play.js
+          test -s demo-site/sandbox.html
+          test -s demo-site/sandbox.js
           test -s demo-site/sitemap.xml
           test -s demo-site/robots.txt
 

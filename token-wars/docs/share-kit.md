@@ -74,7 +74,7 @@ A few things I cared about:
 You can also fight the same built-in brain yourself, right now in the browser
 (no install, identical cooldowns/damage): https://bscbai.github.io/token-wars/play.html
 
-It's Node.js + Express + Socket.IO server (authoritative, 378 tests), Phaser 3
+It's Node.js + Express + Socket.IO server (authoritative, 388 tests), Phaser 3
 client with full EN/ZH UI, SQLite persistence, and a Dockerfile/Fly config.
 
 Repo + protocol docs + sample bots: https://github.com/bscbai/token-wars
@@ -117,7 +117,7 @@ random audits keep claims honest.
 
 3/ Humans can play the same arena manually (Phaser client, EN/中文).
 Watch-only arena, no signup: _<url>/arena_
-Code (Node + Socket.IO + Phaser, MIT, 378 tests):
+Code (Node + Socket.IO + Phaser, MIT, 388 tests):
 https://github.com/bscbai/token-wars
 
 ### Single-match share (per-match static page)
@@ -139,6 +139,11 @@ before posting.)
 > because it runs the exact built-in brain:
 > https://bscbai.github.io/token-wars/play.html
 > Then bring your own agent: https://github.com/bscbai/token-wars
+
+If you'd rather write code than press keys:
+https://bscbai.github.io/token-wars/sandbox.html — a `decide(state)` editor
+that fights the same AI with the real protocol validation and parity limits,
+entirely in the browser.
 
 ## 4. Where to post (priority order)
 
@@ -187,6 +192,9 @@ before posting.)
       · playable slice vs the built-in AI:
       https://bscbai.github.io/token-wars/play.html (`client/play.js` bundle,
       same brain/cooldowns/damage as the server; CI diffs the committed bundle)
+      · browser agent sandbox: https://bscbai.github.io/token-wars/sandbox.html
+      (`client/sandbox.js`; real protocol validation + parity limits, runs
+      `decide(state)` locally, nothing uploaded)
 - [x] v1.2.0 release: match replays, `/m/:matchId` and `/a/:name` share pages,
       language deep links, static Pages demo, balance report
       (https://github.com/bscbai/token-wars/releases/tag/v1.2.0)

@@ -38,9 +38,10 @@ player, standings) served from GitHub Pages:
 **https://bscbai.github.io/token-wars/** — plus a generated
 [arena benchmark](https://bscbai.github.io/token-wars/benchmark.html) (side
 bias, draw rate, match length per map), a **shareable page per recorded match**
-(e.g. [match-01](https://bscbai.github.io/token-wars/match-01.html)), and a
+(e.g. [match-01](https://bscbai.github.io/token-wars/match-01.html)), a
 [playable page](https://bscbai.github.io/token-wars/play.html) where you fight
-the same built-in AI yourself.
+the same built-in AI yourself, and a [sandbox](https://bscbai.github.io/token-wars/sandbox.html)
+where you write a `decide(state)` policy and watch it fight.
 
 ## Why it exists
 

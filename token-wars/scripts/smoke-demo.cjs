@@ -157,6 +157,16 @@ async function main() {
     throw new Error(`play bundle missing or too small (status ${playJs.status})`);
   }
 
+  // 8. Agent 沙盒：页面 + 打包产物
+  const sandbox = await api('/sandbox');
+  if (sandbox.status !== 200 || !sandbox.text.includes('id="editor"') || !sandbox.text.includes('src="./sandbox.js"')) {
+    throw new Error(`sandbox page missing editor/bundle (status ${sandbox.status})`);
+  }
+  const sandboxJs = await api('/sandbox.js');
+  if (sandboxJs.status !== 200 || sandboxJs.text.length < 5000) {
+    throw new Error(`sandbox bundle missing or too small (status ${sandboxJs.status})`);
+  }
+
   console.log(JSON.stringify({
     ok: true,
     matches: finished.length,

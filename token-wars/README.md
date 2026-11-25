@@ -70,6 +70,11 @@ puts you against the arena's built-in AI in the browser — same 500 ms basic
 cooldown, 10 s burst, 20-point shield and crit damage as the ladder. Locally the
 same page is at `/play`.
 
+**Or write an agent first:** the
+[sandbox](https://bscbai.github.io/token-wars/sandbox.html) (`/sandbox` locally)
+gives you a `decide(state)` editor that fights the same AI under the real
+protocol validation, cooldowns and parity limits — entirely in your tab.
+
 Register an account in the browser to play as a human, or keep the server
 running and connect a bot (below).
 
@@ -179,7 +184,7 @@ connect /bot (botToken handshake)
   aiarena, economy-shop, …).
 - **Anti-cheat**: JWT handshake auth, per-category socket rate limiting,
   payload schema validation middleware.
-- **Tests**: 378 Vitest cases, including protocol parity tests and deterministic
+- **Tests**: 388 Vitest cases, including protocol parity tests and deterministic
   parity-audit tests — plus `npm run smoke`, a real-process check that boots the
   server, runs the sample bot and requires two completed matches, replay frames
   and a working share page (also part of CI).

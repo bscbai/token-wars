@@ -20,7 +20,7 @@
 'use strict';
 
 const { EVENTS, BOT_PROTOCOL, AI_ARENA_TIMING } = require('../../shared/constants');
-const { rollArenaDamage } = require('./arenaDamage');
+const { executeAgentAction } = require('./agentActionRules');
 const {
   validateActionMessage, serializeInvite, serializeState, serializeMatchEnd,
 } = require('./BotProtocol');
@@ -225,83 +225,15 @@ class ExternalMatchRunner {
 
   /**
    * 服务端权威执行：冷却/距离/通行性校验规则与内置 agent 完全一致。
+   * 具体规则在 agentActionRules（浏览器沙盒共用同一份）。
    * @returns {{ label:string, log?:object, invalid?:boolean }}
    */
   _executeAction(agent, enemy, action, now) {
-    const dist = Math.abs(agent.x - enemy.x) + Math.abs(agent.y - enemy.y);
-    const walkable = (x, y) => this._isWalkable(x, y);
-    const log = (label) => ({
-      label,
-      log: {
-        action: label,
-        hp: agent.hp, enemyHp: enemy.hp,
-        x: agent.x, y: agent.y,
-        enemyX: enemy.x, enemyY: enemy.y,
-      },
+    return executeAgentAction(agent, enemy, action, {
+      now,
+      map: this.map,
+      isWalkable: (x, y) => this._isWalkable(x, y),
     });
-
-    switch (action.type) {
-      case 'idle':
-        return { label: 'idle' };
-
-      case 'move': {
-        const d = Math.abs(action.x - agent.x) + Math.abs(action.y - agent.y);
-        if (d !== 1 || !walkable(action.x, action.y)) return { label: 'idle(invalid_move)', invalid: true };
-        agent.x = action.x; agent.y = action.y;
-        return { label: 'move' };
-      }
-
-      case 'attack':
-      case 'skill': {
-        const skillId = action.type === 'attack' ? 'basic_attack' : action.id;
-        if (skillId === 'basic_attack' || action.type === 'attack') {
-          if (dist > 2) return { label: 'idle(out_of_range)', invalid: true };
-          if (agent.skillOnCooldown('basic_attack', now)) return { label: 'idle(cooldown)', invalid: true };
-          agent.useSkill('basic_attack', now, 1);
-          const dmg = rollArenaDamage(agent.atk, 1.0, enemy.def);
-          enemy.takeDamage(dmg, agent.id);
-          return log(`attack(${dmg})`);
-        }
-        if (skillId === 'token_burst') {
-          if (dist > 2) return { label: 'idle(out_of_range)', invalid: true };
-          if (agent.skillOnCooldown('token_burst', now)) return { label: 'idle(cooldown)', invalid: true };
-          agent.useSkill('token_burst', now, 3);
-          const dmg = rollArenaDamage(agent.atk, 1.5, enemy.def);
-          enemy.takeDamage(dmg, agent.id);
-          return log(`token_burst(${dmg})`);
-        }
-        if (skillId === 'dodge_roll') {
-          if (agent.skillOnCooldown('dodge_roll', now)) return { label: 'idle(cooldown)', invalid: true };
-          agent.useSkill('dodge_roll', now, 0);
-          const dx = Math.sign(enemy.x - agent.x);
-          const dy = Math.sign(enemy.y - agent.y);
-          const range = 3 + (agent.getSpecialEffect('dodgeRangeBonus') || 0);
-          let nx = Math.max(0, Math.min(this.map.width - 1, agent.x + dx * range));
-          let ny = Math.max(0, Math.min(this.map.height - 1, agent.y + dy * range));
-          if (walkable(nx, ny)) { agent.x = nx; agent.y = ny; }
-          return { label: 'dash' };
-        }
-        if (skillId === 'shield') {
-          if (agent.shieldActive) return { label: 'idle(shield_active)', invalid: true };
-          if (agent.skillOnCooldown('shield', now)) return { label: 'idle(cooldown)', invalid: true };
-          agent.enableShield(agent.shieldMax);
-          agent.useSkill('shield', now);
-          return { label: 'shield' };
-        }
-        return { label: 'idle(invalid_skill)', invalid: true };
-      }
-
-      case 'shield': {
-        if (agent.shieldActive) return { label: 'idle(shield_active)', invalid: true };
-        if (agent.skillOnCooldown('shield', now)) return { label: 'idle(cooldown)', invalid: true };
-        agent.enableShield(agent.shieldMax);
-        agent.useSkill('shield', now);
-        return { label: 'shield' };
-      }
-
-      default:
-        return { label: 'idle(invalid_action)', invalid: true };
-    }
   }
 
   _isWalkable(x, y) {

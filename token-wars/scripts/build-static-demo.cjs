@@ -270,6 +270,7 @@ function matchPage(i, m) {
       with this match's result and a preview card.</p>
       <p class="note" style="margin-top:10px">
         <a href="./play.html">Play this matchup yourself</a><br>
+        <a href="./sandbox.html">Write your own agent (browser sandbox)</a><br>
         <a href="./index.html">All recorded matches</a><br>
         <a href="./benchmark.html">Benchmark v0</a><br>
         <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5-minute agent quickstart</a><br>
@@ -318,8 +319,9 @@ const html = `<!DOCTYPE html>
   </header>
 
   <div class="banner">
-    <b>Play right now:</b> <a href="./play.html">fight the arena's built-in AI in your browser</a>
-    — no install, same rules as the server.<br>
+    <b>Play right now:</b> <a href="./play.html">fight the arena's built-in AI in your browser</a>,
+    or <a href="./sandbox.html">write a <code>decide(state)</code> policy</a> and watch it fight —
+    no install, same rules as the server.<br>
     This page is a <b>static recording</b> (no server). Live ladder, live board and
     your own bot run locally in ~1 minute:
     <code>git clone https://github.com/bscbai/token-wars &amp;&amp; cd token-wars &amp;&amp; npm install &amp;&amp; npm run demo</code>
@@ -358,6 +360,7 @@ npm install
 npm run join -- --url &lt;arena-url&gt;</pre>
     <p>
       <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5-minute agent quickstart</a>
+      · <a href="./sandbox.html">try a policy in the browser sandbox</a>
       · <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">full protocol</a>
       · <a href="https://github.com/bscbai/token-wars/tree/main/token-wars/examples">sample bots (Node / Python / LLM)</a>
     </p>
@@ -365,6 +368,7 @@ npm run join -- --url &lt;arena-url&gt;</pre>
 
   <footer>
     <a href="./play.html">Play vs the AI</a>
+    <a href="./sandbox.html">Write an agent</a>
     <a href="https://github.com/bscbai/token-wars">GitHub</a>
     <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">Bot protocol</a>
     <a href="./benchmark.html">Benchmark v0</a>
@@ -526,6 +530,7 @@ if (fs.statSync(path.join(OUT_DIR, 'replay.js')).size === 0) throw new Error('re
 const sitemapUrls = [
   `${PUBLIC_ORIGIN}/`,
   `${PUBLIC_ORIGIN}/play.html`,
+  `${PUBLIC_ORIGIN}/sandbox.html`,
   `${PUBLIC_ORIGIN}/benchmark.html`,
   ...matches.map((_, i) => matchPageUrl(i)),
 ];
@@ -544,18 +549,24 @@ fs.writeFileSync(
   'utf8',
 );
 
-// 浏览器试玩页：页面 + 打包后的 play.js 一并复制（play.js 由 play:build 生成）
-const playBundle = path.join(__dirname, '..', 'client', 'play.js');
-if (!fs.existsSync(playBundle)) {
-  throw new Error('client/play.js 不存在，请先运行 `npm run play:build`');
+// 浏览器试玩页 + Agent 沙盒：页面与打包产物一并复制（产物由 play:build 生成）
+const browserDemos = [
+  { bundle: 'play.js', page: 'play.html' },
+  { bundle: 'sandbox.js', page: 'sandbox.html' },
+];
+for (const demo of browserDemos) {
+  const bundleSrc = path.join(__dirname, '..', 'client', demo.bundle);
+  if (!fs.existsSync(bundleSrc)) {
+    throw new Error(`client/${demo.bundle} 不存在，请先运行 \`npm run play:build\``);
+  }
+  fs.copyFileSync(bundleSrc, path.join(OUT_DIR, demo.bundle));
+  fs.writeFileSync(
+    path.join(OUT_DIR, demo.page),
+    fs.readFileSync(path.join(__dirname, '..', 'client', demo.page), 'utf8')
+      .replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN),
+    'utf8',
+  );
 }
-fs.copyFileSync(playBundle, path.join(OUT_DIR, 'play.js'));
-fs.writeFileSync(
-  path.join(OUT_DIR, 'play.html'),
-  fs.readFileSync(path.join(__dirname, '..', 'client', 'play.html'), 'utf8')
-    .replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN),
-  'utf8',
-);
 
 console.log(JSON.stringify({
   out: OUT_FILE,

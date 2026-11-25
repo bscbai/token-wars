@@ -60,6 +60,10 @@ dev container 会自动安装依赖并转发 3000 端口，进去直接跑
 让你在浏览器里对战竞技场同款内置 AI——同样 500ms 普攻冷却、10 秒爆发、
 20 点护盾与暴击伤害。本地运行后同一页在 `/play`。
 
+**或者先写个 agent**：[沙盒页](https://bscbai.github.io/token-wars/sandbox.html)
+（本地 `/sandbox`）提供 `decide(state)` 编辑器，按真实协议校验、冷却与
+parity 限制和同款 AI 对打——全部在你的浏览器里运行。
+
 浏览器注册账号即可手动游玩；保持服务端运行，可再连接 bot（见下）。
 
 **加入一个已在运行的竞技场**（朋友的服务器或公网 demo）只需一条命令——自动注册、
@@ -146,7 +150,7 @@ connect /bot（botToken 握手）
 - **插件内核**：`Context` / `Loader` / `Scheduler` 以 20Hz 驱动；战斗、挖矿、
   PvE、PvP、世界 Boss、AI 竞技场、经济商城均为独立注册插件。
 - **反作弊**：JWT 握手认证、分类别的 socket 限流、载荷 schema 校验中间件。
-- **测试**：378 个 Vitest 用例，含协议对拍与确定性抽查审计；另有 `npm run smoke`
+- **测试**：388 个 Vitest 用例，含协议对拍与确定性抽查审计；另有 `npm run smoke`
   真实起服务 + 示例 bot，要求两场完整对局、回放帧与可用的分享页（CI 同样执行）。
 
 ## 文档
