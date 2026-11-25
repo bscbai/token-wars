@@ -17,7 +17,7 @@ const { AIAgent } = require('../../server/models/AIAgent');
 const BuiltinBrain = require('../../server/game/BuiltinBrain');
 const { executeAgentAction } = require('../../server/game/agentActionRules');
 const { validateActionMessage } = require('../../server/game/BotProtocol');
-const { simulateMatches } = require('../../server/game/agentSimulator');
+const { simulateMatches, simulateMatchesBetween } = require('../../server/game/agentSimulator');
 const { AI_MAPS } = require('../../shared/arenaMaps');
 const { renderAgentSource } = require('../../shared/agentTemplate');
 
@@ -134,8 +134,7 @@ function resetStats() {
   };
 }
 
-function compilePolicy() {
-  const code = ui.editor.value;
+function compilePolicy(code = ui.editor.value) {
   const factory = new Function(`${code}\n;return typeof decide === 'function' ? decide : null;`);
   const fn = factory();
   if (typeof fn !== 'function') throw new Error('Define a function named decide(state).');
@@ -301,9 +300,14 @@ function decodeCode(encoded) {
   }
 }
 
-function codeFromHash() {
-  const m = /(?:^|[#&])code=([^&]+)/.exec(location.hash || '');
+function paramFromHash(name) {
+  const re = new RegExp(`(?:^|[#&])${name}=([^&]+)`);
+  const m = re.exec(location.hash || '');
   return m ? decodeCode(m[1]) : null;
+}
+
+function codeFromHash() {
+  return paramFromHash('code');
 }
 
 async function copyShareLink() {
@@ -365,6 +369,71 @@ function simulateBatch() {
       ui.simResult.textContent = '';
     } finally {
       ui.simulate.disabled = false;
+    }
+  }, 30);
+}
+
+// 双策略对打：粘贴朋友的分享链接（#code=… 或 #vs=…）即可离线比一场
+function loadOpponentFromInput() {
+  const raw = ui.duelLink.value.trim();
+  if (!raw) return;
+  let code = null;
+  const vs = /(?:^|[#&])vs=([^&]+)/.exec(raw);
+  if (vs) code = decodeCode(vs[1]);
+  if (!code) {
+    const own = /(?:^|[#&])code=([^&]+)/.exec(raw);
+    if (own) code = decodeCode(own[1]);
+  }
+  if (!code) code = decodeCode(raw.replace(/^.*#/, ''));
+  if (!code) {
+    ui.duelResult.textContent = 'Could not decode an opponent policy from that link.';
+    return;
+  }
+  ui.opponentEditor.value = code;
+  ui.duelResult.textContent = 'Opponent loaded — click "Duel 50".';
+}
+
+function copyDuelLink() {
+  const code = ui.editor.value;
+  const opp = ui.opponentEditor.value;
+  if (code.length + opp.length > MAX_HASH_CHARS) {
+    ui.duelResult.textContent = 'Policies too large for a link — use Download instead.';
+    return;
+  }
+  const url = `${location.href.split('#')[0]}#code=${encodeCode(code)}&vs=${encodeCode(opp)}`;
+  history.replaceState(null, '', url);
+  navigator.clipboard.writeText(url)
+    .then(() => { ui.duelResult.textContent = 'Duel link copied — it opens both policies.'; })
+    .catch(() => { window.prompt('Copy this duel link', url); });
+}
+
+function runDuel() {
+  let mine;
+  let theirs;
+  try {
+    mine = compilePolicy();
+    theirs = compilePolicy(ui.opponentEditor.value);
+  } catch (err) {
+    ui.error.textContent = `Compile error: ${err.message}`;
+    return;
+  }
+  stop();
+  ui.error.textContent = '';
+  ui.duelRun.disabled = true;
+  ui.duelResult.textContent = 'Dueling 50 matches…';
+  setTimeout(() => {
+    try {
+      const out = simulateMatchesBetween(mine, theirs, { count: 50, map: MAP });
+      ui.duelResult.textContent = `Duel ${out.matches}: you ${out.aWins}W / them ${out.bWins}W / ${out.draws}D`
+        + ` (${out.winRateA}% vs ${out.winRateB}%) · avg ${out.avgTicks} ticks`
+        + ` · your invalid ${out.aInvalid} / timeouts ${out.aTimeouts}`
+        + ` · their invalid ${out.bInvalid} / timeouts ${out.bTimeouts}`
+        + ` · ${out.wallMs}ms`;
+    } catch (err) {
+      ui.error.textContent = `Duel failed: ${err.message}`;
+      ui.duelResult.textContent = '';
+    } finally {
+      ui.duelRun.disabled = false;
     }
   }, 30);
 }
@@ -435,6 +504,12 @@ function boot() {
     simulate: $('simulate'),
     simResult: $('simResult'),
     shareStatus: $('shareStatus'),
+    opponentEditor: $('opponentEditor'),
+    duelRun: $('duelRun'),
+    duelResult: $('duelResult'),
+    duelLink: $('duelLink'),
+    duelLoad: $('duelLoad'),
+    duelShare: $('duelShare'),
     error: $('error'),
     result: $('result'),
     resultText: $('resultText'),
@@ -456,10 +531,16 @@ function boot() {
     ui.preset.appendChild(opt);
   });
   ui.editor.value = SAMPLE_BALANCED;
+  ui.opponentEditor.value = SAMPLE_TURTLE;
   const shared = codeFromHash();
   if (shared) {
     ui.editor.value = shared;
     ui.shareStatus.textContent = 'Loaded a shared policy from the link.';
+  }
+  const sharedOpponent = paramFromHash('vs');
+  if (sharedOpponent) {
+    ui.opponentEditor.value = sharedOpponent;
+    ui.duelResult.textContent = 'Both policies loaded from the link — click "Duel 50".';
   }
   ui.preset.addEventListener('change', () => {
     const preset = PRESETS.find((p) => p.id === ui.preset.value) || PRESETS[0];
@@ -470,6 +551,9 @@ function boot() {
   ui.share.addEventListener('click', copyShareLink);
   ui.download.addEventListener('click', downloadAgent);
   ui.simulate.addEventListener('click', simulateBatch);
+  ui.duelRun.addEventListener('click', runDuel);
+  ui.duelLoad.addEventListener('click', loadOpponentFromInput);
+  ui.duelShare.addEventListener('click', copyDuelLink);
   ui.editor.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();

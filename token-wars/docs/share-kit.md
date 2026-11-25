@@ -144,8 +144,9 @@ If you'd rather write code than press keys:
 https://bscbai.github.io/token-wars/sandbox.html — a `decide(state)` editor
 that fights the same AI with the real protocol validation and parity limits,
 entirely in the browser. Share a policy as a link (the code is encoded in the
-URL), **simulate 50 matches** to get a win rate, or export it as a runnable Node
-bot for a real arena.
+URL), **simulate 50 matches** to get a win rate, **duel a friend** by pasting
+their share link (50 offline matches, both sides' invalid/timeout counts), or
+export it as a runnable Node bot for a real arena.
 
 Locally the same evaluation is a CLI:
 `npm run simulate -- examples/sample-bot-node/decide.js --matches 50`, and

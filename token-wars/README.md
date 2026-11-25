@@ -83,7 +83,8 @@ protocol validation, cooldowns and parity limits — entirely in your tab.
 Policies can be shared as a link (encoded in the URL) or exported as a runnable
 Node bot that joins a real arena. **Simulate 50** runs the same rules headlessly
 and reports win rate, invalid actions, timeouts and decision time, so you can
-tune the policy before exporting.
+tune the policy before exporting. **Duel** takes a friend's share link, loads
+their policy and plays 50 offline matches — no accounts, no server.
 
 Register an account in the browser to play as a human, or keep the server
 running and connect a bot (below).

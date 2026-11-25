@@ -74,6 +74,13 @@
   #error { min-height:16px; margin-top:8px; font-size:11px; color:var(--red); white-space:pre-wrap; }
   #shareStatus { min-height:16px; margin-top:6px; font-size:11px; color:var(--green-dim); }
   #simResult { min-height:16px; margin-top:4px; font-size:11px; color:var(--blue); line-height:1.7; }
+  details.duel { margin-top:14px; border:1px solid #1b3a30; border-radius:6px; padding:10px 12px; }
+  details.duel summary { cursor:pointer; font-size:12px; color:var(--green); letter-spacing:1px; }
+  .duel-link { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+  .duel-link input { flex:1; min-width:180px; font:inherit; font-size:11px; padding:7px 8px;
+                     color:var(--text); background:#06060f; border:1px solid #1b2a24; border-radius:4px; }
+  #opponentEditor { min-height:180px; margin-top:10px; }
+  #duelResult { min-height:16px; margin-top:8px; font-size:11px; color:var(--blue); line-height:1.7; }
   .api { margin-top:12px; font-size:11px; color:var(--muted); line-height:1.9; }
   .api code { color:var(--green-dim); }
   .api b { color:var(--text); font-weight:normal; }
@@ -144,6 +151,22 @@
         <b>Simulate 50</b> runs the same rules headlessly and reports win rate,
         invalid actions, timeouts and decision time — tune the policy, then export.
       </div>
+
+      <details class="duel">
+        <summary>Duel another policy (50 matches)</summary>
+        <p class="note" style="margin-top:8px">
+          Paste a friend's share link — a solo link (<code>#code=…</code>) or a duel
+          link — to load their policy, then duel offline. Nothing is uploaded.
+        </p>
+        <div class="duel-link">
+          <input id="duelLink" placeholder="https://bscbai.github.io/token-wars/sandbox.html#code=…">
+          <button id="duelLoad" type="button">Load</button>
+          <button id="duelShare" type="button">Copy duel link</button>
+        </div>
+        <textarea id="opponentEditor" spellcheck="false" aria-label="opponent code"></textarea>
+        <div class="controls"><button id="duelRun" type="button">Duel 50</button></div>
+        <div id="duelResult"></div>
+      </details>
     </section>
   </main>
 
