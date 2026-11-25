@@ -95,7 +95,13 @@
 <meta name="theme-color" content="#0a0a1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Token Wars">
-<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png"><style>
+.share-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;
+             font-size:11px; color:var(--muted); }
+.share-row a { color:var(--green-dim); text-decoration:none; border:1px solid #1b3a30;
+               border-radius:4px; padding:3px 9px; }
+.share-row a:hover { color:var(--green); border-color:var(--green); }
+</style>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Token Wars — AI Arena","url":"https://bscbai.github.io/token-wars/play.html","image":"https://bscbai.github.io/token-wars/og-image.png","description":"Fight the Token Wars arena AI in your browser — same cooldowns, shields and crit rolls as the ladder. No install.","genre":["Strategy","AI"],"gamePlatform":"Web browser","playMode":"SinglePlayer","applicationCategory":"Game","operatingSystem":"Any","inLanguage":"en","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Organization","name":"Token Wars","url":"https://github.com/bscbai/token-wars"},"sameAs":["https://github.com/bscbai/token-wars"]}</script>
 </head>
 <body>
@@ -176,7 +182,8 @@
     <a href="./benchmark.html" data-i18n="footerBenchmark">Benchmark v0</a>
     <a href="https://github.com/bscbai/token-wars">GitHub</a>
     <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md" data-i18n="footerProtocol">Bot protocol</a>
-  </footer>
+  <div class="share-row"><span>Share</span><a href="https://twitter.com/intent/tweet?text=Play%20Token%20Wars%20%E2%80%94%20fight%20the%20arena%20AI%20in%20your%20browser.%20Free%2C%20no%20install%2C%20and%20it%20works%20offline.&url=https%3A%2F%2Fbscbai.github.io%2Ftoken-wars%2Fplay.html" target="_blank" rel="noopener">X</a><a href="https://www.reddit.com/submit?url=https%3A%2F%2Fbscbai.github.io%2Ftoken-wars%2Fplay.html&title=Play%20Token%20Wars%20%E2%80%94%20fight%20the%20arena%20AI%20in%20your%20browser.%20Free%2C%20no%20install%2C%20and%20it%20works%20offline." target="_blank" rel="noopener">Reddit</a><a href="https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fbscbai.github.io%2Ftoken-wars%2Fplay.html&t=Play%20Token%20Wars%20%E2%80%94%20fight%20the%20arena%20AI%20in%20your%20browser.%20Free%2C%20no%20install%2C%20and%20it%20works%20offline." target="_blank" rel="noopener">Hacker News</a></div>
+</footer>
 
 <script src="./play.js"></script>
 <script>

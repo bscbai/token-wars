@@ -34,6 +34,25 @@ const PWA_TAGS = `
 <meta name="apple-mobile-web-app-title" content="Token Wars">
 <link rel="apple-touch-icon" href="./icon-192.png">`;
 
+const SHARE_CSS = `<style>
+.share-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;
+             font-size:11px; color:var(--muted); }
+.share-row a { color:var(--green-dim); text-decoration:none; border:1px solid #1b3a30;
+               border-radius:4px; padding:3px 9px; }
+.share-row a:hover { color:var(--green); border-color:var(--green); }
+</style>`;
+
+/** 一键转发：预填文案 + 当前页链接，访客无需复制粘贴 */
+function shareRow(url, text, label = 'Share') {
+  const u = encodeURIComponent(url);
+  const t = encodeURIComponent(text);
+  return `<div class="share-row"><span>${label}</span>`
+    + `<a href="https://twitter.com/intent/tweet?text=${t}&url=${u}" target="_blank" rel="noopener">X</a>`
+    + `<a href="https://www.reddit.com/submit?url=${u}&title=${t}" target="_blank" rel="noopener">Reddit</a>`
+    + `<a href="https://news.ycombinator.com/submitlink?u=${u}&t=${t}" target="_blank" rel="noopener">Hacker News</a>`
+    + '</div>';
+}
+
 const SW_REGISTER = `<script>
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
@@ -48,7 +67,7 @@ function withPwa(html, jsonLd) {
   const ld = jsonLd
     ? `\n<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`
     : '';
-  return html.replace('</head>', `${PWA_TAGS}${ld}\n</head>`).replace('</body>', `${SW_REGISTER}\n</body>`);
+  return html.replace('</head>', `${PWA_TAGS}${SHARE_CSS}${ld}\n</head>`).replace('</body>', `${SW_REGISTER}\n</body>`);
 }
 
 const gameJsonLd = (lang, pageUrl, description) => ({
@@ -404,6 +423,7 @@ function matchPage(i, m, lang = 'en') {
       <p class="note" style="margin-top:10px">
         ${S.linksHtml}
       </p>
+      ${shareRow(matchPageUrl(i, lang), `${title} · Token Wars`, lang === 'zh' ? '分享' : 'Share')}
     </section>
   </main>
 
@@ -425,6 +445,7 @@ const INDEX_STRINGS = {
     htmlLang: 'en',
     title: 'Token Wars — AI Arena (recorded demo)',
     description: 'Recorded AI-agent matches from Token Wars: a real-time, server-authoritative arena where you bring your own agent. Static demo — run the game locally for live fights.',
+    shareText: 'Token Wars — a free AI arena in your browser: fight the built-in AI, watch AI vs AI replays, or write your own agent.',
     kicker: 'AI AGENT ARENA · RECORDED DEMO',
     taglineHtml: `Bring your own AI agent to a real-time 1v1 arena.<br>
         <b>Watch</b> recorded fights, <b>play</b> the built-in AI, or
@@ -486,6 +507,7 @@ const INDEX_STRINGS = {
     htmlLang: 'zh-CN',
     title: 'Token Wars — AI 竞技场（录制演示）',
     description: 'Token Wars 的 AI agent 录制对局：实时、服务端权威的 1v1 竞技场，带你的 agent 来参赛。静态演示——本地运行即可实时对战。',
+    shareText: 'Token Wars——浏览器里的免费 AI 竞技场：和内置 AI 对战、看 AI 互搏回放，或写自己的 agent。',
     kicker: 'AI AGENT 竞技场 · 录制演示',
     taglineHtml: `带你的 AI agent 上实时 1v1 擂台。<br>
         <b>看</b>录制对局、<b>打</b>内置 AI，或者
@@ -654,6 +676,7 @@ npm run join -- --url &lt;arena-url&gt;</pre>
     <span id="generated"></span>
   </footer>
   <div class="match-links" id="matchLinks"></div>
+  ${shareRow(lang === 'zh' ? `${PUBLIC_ORIGIN}/index.zh.html` : `${PUBLIC_ORIGIN}/`, S.shareText, lang === 'zh' ? '分享' : 'Share')}
 
 <script>
 const DATA = __DATA__;
@@ -830,7 +853,8 @@ for (const lang of ['en', 'zh']) {
 // 生成物自检：分享页必须带 OG 卡、回放数据与外链播放器，否则构建失败
 for (const p of pageFiles) {
   const text = fs.readFileSync(path.join(OUT_DIR, p.name), 'utf8');
-  if (!text.includes('property="og:url"') || !text.includes('window.__MATCH__ = {') || !text.includes('src="./replay.js"')) {
+  if (!text.includes('property="og:url"') || !text.includes('window.__MATCH__ = {')
+    || !text.includes('src="./replay.js"') || !text.includes('twitter.com/intent/tweet')) {
     throw new Error(`static demo page invalid: ${p.name}`);
   }
   if (p.lang === 'zh' && !text.includes('window.__TW_PLAYER_LANG__ = "zh"')) {
@@ -891,7 +915,18 @@ for (const demo of browserDemos) {
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
       isPartOf: { '@type': 'VideoGame', name: 'Token Wars', url: `${PUBLIC_ORIGIN}/` },
     };
-  fs.writeFileSync(path.join(OUT_DIR, demo.page), withPwa(page, jsonLd), 'utf8');
+  // play 页脚补一行转发入口（沙盒不动）
+  const built = demo.page === 'play.html'
+    ? withPwa(page, jsonLd).replace('</footer>', `${shareRow(
+      `${PUBLIC_ORIGIN}/play.html`,
+      'Play Token Wars — fight the arena AI in your browser. Free, no install, and it works offline.',
+    )}\n</footer>`)
+    : withPwa(page, jsonLd);
+  fs.writeFileSync(path.join(OUT_DIR, demo.page), built, 'utf8');
+  if (!built.includes('rel="manifest"')) throw new Error(`${demo.page} missing manifest`);
+  if (demo.page === 'play.html' && !built.includes('twitter.com/intent/tweet')) {
+    throw new Error('play.html missing share links');
+  }
 }
 
 // Service worker：导航走网络优先（新版本立刻生效），静态资源命中缓存后后台更新
@@ -970,8 +1005,9 @@ writeIcon(path.join(OUT_DIR, 'icon-512.png'), 512);
 
 // PWA 自检：页面引用 manifest + 结构化数据、SW 缓存名一致、图标注册齐全
 const indexHtml = fs.readFileSync(OUT_FILE, 'utf8');
-if (!indexHtml.includes('rel="manifest"') || !indexHtml.includes('application/ld+json')) {
-  throw new Error('index page missing manifest or structured data');
+if (!indexHtml.includes('rel="manifest"') || !indexHtml.includes('application/ld+json')
+  || !indexHtml.includes('twitter.com/intent/tweet')) {
+  throw new Error('index page missing manifest, structured data or share links');
 }
 if (!fs.readFileSync(path.join(OUT_DIR, 'sw.js'), 'utf8').includes(CACHE)) {
   throw new Error('sw.js cache tag mismatch');
