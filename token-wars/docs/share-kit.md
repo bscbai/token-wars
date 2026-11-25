@@ -158,6 +158,8 @@ gives a ready-to-post line ("you 34W / them 12W / 4D …") plus the duel link.
 The page is bilingual — header toggle or `?lang=zh` — and Chinese browsers
 default to 中文. **Simulate 50 / Duel 50** can run on any of the five arena
 maps, and duel links encode the map so a challenge replays the same terrain.
+After a match, **Decision trace** lists every tick's action and HP, and
+**Download trace JSON** exports map + policy + result + ticks for offline analysis.
 
 Locally the same evaluation is a CLI:
 `npm run simulate -- examples/sample-bot-node/decide.js --matches 50`, and

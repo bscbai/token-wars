@@ -166,6 +166,10 @@ const I18N = {
     footerMatches: 'Recorded matches',
     footerQuickstart: '5-minute quickstart',
     footerProtocol: 'Bot protocol',
+    traceTitle: 'Decision trace',
+    traceDownload: 'Download trace JSON',
+    traceEmpty: 'Run a match to record decisions.',
+    traceDownloaded: 'Trace downloaded — map, policy, result and per-tick HP.',
     resultWin: 'YOUR AGENT WINS',
     resultLoss: 'GATEKEEPER WINS',
     resultDraw: 'DRAW',
@@ -233,6 +237,10 @@ const I18N = {
     footerMatches: '录制对局',
     footerQuickstart: '5 分钟上手',
     footerProtocol: 'Bot 协议',
+    traceTitle: '决策轨迹',
+    traceDownload: '下载轨迹 JSON',
+    traceEmpty: '跑一场对局后这里会记录决策。',
+    traceDownloaded: '轨迹已下载——包含地图、策略、结果与逐 tick 血量。',
     resultWin: '你的 AGENT 获胜',
     resultLoss: 'GATEKEEPER 获胜',
     resultDraw: '平局',
@@ -287,6 +295,7 @@ const FMT = {
       + ` · timeouts ${o.timeouts} · avg ${o.avg}ms (max ${o.max}ms)`,
     lastAction: (label) => `last action: ${label}`,
     shield: (n) => `SHIELD ${n}`,
+    traceSummary: (o) => `${o.ticks} ticks · invalid ${o.invalid} · timeouts ${o.timeouts}`,
   },
   zh: {
     compileError: (m) => `编译错误：${m}`,
@@ -312,6 +321,7 @@ const FMT = {
       + ` · 超时 ${o.timeouts} · 平均 ${o.avg}ms（最大 ${o.max}ms）`,
     lastAction: (label) => `最近动作：${label}`,
     shield: (n) => `护盾 ${n}`,
+    traceSummary: (o) => `${o.ticks} tick · 非法 ${o.invalid} · 超时 ${o.timeouts}`,
   },
 };
 
@@ -348,6 +358,7 @@ let lastError = '';
 let lastDuel = null;
 let lastResult = null;
 let lastReasonKey = null;
+let trace = [];
 
 const isWalkable = (x, y) => x >= 0 && y >= 0 && x < MAP.width && y < MAP.height
   && !MAP.obstacles.some(([ox, oy]) => ox === x && oy === y);
@@ -384,6 +395,12 @@ function start() {
   ui.resultText.textContent = '';
   lastResult = null;
   lastReasonKey = null;
+  trace = [];
+  if (ui.traceList) {
+    ui.traceList.innerHTML = '';
+    ui.traceSummary.textContent = t('traceEmpty');
+    ui.traceStatus.textContent = '';
+  }
   ended = false;
   running = true;
   elapsed = 0;
@@ -428,7 +445,55 @@ function finish(result, reasonKey) {
   lastResult = result;
   lastReasonKey = reasonKey || null;
   renderOutcome();
+  renderTrace();
   updateHud();
+}
+
+function renderTrace() {
+  if (!ui.traceList) return;
+  ui.traceSummary.textContent = trace.length
+    ? f('traceSummary', { ticks: trace.length, invalid: stats.invalid, timeouts: stats.timeouts })
+    : t('traceEmpty');
+  ui.traceList.innerHTML = '';
+  const from = Math.max(0, trace.length - 160);
+  for (let i = from; i < trace.length; i++) {
+    const e = trace[i];
+    const row = document.createElement('div');
+    const tick = document.createElement('span');
+    tick.className = 'dim';
+    tick.textContent = e.t;
+    const act = document.createElement('span');
+    act.textContent = e.action;
+    const hp = document.createElement('span');
+    hp.className = 'dim';
+    hp.textContent = `${e.youHp}/${e.enemyHp}`;
+    row.append(tick, act, hp);
+    ui.traceList.appendChild(row);
+  }
+  if (trace.length) ui.traceList.scrollTop = ui.traceList.scrollHeight;
+}
+
+function downloadTrace() {
+  const payload = {
+    map: selectedMap.id,
+    result: lastResult,
+    reason: lastReasonKey,
+    policy: ui.editor.value,
+    stats: { ...stats },
+    ticks: trace,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = 'token-wars-trace.json';
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 2000);
+  ui.traceStatus.textContent = t('traceDownloaded');
 }
 
 function buildState() {
@@ -507,6 +572,8 @@ function step() {
 
   if (canAct[0]) playerTurn(now);
   if (canAct[1] && !ended) brain.decide(enemy, you, { now, map: MAP, isWalkable });
+
+  trace.push({ t: tick, action: lastAction, youHp: you.hp, enemyHp: enemy.hp });
 
   draw();
   updateHud();
@@ -795,6 +862,7 @@ function applyLang(next) {
   populatePresets();
   populateMaps();
   renderOutcome();
+  renderTrace();
   updateHud();
 }
 
@@ -835,6 +903,11 @@ function boot() {
     stats: $('stats'),
     lastAction: $('lastAction'),
     shieldTag: $('shieldTag'),
+    traceDetails: $('traceDetails'),
+    traceSummary: $('traceSummary'),
+    traceList: $('traceList'),
+    traceDownload: $('traceDownload'),
+    traceStatus: $('traceStatus'),
   });
 
   populatePresets();
@@ -868,6 +941,10 @@ function boot() {
   ui.duelLoad.addEventListener('click', loadOpponentFromInput);
   ui.duelShare.addEventListener('click', copyDuelLink);
   ui.duelCopy.addEventListener('click', copyDuelResult);
+  ui.traceDownload.addEventListener('click', downloadTrace);
+  ui.traceDetails.addEventListener('toggle', () => {
+    if (ui.traceDetails.open) renderTrace();
+  });
   ui.lang.addEventListener('click', () => {
     const next = lang === 'zh' ? 'en' : 'zh';
     try { localStorage.setItem('tw-sandbox-lang', next); } catch { /* 隐私模式忽略 */ }
@@ -886,6 +963,10 @@ function boot() {
     tick = 0;
     lastResult = null;
     lastReasonKey = null;
+    trace = [];
+    ui.traceList.innerHTML = '';
+    ui.traceSummary.textContent = t('traceEmpty');
+    ui.traceStatus.textContent = '';
     resetStats();
     freshAgents();
     ui.result.classList.remove('show');

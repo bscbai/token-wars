@@ -64,6 +64,13 @@
   #shieldTag { color:var(--blue); font-size:11px; }
   #stats { font-size:11px; color:var(--muted); margin-top:9px; line-height:1.7; }
   #lastAction { font-size:11px; color:var(--blue); margin-top:3px; }
+  details.trace { margin-top:12px; border:1px solid #1b3a30; border-radius:6px; padding:8px 10px; }
+  details.trace summary { cursor:pointer; font-size:12px; color:var(--green); letter-spacing:1px; }
+  #traceSummary { min-height:14px; margin-top:6px; font-size:11px; color:var(--muted); }
+  #traceList { max-height:220px; overflow:auto; margin-top:6px; font-size:11px; line-height:1.6; }
+  #traceList div { display:grid; grid-template-columns:46px 1fr 84px; gap:6px; border-bottom:1px dashed #16222c; padding:2px 0; }
+  #traceList .dim { color:var(--muted); }
+  #traceStatus { min-height:14px; margin-top:4px; font-size:11px; color:var(--green-dim); }
   textarea { width:100%; min-height:330px; resize:vertical; font:inherit; font-size:12px; line-height:1.55;
              color:var(--text); background:#06060f; border:1px solid #1b2a24; border-radius:4px; padding:10px;
              tab-size:2; }
@@ -127,6 +134,13 @@
       <div class="meta-row"><span id="shieldTag"></span><span id="clock">02:00</span></div>
       <div id="stats"></div>
       <div id="lastAction"></div>
+      <details class="trace" id="traceDetails">
+        <summary data-i18n="traceTitle">Decision trace</summary>
+        <div id="traceSummary"></div>
+        <div id="traceList"></div>
+        <div class="controls"><button id="traceDownload" type="button" data-i18n="traceDownload">Download trace JSON</button></div>
+        <div id="traceStatus"></div>
+      </details>
     </section>
 
     <section>
