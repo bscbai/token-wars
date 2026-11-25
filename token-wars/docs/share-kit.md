@@ -202,5 +202,8 @@ URL) or export it as a runnable Node bot for a real arena.
       (https://github.com/bscbai/token-wars/releases/tag/v1.2.0)
 - [x] Default branch (`main`) mirrors the current product structure
       (`token-wars/` + bilingual UI + bot protocol)
+- [x] Desktop builds (Windows/macOS/Linux zips) attached to releases by the
+      `Desktop release` workflow (tag push or manual dispatch; unsigned, no
+      installer) — a no-Node download path for non-technical players
 - [ ] README demo URL filled in both README.md and README.zh-CN.md
 

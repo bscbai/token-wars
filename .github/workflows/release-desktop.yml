@@ -1,0 +1,99 @@
+name: Desktop release
+
+# 把桌面版（Windows / macOS / Linux）作为 release 附件发布：
+# 打 tag 自动触发，或用 workflow_dispatch 指定已有 tag。
+# 打包用 electron-packager（scripts/build-electron.js），产物 zip 后上传。
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to attach the builds to (e.g. v1.6.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+            dir: win32-x64
+            artifact: Token-Wars-win32-x64
+          - os: ubuntu-latest
+            target: linux
+            dir: linux-x64
+            artifact: Token-Wars-linux-x64
+          - os: macos-latest
+            target: mac
+            dir: darwin-x64
+            artifact: Token-Wars-darwin-x64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: token-wars/package-lock.json
+
+      # Electron 的二进制由 postinstall 下载，偶发 503；重试并确认 dist 存在
+      - name: Install dependencies (retry Electron download)
+        working-directory: token-wars
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then break; fi
+            echo "npm ci failed (attempt $attempt) — retrying"
+            sleep 10
+          done
+          test -d node_modules/electron/dist
+
+      - name: Package
+        working-directory: token-wars
+        run: node scripts/build-electron.js --${{ matrix.target }}
+
+      - name: Zip (unix)
+        if: runner.os != 'Windows'
+        working-directory: token-wars
+        run: |
+          cd dist
+          zip -r "${{ matrix.artifact }}.zip" "Token Wars-${{ matrix.dir }}"
+
+      - name: Zip (windows)
+        if: runner.os == 'Windows'
+        working-directory: token-wars
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/Token Wars-${{ matrix.dir }}" -DestinationPath "dist/${{ matrix.artifact }}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: token-wars/dist/*.zip
+          retention-days: 7
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: assets/*.zip
+          fail_on_unmatched_files: true

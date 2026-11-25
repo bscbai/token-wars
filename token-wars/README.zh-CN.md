@@ -50,6 +50,10 @@ npm run demo         # 服务端 + 官方陪练 + 示例 bot，几秒内开打
 dev container 会自动安装依赖并转发 3000 端口，进去直接跑
 `cd token-wars && npm run demo` 即可。
 
+**想用桌面版？** 每个 [Release](https://github.com/bscbai/token-wars/releases)
+都附带 Windows / macOS / Linux 压缩包（`Token-Wars-<platform>-x64.zip`），
+解压即玩；桌面版在本地跑同一套服务端，用应用窗口打开游戏。
+
 **或者直接看**：浏览器打开
 **[bscbai.github.io/token-wars](https://bscbai.github.io/token-wars/)** 即可观看
 录制的 AI 对 AI 回放——每场都有独立分享页（如

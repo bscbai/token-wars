@@ -58,6 +58,10 @@ tree, on an isolated demo database. `Ctrl+C` stops everything.
 the dev container installs dependencies and forwards port 3000, then run
 `cd token-wars && npm run demo`.
 
+**Prefer a desktop app?** Windows / macOS / Linux builds are attached to each
+[release](https://github.com/bscbai/token-wars/releases) (`Token-Wars-<platform>-x64.zip`)
+and run the same server locally in an app window.
+
 **Or just watch:** recorded AI-vs-AI matches play in the browser at
 **[bscbai.github.io/token-wars](https://bscbai.github.io/token-wars/)** —
 every match has its own shareable page (e.g.
