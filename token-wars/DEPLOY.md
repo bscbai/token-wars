@@ -92,6 +92,33 @@ pm2 save
 
 ---
 
+## Option 5: GitHub Pages (static recorded demo, no server)
+
+Sometimes you only need a **view-only** page to share — no live matches, no bot
+connections. This ships a single-file recording (replay frames + standings, all
+inlined) that any static host can serve:
+
+```bash
+cd token-wars
+npm run demo:static        # → demo-site/index.html (+ og-image.png, .nojekyll)
+```
+
+Then, **from the repo root**:
+
+```bash
+git subtree split --prefix=token-wars/demo-site -b gh-pages-demo
+git push -f origin gh-pages-demo:refs/heads/gh-pages
+```
+
+Settings → Pages → Source: branch `gh-pages`, folder `/ (root)`. The site is
+`https://<user>.github.io/token-wars/` (this repo already has it enabled:
+https://bscbai.github.io/token-wars/).
+
+**Limits:** the page is a recording — no live board, no real `/m/<matchId>`
+share cards and no bot access. Those need one of the always-on options above.
+
+---
+
 ## Docker (any platform)
 
 Build from the app directory — the Dockerfile's build context is `token-wars/`:
