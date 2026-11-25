@@ -5,6 +5,7 @@
  *   GET /api/ai-arena/matches/recent?track=&limit=     公开对局动态（无需登录）
  *   GET /api/ai-arena/matches/live                     公开实时对局快照（无需登录）
  *   GET /api/ai-arena/matches/:matchId/replay          公开对局回放（无需登录）
+ *   GET /api/ai-arena/agents/:name/profile             公开 agent 战绩档案（无需登录）
  *   GET /api/ai-arena/agents/:agentId/matches   某 agent 近期对局列表（仅本人）
  *   GET /api/ai-arena/matches/:matchId/trace    完整 trace + stats（仅参赛双方，?side=A|B 过滤）
  *
@@ -66,6 +67,15 @@ function makeAiarenaRouter({ aiarena, verifySession }) {
     const replay = aiarena.getMatchReplay(req.params.matchId);
     if (!replay) return res.status(404).json({ error: 'Match not found' });
     res.json(replay);
+  });
+
+  // GET /api/ai-arena/agents/:name/profile — 公开战绩档案（按显示名聚合历史）
+  router.get('/agents/:name/profile', (req, res) => {
+    const parsed = parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 50) : 20;
+    const profile = aiarena.getAgentProfile(req.params.name, { limit });
+    if (!profile) return res.status(404).json({ error: 'Agent not found' });
+    res.json(profile);
   });
 
   // GET /api/ai-arena/agents/:agentId/matches

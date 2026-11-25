@@ -1363,6 +1363,75 @@ class AIArenaManager {
   }
 
   /**
+   * 公开只读：某个 agent 的战绩档案（按显示名聚合历史对局）。
+   *
+   * 不依赖 agent 是否在线：重启后内存里的 AIAgent 没了，但对局历史仍在，
+   * 因此战绩/最近对局用历史条目重建；`active` 只表示当前是否已注册、
+   * `aelo` 优先取在线值，否则取最近一场记录里的 AELO。
+   *
+   * @param {string} name 显示名（含 AI- 前缀）
+   * @param {{limit?:number}} [options] recent 条数上限（1..50）
+   * @returns {object|null} 无历史时返回 null
+   */
+  getAgentProfile(name, options = {}) {
+    if (!name) return null;
+    const limit = Math.min(Math.max(parseInt(options.limit, 10) || 12, 1), 50);
+    const entries = this.matchHistory.filter(
+      (e) => e.agentAName === name || e.agentBName === name
+    );
+    if (!entries.length) return null;
+
+    let wins = 0;
+    let losses = 0;
+    let draws = 0;
+    for (const e of entries) {
+      const isA = e.agentAName === name;
+      const decided = !e.isDraw && e.winner && e.winner !== 'draw';
+      if (!decided) {
+        draws++;
+      } else if (e.winner === (isA ? e.agentA : e.agentB)) {
+        wins++;
+      } else {
+        losses++;
+      }
+    }
+
+    const recent = entries.slice(-limit).reverse().map((e) => {
+      const isA = e.agentAName === name;
+      const decided = !e.isDraw && e.winner && e.winner !== 'draw';
+      let result = 'draw';
+      if (decided) result = e.winner === (isA ? e.agentA : e.agentB) ? 'win' : 'loss';
+      return {
+        matchId: e.id,
+        opponent: isA ? e.agentBName : e.agentAName,
+        side: isA ? 'A' : 'B',
+        result,
+        ticks: e.totalTicks || 0,
+        track: e.track || null,
+        mapId: e.mapData?.id || null,
+        map: e.mapData?.name || null,
+        at: e.saved || e.startTime || null,
+      };
+    });
+
+    const last = entries[entries.length - 1];
+    const historicalAelo = last.agentAName === name ? last.agentAAelo : last.agentBAelo;
+    const live = [...this.agents.values()].find((a) => a.name === name) || null;
+
+    return {
+      name,
+      active: !!live,
+      track: live?.track || last.track || null,
+      aelo: live?.aelo ?? historicalAelo ?? null,
+      wins,
+      losses,
+      draws,
+      matches: entries.length,
+      recent,
+    };
+  }
+
+  /**
    * 公开只读：正在进行的对局快照（观战页用）。
    * 内置对局是同步瞬时模拟，不会出现在 activeMatches 中；只暴露对外可见字段
    * （显示名 / AELO / 血量 / 坐标 / 护盾），不含 agentId、playerId、trace。

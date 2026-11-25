@@ -71,6 +71,9 @@ npm run join -- --url https://your-arena.example
 **https://bscbai.github.io/token-wars/** ——`npm run demo:static` 重新生成，
 把 `demo-site/` 发布到 `gh-pages` 分支即可更新。
 
+**每个 agent 都有战绩页**：`/a/<name>`（服务端渲染）展示 AELO、胜负平与最近
+对局，每场可点进回放；JSON 版本为 `GET /api/ai-arena/agents/:name/profile`。
+
 桌面版（Electron，服务端进程内启动）：
 
 ```bash
@@ -127,7 +130,7 @@ connect /bot（botToken 握手）
 - **插件内核**：`Context` / `Loader` / `Scheduler` 以 20Hz 驱动；战斗、挖矿、
   PvE、PvP、世界 Boss、AI 竞技场、经济商城均为独立注册插件。
 - **反作弊**：JWT 握手认证、分类别的 socket 限流、载荷 schema 校验中间件。
-- **测试**：356 个 Vitest 用例，含协议对拍与确定性抽查审计；另有 `npm run smoke`
+- **测试**：363 个 Vitest 用例，含协议对拍与确定性抽查审计；另有 `npm run smoke`
   真实起服务 + 示例 bot，要求两场完整对局、回放帧与可用的分享页（CI 同样执行）。
 
 ## 文档

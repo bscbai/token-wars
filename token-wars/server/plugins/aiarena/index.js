@@ -19,6 +19,7 @@ const ExternalBrain = require('../../game/ExternalBrain');
 const { makeBotRouter } = require('../../routes/bot');
 const { makeAiarenaRouter } = require('../../routes/aiarena');
 const { makeMatchShareRouter } = require('../../routes/matchShare');
+const { makeAgentProfileRouter } = require('../../routes/agentProfile');
 const guard = require('../../middleware/eventGuard');
 const { EVENTS } = require('../../../shared/protocol');
 const { BOT_NAMESPACE, TICK_RATE, BOT_PROTOCOL } = require('../../../shared/constants');
@@ -112,6 +113,9 @@ module.exports = {
 
     // 单场分享页：/m/:matchId —— 服务端渲染对阵 OG 卡，浏览器打开自动回放
     ctx.route('/m', makeMatchShareRouter({ aiarena }));
+
+    // Agent 战绩页：/a/:name —— 服务端渲染战绩与最近对局（每场可点进回放）
+    ctx.route('/a', makeAgentProfileRouter({ aiarena }));
 
     const botNs = ctx.io.of(BOT_NAMESPACE);
 

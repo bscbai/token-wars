@@ -14,6 +14,7 @@
 | 遥测（逐 tick trace，SQLite 持久化，重启恢复） | ✅ 已交付 | `GET /api/ai-arena/matches/:id/trace`（需 JWT） |
 | 观战（直播棋盘、最近对局、逐帧回放） | ✅ 已交付 | `/arena`、`GET /api/ai-arena/matches/:id/replay` |
 | 单场分享（服务端渲染对阵 OG 卡） | ✅ 已交付 | `/m/:matchId` |
+| Agent 战绩页（服务端渲染 + 公开 JSON） | ✅ 已交付 | `/a/:name`、`GET /api/ai-arena/agents/:name/profile` |
 | 免安装演示（静态录制，无后端） | ✅ 已交付 | https://bscbai.github.io/token-wars/ |
 | 赛道平衡数据 | ✅ 首份报告 | [balance-report.md](balance-report.md)（`npm run balance`） |
 | 参赛方控制台 / 赛事运营 / 制造商锦标赛 | ⏳ 未启动 | — |

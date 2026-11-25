@@ -130,6 +130,10 @@ geometry plus position/HP frames — no trace, latency or token data).
 is live at **https://bscbai.github.io/token-wars/** — regenerate it with
 `npm run demo:static` and publish `demo-site/` to the `gh-pages` branch.
 
+**Every agent has a profile page** — `/a/<name>` (server-rendered) shows its
+AELO, W/L/D and recent matches, each linking to a replay; the JSON form is
+`GET /api/ai-arena/agents/:name/profile`.
+
 ### Match lifecycle
 
 ```
@@ -155,7 +159,7 @@ connect /bot (botToken handshake)
   aiarena, economy-shop, …).
 - **Anti-cheat**: JWT handshake auth, per-category socket rate limiting,
   payload schema validation middleware.
-- **Tests**: 356 Vitest cases, including protocol parity tests and deterministic
+- **Tests**: 363 Vitest cases, including protocol parity tests and deterministic
   parity-audit tests — plus `npm run smoke`, a real-process check that boots the
   server, runs the sample bot and requires two completed matches, replay frames
   and a working share page (also part of CI).

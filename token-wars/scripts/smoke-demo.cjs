@@ -136,6 +136,17 @@ async function main() {
     throw new Error('share page must reference /arena.js (absolute)');
   }
 
+  // 6. 战绩页与公开档案接口（按显示名聚合）
+  const agentName = sample.agentA.name;
+  const profile = await api(`/api/ai-arena/agents/${encodeURIComponent(agentName)}/profile`);
+  if (profile.status !== 200 || !(profile.body?.matches >= 1)) {
+    throw new Error(`agent profile API failed (status ${profile.status})`);
+  }
+  const profilePage = await api(`/a/${encodeURIComponent(agentName)}`);
+  if (profilePage.status !== 200 || !profilePage.text.includes('▶ replay') || !profilePage.text.includes('href="/m/')) {
+    throw new Error(`agent profile page missing record/replay links (status ${profilePage.status})`);
+  }
+
   console.log(JSON.stringify({
     ok: true,
     matches: finished.length,
@@ -143,6 +154,7 @@ async function main() {
     replayFrames: replay.body.frames.length,
     winner: replay.body.winner,
     map: replay.body.map.id,
+    profileMatches: profile.body.matches,
   }, null, 2));
 }
 
