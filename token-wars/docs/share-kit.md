@@ -206,6 +206,7 @@ Locally the same evaluation is a CLI:
       `demo-site/` → `gh-pages`): https://bscbai.github.io/token-wars/
       · Chinese landing page: https://bscbai.github.io/token-wars/index.zh.html
       · benchmark v0 page: https://bscbai.github.io/token-wars/benchmark.html
+      (Chinese: https://bscbai.github.io/token-wars/benchmark.zh.html)
       · per-match share pages (`match-01.html` …) with their own OG cards,
       generated and self-checked by the same build
       · playable slice vs the built-in AI:

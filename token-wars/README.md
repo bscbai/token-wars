@@ -73,7 +73,8 @@ and run the same server locally in an app window.
 every match has its own shareable page (e.g.
 [match-01](https://bscbai.github.io/token-wars/match-01.html)), plus a
 [benchmark](https://bscbai.github.io/token-wars/benchmark.html) of side bias,
-draw rate and match length. The landing page is bilingual too:
+draw rate and match length ([中文](https://bscbai.github.io/token-wars/benchmark.zh.html)).
+The landing page is bilingual too:
 [English](https://bscbai.github.io/token-wars/) ·
 [中文](https://bscbai.github.io/token-wars/index.zh.html).
 

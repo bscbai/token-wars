@@ -344,6 +344,7 @@ const INDEX_STRINGS = {
     otherHref: './index.zh.html',
     playHref: './play.html',
     sandboxHref: './sandbox.html',
+    benchmarkHref: './benchmark.html',
     play: 'Play',
     pause: 'Pause',
     drawWord: 'draw',
@@ -392,6 +393,7 @@ const INDEX_STRINGS = {
     otherHref: './index.html',
     playHref: './play.html?lang=zh',
     sandboxHref: './sandbox.html?lang=zh',
+    benchmarkHref: './benchmark.zh.html',
     play: '播放',
     pause: '暂停',
     drawWord: '平局',
@@ -495,7 +497,7 @@ npm run join -- --url &lt;arena-url&gt;</pre>
     <a href="${S.sandboxHref}">${S.footerSandbox}</a>
     <a href="https://github.com/bscbai/token-wars">GitHub</a>
     <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">${S.footerProtocol}</a>
-    <a href="./benchmark.html">${S.footerBenchmark}</a>
+    <a href="${S.benchmarkHref}">${S.footerBenchmark}</a>
     <span id="generated"></span>
   </footer>
   <div class="match-links" id="matchLinks"></div>
@@ -669,6 +671,7 @@ const sitemapUrls = [
   `${PUBLIC_ORIGIN}/play.html`,
   `${PUBLIC_ORIGIN}/sandbox.html`,
   `${PUBLIC_ORIGIN}/benchmark.html`,
+  `${PUBLIC_ORIGIN}/benchmark.zh.html`,
   ...matches.map((_, i) => matchPageUrl(i)),
 ];
 fs.writeFileSync(

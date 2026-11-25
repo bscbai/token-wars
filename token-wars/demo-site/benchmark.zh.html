@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Token Wars — 竞技场基准测试 v0</title>
+<meta name="description" content="Token Wars AI 竞技场的镜像对局基准：各张地图上的先手偏差、平局率与对局时长，由当前构建生成。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Token Wars — 竞技场基准测试 v0">
+<meta property="og:description" content="各张地图的先后手偏差、平局率与对局时长，来自当前构建的镜像对局。">
+<link rel="alternate" hreflang="en" href="https://bscbai.github.io/token-wars/benchmark.html">
+<link rel="alternate" hreflang="zh" href="https://bscbai.github.io/token-wars/benchmark.zh.html">
+<link rel="icon" href="./og-image.png" type="image/png">
+<style>
+  :root { --bg:#0a0a1a; --panel:#0f1024; --line:#1d2b3a; --green:#00ff88; --green-dim:#00aa77;
+          --blue:#88aaff; --text:#cfe8dd; --muted:#5f7a71; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { min-height:100vh; color:var(--text); font-family:'Courier New',ui-monospace,monospace;
+         padding:32px 22px 48px;
+         background:
+           linear-gradient(rgba(0,255,136,.04) 1px, transparent 1px) 0 0/40px 40px,
+           linear-gradient(90deg, rgba(0,255,136,.04) 1px, transparent 1px) 0 0/40px 40px, var(--bg); }
+  main { max-width:900px; margin:0 auto; }
+  a { color:var(--green-dim); text-decoration:none; }
+  a:hover { color:var(--green); }
+  .back { font-size:12px; }
+  .topline { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .lang-switch { font-size:12px; padding:4px 10px; color:var(--green-dim); border:1px solid #1b3a30; border-radius:4px; }
+  .lang-switch:hover { color:var(--green); border-color:var(--green); }
+  h1 { font-size:24px; letter-spacing:2px; color:var(--green); margin:14px 0 6px; }
+  .lead { color:var(--muted); font-size:13px; line-height:1.8; margin-bottom:18px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; }
+  .card span { display:block; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+  .card strong { display:block; font-size:22px; margin-top:6px; }
+  .card small { color:var(--muted); font-size:11px; }
+  h2 { font-size:13px; letter-spacing:2px; color:var(--blue); text-transform:uppercase; margin:22px 0 10px; }
+  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .table-wrap table { min-width:560px; }
+  th, td { padding:8px 10px; font-size:12px; text-align:left; border-bottom:1px solid #16222c; }
+  th { color:var(--muted); font-size:10px; letter-spacing:1px; text-transform:uppercase; }
+  tr:last-child td { border-bottom:0; }
+  .dim { color:var(--muted); font-size:11px; }
+  .bars { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+  .bar { display:grid; grid-template-columns:64px 1fr 34px; gap:8px; align-items:center; font-size:12px; padding:3px 0; }
+  .bar span:first-child { color:var(--muted); }
+  .bar i { display:block; height:10px; background:var(--green-dim); border-radius:2px; }
+  .bar span:last-child { color:var(--text); text-align:right; }
+  .note { font-size:12px; color:var(--muted); line-height:1.9; margin-top:10px; }
+  ul { list-style:none; }
+  li { font-size:12px; color:var(--muted); line-height:1.9; padding-left:14px; position:relative; }
+  li::before { content:'·'; position:absolute; left:2px; color:var(--green-dim); }
+  footer { margin-top:24px; font-size:12px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  @media (max-width: 620px) {
+    .table-wrap { overflow:visible; }
+    .table-wrap table { min-width:0; border:0; background:transparent; }
+    .table-wrap thead { display:none; }
+    .table-wrap tbody, .table-wrap tr, .table-wrap td { display:block; }
+    .table-wrap tr { background:var(--panel); border:1px solid var(--line); border-radius:8px; margin-bottom:8px; padding:7px 2px; }
+    .table-wrap td { display:flex; justify-content:space-between; gap:12px; border:0; padding:3px 10px; text-align:right; }
+    .table-wrap td::before { content:attr(data-label); color:var(--muted); text-align:left; font-size:11px; }
+    .table-wrap td:first-child { display:block; text-align:left; font-size:13px; }
+    .table-wrap td:first-child::before { display:none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="topline">
+    <a class="back" href="./index.zh.html">← 录制演示首页</a>
+    <a class="lang-switch" href="./benchmark.html" hreflang="en">EN</a>
+  </div>
+  <h1>竞技场基准测试 v0</h1>
+  <p class="lead">由当前构建生成于 2026-11-25：200 场镜像对局（每图 40 场），Node v24.13.0。
+      双方是同一个内置 AI，因此影响胜负的只可能是地图几何或行动顺序，而不是策略。</p>
+
+  <div class="cards">
+    <div class="card"><span>场次</span><strong>200</strong><small>5 张地图</small></div>
+    <div class="card"><span>先手占比</span><strong>45%</strong><small>169 场分出胜负</small></div>
+    <div class="card"><span>平局率</span><strong>16%</strong><small>31 场平局</small></div>
+    <div class="card"><span>平均时长</span><strong>219</strong><small>219 tick ≈ 10.9 秒</small></div>
+  </div>
+
+  <h2>逐地图</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>地图</th><th>场次</th><th>A 先手</th><th>B 后手</th><th>平局</th><th>平均 tick</th><th>范围</th></tr></thead>
+      <tbody><tr>
+    <td data-label="地图"><code>data_mine</code><br><span class="dim">数据矿洞</span></td>
+    <td data-label="场次">40</td>
+    <td data-label="A 先手">17 (52%)</td>
+    <td data-label="B 后手">16 (48%)</td>
+    <td data-label="平局">7 (18%)</td>
+    <td data-label="平均 tick">225</td>
+    <td data-label="范围">198–246</td>
+  </tr><tr>
+    <td data-label="地图"><code>compute_square</code><br><span class="dim">算力广场</span></td>
+    <td data-label="场次">40</td>
+    <td data-label="A 先手">17 (43%)</td>
+    <td data-label="B 后手">23 (57%)</td>
+    <td data-label="平局">0 (0%)</td>
+    <td data-label="平均 tick">200</td>
+    <td data-label="范围">174–228</td>
+  </tr><tr>
+    <td data-label="地图"><code>cache_maze</code><br><span class="dim">缓存迷宫</span></td>
+    <td data-label="场次">40</td>
+    <td data-label="A 先手">20 (57%)</td>
+    <td data-label="B 后手">15 (43%)</td>
+    <td data-label="平局">5 (13%)</td>
+    <td data-label="平均 tick">227</td>
+    <td data-label="范围">186–252</td>
+  </tr><tr>
+    <td data-label="地图"><code>arena_dome</code><br><span class="dim">竞技穹顶</span></td>
+    <td data-label="场次">40</td>
+    <td data-label="A 先手">12 (40%)</td>
+    <td data-label="B 后手">18 (60%)</td>
+    <td data-label="平局">10 (25%)</td>
+    <td data-label="平均 tick">225</td>
+    <td data-label="范围">174–246</td>
+  </tr><tr>
+    <td data-label="地图"><code>data_torrent</code><br><span class="dim">数据洪流</span></td>
+    <td data-label="场次">40</td>
+    <td data-label="A 先手">10 (32%)</td>
+    <td data-label="B 后手">21 (68%)</td>
+    <td data-label="平局">9 (23%)</td>
+    <td data-label="平均 tick">220</td>
+    <td data-label="范围">186–252</td>
+  </tr></tbody>
+    </table>
+  </div>
+
+  <h2>对局时长分布</h2>
+  <div class="bars">
+    <div class="bar"><span>≤ 150</span><i style="width:0%"></i><span>0</span></div>
+    <div class="bar"><span>151–180</span><i style="width:5%"></i><span>5</span></div>
+    <div class="bar"><span>181–210</span><i style="width:59%"></i><span>65</span></div>
+    <div class="bar"><span>211–240</span><i style="width:100%"></i><span>111</span></div>
+    <div class="bar"><span>> 240</span><i style="width:17%"></i><span>19</span></div>
+  </div>
+
+  <h2>方法与本轮局限</h2>
+  <ul>
+    <li>双方使用同一个启发式大脑、属性完全一致；每场重置 HP、护盾与冷却。</li>
+    <li>结果遵循线上规则：同归于尽 = 平局；120 秒上限时按 HP 百分比判定，5% 内视为平局。</li>
+    <li>每个 tick 内 A 先行动，因此 A/B 两列衡量同 tick 对称结算下的先手偏差。</li>
+    <li>伤害掷骰（12% 暴击 ×1.6、±10% 浮动）未设种子，多次运行的数值会略有波动。</li>
+    <li>镜像对局衡量公平性与节奏，不衡量策略强度——模型对模型矩阵是另一类实验。</li>
+  </ul>
+
+  <footer>
+    <a href="./index.zh.html">录制演示</a>
+    <a href="https://github.com/bscbai/token-wars">GitHub</a>
+    <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">Agent 快速上手</a>
+    <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/balance-report.md">平衡性报告（中文）</a>
+  </footer>
+</main>
+</body>
+</html>
