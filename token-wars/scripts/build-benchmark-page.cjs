@@ -84,13 +84,13 @@ const TICK_MS = 50;
 
 function mapRow(r) {
   return `<tr>
-    <td><code>${r.id}</code><br><span class="dim">${r.name}</span></td>
-    <td>${r.matches}</td>
-    <td>${r.aWins} (${pct(r.aWins, r.aWins + r.bWins)}%)</td>
-    <td>${r.bWins} (${pct(r.bWins, r.aWins + r.bWins)}%)</td>
-    <td>${r.draws} (${pct(r.draws, r.matches)}%)</td>
-    <td>${avg(r.ticks)}</td>
-    <td>${Math.min(...r.ticks)}–${Math.max(...r.ticks)}</td>
+    <td data-label="Map"><code>${r.id}</code><br><span class="dim">${r.name}</span></td>
+    <td data-label="Matches">${r.matches}</td>
+    <td data-label="A moves first">${r.aWins} (${pct(r.aWins, r.aWins + r.bWins)}%)</td>
+    <td data-label="B moves second">${r.bWins} (${pct(r.bWins, r.aWins + r.bWins)}%)</td>
+    <td data-label="Draws">${r.draws} (${pct(r.draws, r.matches)}%)</td>
+    <td data-label="Avg ticks">${avg(r.ticks)}</td>
+    <td data-label="Range">${Math.min(...r.ticks)}–${Math.max(...r.ticks)}</td>
   </tr>`;
 }
 
@@ -104,6 +104,7 @@ const html = `<!DOCTYPE html>
 <meta property="og:type" content="article">
 <meta property="og:title" content="Token Wars — Arena Benchmark v0">
 <meta property="og:description" content="Side bias, draw rate and match length across every map, from mirror matches on the current build.">
+<link rel="icon" href="./og-image.png" type="image/png">
 <style>
   :root { --bg:#0a0a1a; --panel:#0f1024; --line:#1d2b3a; --green:#00ff88; --green-dim:#00aa77;
           --blue:#88aaff; --text:#cfe8dd; --muted:#5f7a71; }
@@ -126,20 +127,33 @@ const html = `<!DOCTYPE html>
   .card small { color:var(--muted); font-size:11px; }
   h2 { font-size:13px; letter-spacing:2px; color:var(--blue); text-transform:uppercase; margin:22px 0 10px; }
   table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .table-wrap table { min-width:560px; }
   th, td { padding:8px 10px; font-size:12px; text-align:left; border-bottom:1px solid #16222c; }
   th { color:var(--muted); font-size:10px; letter-spacing:1px; text-transform:uppercase; }
   tr:last-child td { border-bottom:0; }
   .dim { color:var(--muted); font-size:11px; }
   .bars { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
-  .bar { display:flex; align-items:center; gap:10px; font-size:12px; padding:3px 0; }
-  .bar span:first-child { width:72px; color:var(--muted); }
+  .bar { display:grid; grid-template-columns:64px 1fr 34px; gap:8px; align-items:center; font-size:12px; padding:3px 0; }
+  .bar span:first-child { color:var(--muted); }
   .bar i { display:block; height:10px; background:var(--green-dim); border-radius:2px; }
-  .bar span:last-child { color:var(--text); }
+  .bar span:last-child { color:var(--text); text-align:right; }
   .note { font-size:12px; color:var(--muted); line-height:1.9; margin-top:10px; }
   ul { list-style:none; }
   li { font-size:12px; color:var(--muted); line-height:1.9; padding-left:14px; position:relative; }
   li::before { content:'·'; position:absolute; left:2px; color:var(--green-dim); }
   footer { margin-top:24px; font-size:12px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+  @media (max-width: 620px) {
+    .table-wrap { overflow:visible; }
+    .table-wrap table { min-width:0; border:0; background:transparent; }
+    .table-wrap thead { display:none; }
+    .table-wrap tbody, .table-wrap tr, .table-wrap td { display:block; }
+    .table-wrap tr { background:var(--panel); border:1px solid var(--line); border-radius:8px; margin-bottom:8px; padding:7px 2px; }
+    .table-wrap td { display:flex; justify-content:space-between; gap:12px; border:0; padding:3px 10px; text-align:right; }
+    .table-wrap td::before { content:attr(data-label); color:var(--muted); text-align:left; font-size:11px; }
+    .table-wrap td:first-child { display:block; text-align:left; font-size:13px; }
+    .table-wrap td:first-child::before { display:none; }
+  }
 </style>
 </head>
 <body>
@@ -160,14 +174,16 @@ const html = `<!DOCTYPE html>
   </div>
 
   <h2>Per map</h2>
-  <table>
-    <thead><tr><th>Map</th><th>Matches</th><th>A moves first</th><th>B moves second</th><th>Draws</th><th>Avg ticks</th><th>Range</th></tr></thead>
-    <tbody>${rows.map(mapRow).join('')}</tbody>
-  </table>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Map</th><th>Matches</th><th>A moves first</th><th>B moves second</th><th>Draws</th><th>Avg ticks</th><th>Range</th></tr></thead>
+      <tbody>${rows.map(mapRow).join('')}</tbody>
+    </table>
+  </div>
 
   <h2>Match length distribution</h2>
   <div class="bars">
-    ${buckets.map((b) => `<div class="bar"><span>${b.label}</span><i style="width:${Math.round((b.count / bucketMax) * 360)}px"></i><span>${b.count}</span></div>`).join('\n    ')}
+    ${buckets.map((b) => `<div class="bar"><span>${b.label}</span><i style="width:${Math.round((b.count / bucketMax) * 100)}%"></i><span>${b.count}</span></div>`).join('\n    ')}
   </div>
 
   <h2>Method &amp; limitations</h2>
