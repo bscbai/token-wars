@@ -95,7 +95,9 @@ playable slice has a reason to replay — and to post.
 gives you a `decide(state)` editor that fights the same AI under the real
 protocol validation, cooldowns and parity limits — entirely in your tab.
 Policies can be shared as a link (encoded in the URL) or exported as a runnable
-Node bot that joins a real arena. **Simulate 50** runs the same rules headlessly
+Node bot that joins a real arena. **Copy LLM prompt** grabs a ready-to-use
+prompt for ChatGPT/Claude — paste the generated `decide()` back and fight.
+**Simulate 50** runs the same rules headlessly
 and reports win rate, invalid actions, timeouts and decision time, so you can
 tune the policy before exporting. **Duel** takes a friend's share link, loads
 their policy and plays 50 offline matches — no accounts, no server — then

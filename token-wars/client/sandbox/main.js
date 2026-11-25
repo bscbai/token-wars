@@ -143,6 +143,8 @@ const I18N = {
     share: 'Copy share link',
     download: 'Download Node bot',
     simulate: 'Simulate 50',
+    llmPrompt: 'Copy LLM prompt',
+    llmCopied: 'Prompt copied — paste it into ChatGPT/Claude, then paste the code back here.',
     api: `<b>state</b>: <code>{ tick, timeLeftMs, you:{ x,y,hp,maxHp,shield,shieldActive,skills[{id,cooldownRemaining}] }, enemy:{ x,y,hp,maxHp,visible }, map:{ width,height,obstacles } }</code><br>
       <b>return</b>: <code>{type:'move',x,y}</code> · <code>{type:'attack'}</code> ·
       <code>{type:'skill',id:'token_burst'|'dodge_roll'|'shield'}</code> ·
@@ -152,7 +154,8 @@ const I18N = {
       <b>Copy share link</b> encodes your policy in the URL (nothing is stored);
       <b>Download Node bot</b> gives you a runnable competitor for a real arena;
       <b>Simulate 50</b> runs the same rules headlessly and reports win rate,
-      invalid actions, timeouts and decision time — tune the policy, then export.`,
+      invalid actions, timeouts and decision time — tune the policy, then export.
+      <b>Copy LLM prompt</b> copies this whole spec, so you can ask ChatGPT or Claude for a policy and paste the code back.`,
     duelTitle: 'Duel another policy (50 matches)',
     duelNote: `Paste a friend's share link — a solo link (<code>#code=…</code>) or a duel
       link — to load their policy, then duel offline. Nothing is uploaded.
@@ -218,6 +221,8 @@ const I18N = {
     share: '复制分享链接',
     download: '下载 Node bot',
     simulate: '模拟 50 场',
+    llmPrompt: '复制 LLM 提示词',
+    llmCopied: '提示词已复制——粘到 ChatGPT/Claude，再把生成的代码粘回编辑器。',
     api: `<b>state</b>：<code>{ tick, timeLeftMs, you:{ x,y,hp,maxHp,shield,shieldActive,skills[{id,cooldownRemaining}] }, enemy:{ x,y,hp,maxHp,visible }, map:{ width,height,obstacles } }</code><br>
       <b>返回</b>：<code>{type:'move',x,y}</code> · <code>{type:'attack'}</code> ·
       <code>{type:'skill',id:'token_burst'|'dodge_roll'|'shield'}</code> ·
@@ -226,7 +231,8 @@ const I18N = {
       这里全部在一个标签页内同步执行。
       <b>复制分享链接</b> 会把策略编码进 URL（不存储任何内容）；
       <b>下载 Node bot</b> 生成可直接参赛的脚本；
-      <b>模拟 50 场</b> 用同一套规则无渲染跑 50 场，报告胜率、非法动作、超时与决策耗时——调好再导出。`,
+      <b>模拟 50 场</b> 用同一套规则无渲染跑 50 场，报告胜率、非法动作、超时与决策耗时——调好再导出。
+      <b>复制 LLM 提示词</b> 会把整套说明复制走，可直接让 ChatGPT / Claude 写策略，再把代码粘回来。`,
     duelTitle: '与其他策略对战（50 场）',
     duelNote: `粘贴朋友的分享链接——单策略链接（<code>#code=…</code>）或对战链接——载入对方策略后离线对战，
       不上传任何内容。<b>复制战绩</b> 生成可直接发帖的摘要和链接。`,
@@ -354,6 +360,68 @@ const f = (key, ...args) => {
   const table = FMT[lang] || FMT.en;
   return (table[key] || FMT.en[key])(...args);
 };
+
+// 给 LLM 的提示词：把 state/动作/规则一次说清，生成结果可直接粘回编辑器
+const LLM_PROMPTS = {
+  en: `You are writing a competitive bot for Token Wars, a real-time 1v1 grid arena.
+
+Output one JavaScript function and nothing else:
+
+function decide(state) {
+  // return exactly one action object
+}
+
+state fields:
+- tick, timeLeftMs
+- you:   { x, y, hp, maxHp, shield, shieldActive, skills: [{ id, cooldownRemaining }] }
+- enemy: { x, y, hp, maxHp, visible }
+- map:   { width, height, obstacles: [[x, y], ...] }
+
+Return exactly one of:
+- { type: 'move', x, y }  one orthogonal step, inside the map and not into an obstacle
+- { type: 'attack' }  basic attack, only when Manhattan distance to the enemy is <= 2
+- { type: 'skill', id: 'token_burst' }  burst, distance <= 2
+- { type: 'skill', id: 'dodge_roll' }  dash up to 3 tiles toward the enemy
+- { type: 'shield' }  absorb 20 damage (skill id 'shield' also works)
+- { type: 'idle' }
+
+Rules: 120 s match, 500 ms per decision, 3 consecutive timeouts or more than 10 invalid actions lose the match.
+Read cooldownRemaining from state instead of hardcoding cooldowns. Keep decide() deterministic and side-effect free.
+
+Strategy hints: hold distance 2 when attacking, burst whenever ready, shield before trading when hp is low,
+dash to close gaps, and walk around obstacles.
+
+Return only the function in a single code block.`,
+  zh: `你在为一个实时 1v1 格子竞技游戏 Token Wars 写 bot。
+
+只输出一个 JavaScript 函数，不要解释：
+
+function decide(state) {
+  // 返回一个动作对象
+}
+
+state 字段：
+- tick, timeLeftMs
+- you:   { x, y, hp, maxHp, shield, shieldActive, skills: [{ id, cooldownRemaining }] }
+- enemy: { x, y, hp, maxHp, visible }
+- map:   { width, height, obstacles: [[x, y], ...] }
+
+返回且只返回一种：
+- { type: 'move', x, y }  向相邻格移动一步，不能越界或进入障碍
+- { type: 'attack' }  普攻，仅当与敌人的曼哈顿距离 <= 2
+- { type: 'skill', id: 'token_burst' }  爆发，距离 <= 2
+- { type: 'skill', id: 'dodge_roll' }  向敌人冲刺最多 3 格
+- { type: 'shield' }  护盾吸收 20 点伤害（技能 id 'shield' 亦可）
+- { type: 'idle' }
+
+规则：单场 120 秒，每次决策限时 500ms；连续 3 次超时或累计超过 10 次非法动作判负。
+冷却一律读 state 里的 cooldownRemaining，不要写死数值。decide() 必须确定性、无副作用。
+
+策略建议：进攻时保持距离 2；爆发一好就用；血量低时先举盾再换血；用冲刺拉近距离；绕开障碍。
+
+只返回单个代码块中的函数。`,
+};
+const llmPromptText = () => LLM_PROMPTS[lang] || LLM_PROMPTS.en;
 
 const brain = new BuiltinBrain();
 const ui = {};
@@ -632,6 +700,16 @@ function paramFromHash(name) {
 
 function codeFromHash() {
   return paramFromHash('code');
+}
+
+async function copyLlmPrompt() {
+  const text = llmPromptText();
+  try {
+    await navigator.clipboard.writeText(text);
+    ui.shareStatus.textContent = t('llmCopied');
+  } catch {
+    window.prompt(t('llmPrompt'), text);
+  }
 }
 
 async function copyShareLink() {
@@ -966,6 +1044,7 @@ function boot() {
     share: $('share'),
     download: $('download'),
     simulate: $('simulate'),
+    llm: $('llm'),
     simResult: $('simResult'),
     shareStatus: $('shareStatus'),
     opponentEditor: $('opponentEditor'),
@@ -1026,6 +1105,7 @@ function boot() {
   ui.share.addEventListener('click', copyShareLink);
   ui.download.addEventListener('click', downloadAgent);
   ui.simulate.addEventListener('click', simulateBatch);
+  ui.llm.addEventListener('click', copyLlmPrompt);
   ui.duelRun.addEventListener('click', runDuel);
   ui.duelAll.addEventListener('click', runDuelAll);
   ui.duelLoad.addEventListener('click', loadOpponentFromInput);
