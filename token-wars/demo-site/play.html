@@ -49,6 +49,7 @@
   #result.show { display:flex; }
   #result[data-result="loss"] { color:var(--red); }
   #result[data-result="draw"] { color:var(--blue); }
+  #resultStats { font-size:11px; letter-spacing:0; color:var(--muted); line-height:1.7; }
   h2 { font-size:12px; letter-spacing:2px; color:var(--blue); text-transform:uppercase; margin-bottom:10px; }
   .bars { display:grid; gap:9px; }
   .bar-row { display:grid; grid-template-columns: 96px 1fr 34px; gap:8px; align-items:center; font-size:12px; }
@@ -62,6 +63,7 @@
                font-size:13px; color:var(--muted); }
   #clock { color:var(--green); letter-spacing:2px; }
   #shieldTag { color:var(--blue); font-size:11px; min-height:14px; }
+  #record { font-size:11px; color:var(--muted); margin-top:6px; line-height:1.6; }
   .skills { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
   .skills button { font:inherit; font-size:11px; padding:7px 10px; border-radius:4px; cursor:pointer;
                    color:#4e6a60; background:#0a1620; border:1px solid #1b3a30; }
@@ -106,7 +108,7 @@
     <section>
       <div class="stage">
         <canvas id="board" width="480" height="480"></canvas>
-        <div id="result"></div>
+        <div id="result"><span id="resultText"></span><span id="resultStats"></span></div>
       </div>
       <div class="pad" aria-label="movement" data-i18n-aria="padAria">
         <button id="padUp" type="button" aria-label="up" data-i18n-aria="up">▲</button>
@@ -131,6 +133,7 @@
         </div>
       </div>
       <div class="clock-row"><span id="shieldTag"></span><span id="clock">02:00</span></div>
+      <div id="record"></div>
 
       <div class="skills">
         <button id="skillAttack" type="button" data-i18n="skillAttack">J Attack</button>

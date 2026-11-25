@@ -113,6 +113,51 @@ function initialLang() {
 let lang = initialLang();
 const t = (key) => (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
 
+const FMT = {
+  en: {
+    recordLine: (r) => `Record ${r.wins}W–${r.losses}L${r.draws ? `–${r.draws}D` : ''}`
+      + ` · streak ${r.streak} (best ${r.bestStreak})`
+      + (r.best ? ` · fastest ${r.best}s` : ''),
+    resultStats: (o) => `${o.time}s · ${o.wins}W–${o.losses}L${o.draws ? `–${o.draws}D` : ''}`
+      + (o.newBest ? ' · NEW BEST' : ''),
+  },
+  zh: {
+    recordLine: (r) => `战绩 ${r.wins}胜–${r.losses}负${r.draws ? `–${r.draws}平` : ''}`
+      + ` · 连胜 ${r.streak}（最高 ${r.bestStreak}）`
+      + (r.best ? ` · 最快 ${r.best}秒` : ''),
+    resultStats: (o) => `${o.time}秒 · ${o.wins}胜–${o.losses}负${o.draws ? `–${o.draws}平` : ''}`
+      + (o.newBest ? ' · 新纪录' : ''),
+  },
+};
+const f = (key, ...args) => (FMT[lang][key] || FMT.en[key])(...args);
+
+const RECORD_KEY = 'tw-play-record-v1';
+const defaultRecord = () => ({ wins: 0, losses: 0, draws: 0, streak: 0, bestStreak: 0, bestWinMs: null });
+
+function loadRecord() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(RECORD_KEY));
+    if (parsed && typeof parsed.wins === 'number') return { ...defaultRecord(), ...parsed };
+  } catch { /* 隐私模式/损坏数据 */ }
+  return defaultRecord();
+}
+
+function saveRecord() {
+  try { localStorage.setItem(RECORD_KEY, JSON.stringify(record)); } catch { /* 隐私模式忽略 */ }
+}
+
+let record = loadRecord();
+let lastOutcome = null;
+const secs = (ms) => (ms / 1000).toFixed(1);
+
+function updateRecordLine() {
+  if (!ui.record) return;
+  ui.record.textContent = f('recordLine', {
+    ...record,
+    best: record.bestWinMs ? secs(record.bestWinMs) : null,
+  });
+}
+
 const ui = {};
 let you = null;
 let enemy = null;
@@ -150,11 +195,14 @@ function reset() {
   ended = false;
   running = true;
   lastResult = null;
-  ui.result.textContent = '';
+  lastOutcome = null;
+  ui.resultText.textContent = '';
+  ui.resultStats.textContent = '';
   ui.result.classList.remove('show');
   start();
   draw();
   updateHud();
+  updateRecordLine();
 }
 
 function start() {
@@ -287,15 +335,42 @@ function finish(result) {
   ended = true;
   running = false;
   stop();
+  const ms = elapsed;
+  const prevBest = record.bestWinMs;
+  if (result === 'win') {
+    record.wins++;
+    record.streak++;
+    record.bestStreak = Math.max(record.bestStreak, record.streak);
+    if (!record.bestWinMs || ms < record.bestWinMs) record.bestWinMs = ms;
+  } else if (result === 'loss') {
+    record.losses++;
+    record.streak = 0;
+  } else {
+    record.draws++;
+  }
+  saveRecord();
   lastResult = result;
+  lastOutcome = {
+    ms,
+    newBest: result === 'win' && (!prevBest || ms < prevBest),
+    record: { ...record },
+  };
   renderResult();
+  updateRecordLine();
   updateHud();
 }
 
 function renderResult() {
   if (!lastResult) return;
   const key = lastResult === 'win' ? 'resultWin' : (lastResult === 'loss' ? 'resultLoss' : 'resultDraw');
-  ui.result.textContent = t(key);
+  ui.resultText.textContent = t(key);
+  ui.resultStats.textContent = lastOutcome
+    ? f('resultStats', {
+      time: secs(lastOutcome.ms),
+      ...lastOutcome.record,
+      newBest: lastOutcome.newBest,
+    })
+    : '';
   ui.result.classList.add('show');
   ui.result.dataset.result = lastResult;
 }
@@ -379,6 +454,7 @@ function applyLang(next) {
   ui.lang.setAttribute('aria-label', lang === 'zh' ? 'Switch to English' : '切换到中文');
   ui.hint.textContent = '';
   renderResult();
+  updateRecordLine();
   updateHud();
 }
 
@@ -432,6 +508,9 @@ function boot() {
     barEnemy: $('barEnemy'),
     clock: $('clock'),
     result: $('result'),
+    resultText: $('resultText'),
+    resultStats: $('resultStats'),
+    record: $('record'),
     hint: $('hint'),
     shieldTag: $('shieldTag'),
     restart: $('restart'),
@@ -453,6 +532,7 @@ function boot() {
   });
   reset();
   applyLang();
+  updateRecordLine();
 }
 
 if (document.readyState === 'loading') {
