@@ -124,6 +124,22 @@ const BASE_CSS = `
   .join pre { margin:10px 0 8px; padding:10px 12px; background:#06060f; border:1px solid #1b2a24;
               border-radius:4px; color:var(--text); font:inherit; font-size:12px; overflow-x:auto; }
   .stats { font-size:11px; color:var(--muted); margin-top:10px; }
+  /* Landing hero（index 专用；单场分享页带了样式也不影响） */
+  .hero { margin-top:8px; }
+  .kicker { font-size:11px; letter-spacing:3px; color:var(--green-dim); }
+  .hero h1 { font-size:clamp(30px, 6vw, 46px); letter-spacing:4px; margin-top:8px; }
+  .hero h1 .caret { color:var(--muted); }
+  .tagline { margin-top:10px; font-size:14px; line-height:1.9; color:var(--text); }
+  .tagline b { color:var(--green); font-weight:normal; }
+  .cta { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  .btn { display:inline-block; font-size:13px; padding:9px 16px; border-radius:4px; text-decoration:none;
+         color:var(--green); border:1px solid var(--green); background:#12251d; }
+  .btn:hover { background:#1b3529; }
+  .btn.primary { background:var(--green); color:#04110b; font-weight:bold; }
+  .btn.primary:hover { background:#5cffb0; }
+  .btn.ghost { background:transparent; color:var(--green-dim); border-color:#1b3a30; }
+  .hero-stats { margin-top:12px; font-size:11px; color:var(--muted); letter-spacing:1px; }
+  main#replay { scroll-margin-top:16px; }
   .note { font-size:12px; color:var(--muted); line-height:1.8; }
   .note a { color:var(--green-dim); text-decoration:none; }
   .note a:hover { color:var(--green); }
@@ -234,6 +250,7 @@ function matchPage(i, m) {
 <meta name="twitter:title" content="${escapeHtml(title)}">
 <meta name="twitter:description" content="${escapeHtml(desc)}">
 <meta name="twitter:image" content="${PUBLIC_ORIGIN}/og-image.png">
+<link rel="icon" href="./og-image.png" type="image/png">
 <style>${BASE_CSS}</style>
 </head>
 <body>
@@ -310,25 +327,36 @@ const html = `<!DOCTYPE html>
 <meta name="twitter:title" content="Token Wars — AI Agent Arena">
 <meta name="twitter:description" content="Watch recorded AI-agent matches frame by frame, then bring your own agent.">
 <meta name="twitter:image" content="__PUBLIC_ORIGIN__/og-image.png">
+<link rel="icon" href="./og-image.png" type="image/png">
 <style>${BASE_CSS}</style>
 </head>
 <body>
-  <header>
-    <h1>AI AGENT ARENA</h1>
-    <p id="subtitle">Recorded matches — watch agents fight, then bring your own.</p>
+  <header class="hero">
+    <div class="hero-copy">
+      <div class="kicker">AI AGENT ARENA · RECORDED DEMO</div>
+      <h1>TOKEN WARS<span class="caret">_</span></h1>
+      <p class="tagline">
+        Bring your own AI agent to a real-time 1v1 arena.<br>
+        <b>Watch</b> recorded fights, <b>play</b> the built-in AI, or
+        <b>write</b> a bot — no install.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="./play.html">▶ Play vs the AI</a>
+        <a class="btn" href="./sandbox.html">Write an agent</a>
+        <a class="btn ghost" href="#replay">Watch replays</a>
+      </div>
+      <div class="hero-stats" id="heroStats"></div>
+    </div>
   </header>
 
   <div class="banner">
-    <b>Play right now:</b> <a href="./play.html">fight the arena's built-in AI in your browser</a>,
-    or <a href="./sandbox.html">write a <code>decide(state)</code> policy</a> and watch it fight —
-    no install, same rules as the server.<br>
-    This page is a <b>static recording</b> (no server). Live ladder, live board and
-    your own bot run locally in ~1 minute:
+    <b>Static demo</b> (no server). Live ladder, live board and your own bot run
+    locally in ~1 minute:
     <code>git clone https://github.com/bscbai/token-wars &amp;&amp; cd token-wars &amp;&amp; npm install &amp;&amp; npm run demo</code>
     — or <a href="https://github.com/bscbai/token-wars">read the protocol</a>.
   </div>
 
-  <main>
+  <main id="replay">
     <section>
       <h2>Match replay</h2>
       <div class="stage">
@@ -484,6 +512,10 @@ document.getElementById('generated').textContent = 'recorded ' + DATA.generatedA
 document.getElementById('stats').textContent =
   DATA.stats.matches + ' recorded matches · ' + DATA.stats.maps + ' maps · avg ' +
   DATA.stats.avgTicks + ' ticks · ' + DATA.stats.draws + ' draws';
+
+document.getElementById('heroStats').textContent =
+  DATA.stats.matches + ' RECORDED MATCHES · ' + DATA.stats.maps + ' MAPS · AVG ' +
+  DATA.stats.avgTicks + ' TICKS · RECORDED ' + DATA.generatedAt.slice(0, 10);
 
 // 每场都有独立分享页（match-NN.html），这里给出可点链接方便逐场传播
 const links = document.getElementById('matchLinks');
