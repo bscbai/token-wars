@@ -1,6 +1,6 @@
 {
   "name": "token-wars",
-  "version": "1.40.0",
+  "version": "1.41.0",
   "description": "Token Wars: 算力征途 — cyberpunk multiplayer browser game with a bring-your-own-AI-agent arena",
   "license": "MIT",
   "engines": {
@@ -92,6 +92,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "jsonwebtoken": "^9.0.2",
+    "lz-string": "^1.5.0",
     "phaser": "^3.80.1",
     "pino": "^9.4.0",
     "socket.io": "^4.7.5",

@@ -20,6 +20,7 @@ const { validateActionMessage } = require('../../server/game/BotProtocol');
 const { simulateMatches, simulateMatchesBetween, simulateDuel } = require('../../server/game/agentSimulator');
 const { AI_MAPS } = require('../../shared/arenaMaps');
 const { renderAgentSource } = require('../../shared/agentTemplate');
+const { encodePolicy, decodePolicy } = require('../../shared/policyLink');
 
 const TICK_MS = 50;
 const MATCH_MAX_MS = 120000;
@@ -178,7 +179,7 @@ const I18N = {
       <code>{type:'shield'}</code> · <code>{type:'idle'}</code><br>
       Note: in a real match the server streams this state at 20&nbsp;Hz and your process has
       500&nbsp;ms per decision; here everything runs synchronously in one tab.
-      <b>Copy share link</b> encodes your policy in the URL (nothing is stored);
+      <b>Copy share link</b> compresses your policy into the URL (nothing is stored);
       <b>Download Node bot</b> gives you a runnable competitor for a real arena;
       <b>Simulate 50</b> runs the same rules headlessly and reports win rate,
       invalid actions, timeouts and decision time — tune the policy, then export.
@@ -281,7 +282,7 @@ const I18N = {
       <code>{type:'shield'}</code> · <code>{type:'idle'}</code><br>
       说明：真实对局中服务端以 20&nbsp;Hz 推送该 state，每个决策限时 500&nbsp;ms；
       这里全部在一个标签页内同步执行。
-      <b>复制分享链接</b> 会把策略编码进 URL（不存储任何内容）；
+      <b>复制分享链接</b> 会把策略压缩进 URL（不存储任何内容）；
       <b>下载 Node bot</b> 生成可直接参赛的脚本；
       <b>模拟 50 场</b> 用同一套规则无渲染跑 50 场，报告胜率、非法动作、超时与决策耗时——调好再导出。
       <b>复制 LLM 提示词</b> 会把整套说明复制走，可直接让 ChatGPT / Claude 写策略，再把代码粘回来。`,
@@ -772,29 +773,10 @@ function step() {
 
 const MAX_HASH_CHARS = 20000;
 
-function encodeCode(code) {
-  const bytes = new TextEncoder().encode(code);
-  let bin = '';
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function decodeCode(encoded) {
-  try {
-    const b64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
-    const bin = atob(padded);
-    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
-    return new TextDecoder().decode(bytes);
-  } catch {
-    return null;
-  }
-}
-
 function paramFromHash(name) {
   const re = new RegExp(`(?:^|[#&])${name}=([^&]+)`);
   const m = re.exec(location.hash || '');
-  return m ? decodeCode(m[1]) : null;
+  return m ? decodePolicy(m[1]) : null;
 }
 
 function codeFromHash() {
@@ -817,7 +799,7 @@ async function copyShareLink() {
     ui.shareStatus.textContent = t('shareTooLarge');
     return;
   }
-  const url = `${location.href.split('#')[0]}#code=${encodeCode(code)}`;
+  const url = `${location.href.split('#')[0]}#code=${encodePolicy(code)}`;
   history.replaceState(null, '', url);
   try {
     await navigator.clipboard.writeText(url);
@@ -1249,12 +1231,12 @@ function loadOpponentFromInput() {
   if (!raw) return;
   let code = null;
   const vs = /(?:^|[#&])vs=([^&]+)/.exec(raw);
-  if (vs) code = decodeCode(vs[1]);
+  if (vs) code = decodePolicy(vs[1]);
   if (!code) {
     const own = /(?:^|[#&])code=([^&]+)/.exec(raw);
-    if (own) code = decodeCode(own[1]);
+    if (own) code = decodePolicy(own[1]);
   }
-  if (!code) code = decodeCode(raw.replace(/^.*#/, ''));
+  if (!code) code = decodePolicy(raw.replace(/^.*#/, ''));
   if (!code) {
     ui.duelResult.textContent = t('decodeFail');
     return;
@@ -1276,7 +1258,7 @@ function duelUrl() {
   const code = normalizePolicyCode(ui.editor.value);
   const opp = normalizePolicyCode(ui.opponentEditor.value);
   if (code.length + opp.length > MAX_HASH_CHARS) return null;
-  return `${location.href.split('#')[0]}#code=${encodeCode(code)}&vs=${encodeCode(opp)}&map=${selectedMap.id}`;
+  return `${location.href.split('#')[0]}#code=${encodePolicy(code)}&vs=${encodePolicy(opp)}&map=${selectedMap.id}`;
 }
 
 function copyDuelLink() {

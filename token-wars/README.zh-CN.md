@@ -90,7 +90,7 @@ dev container 会自动安装依赖、启动 `npm run demo`，并打开公开的
 **或者先写个 agent**：[沙盒页](https://bscbai.github.io/token-wars/sandbox.html)
 （本地 `/sandbox`）提供 `decide(state)` 编辑器，按真实协议校验、冷却与
 parity 限制和同款 AI 对打——全部在你的浏览器里运行。策略可生成分享链接
-（编码进 URL），也能导出为可直接参赛的 Node bot；**复制 LLM 提示词** 可把整套
+（LZ 压缩进 URL，比裸 base64 约短 40%，旧链接仍兼容），也能导出为可直接参赛的 Node bot；**复制 LLM 提示词** 可把整套
 规则交给 ChatGPT/Claude，再把生成的 `decide()` 粘回来直接开打；**Simulate 50** 会用同一套
 规则无渲染跑 50 场，报告胜率、非法动作、超时与决策耗时，方便先调参再导出；
 **Duel** 可粘贴朋友的分享链接，载入其策略并离线打 50 场——不需要账号或服务端；

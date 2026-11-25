@@ -107,7 +107,8 @@ and one-click entries for both the human and bot challenges.
 [sandbox](https://bscbai.github.io/token-wars/sandbox.html) (`/sandbox` locally)
 gives you a `decide(state)` editor that fights the same AI under the real
 protocol validation, cooldowns and parity limits — entirely in your tab.
-Policies can be shared as a link (encoded in the URL) or exported as a runnable
+Policies can be shared as a link (LZ-compressed into the URL, about 40% shorter
+than plain base64) or exported as a runnable
 Node bot that joins a real arena. **Copy LLM prompt** grabs a ready-to-use
 prompt for ChatGPT/Claude — paste the generated `decide()` back and fight.
 **Simulate 50** runs the same rules headlessly
