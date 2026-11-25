@@ -182,6 +182,15 @@ function benchmarkPage(S) {
 <meta property="og:type" content="article">
 <meta property="og:title" content="${S.ogTitle}">
 <meta property="og:description" content="${S.ogDesc}">
+<meta property="og:url" content="__PUBLIC_ORIGIN__/benchmark${S.htmlLang === 'zh-CN' ? '.zh' : ''}.html">
+<meta property="og:image" content="__PUBLIC_ORIGIN__/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${S.ogTitle}">
+<meta name="twitter:description" content="${S.ogDesc}">
+<meta name="twitter:image" content="__PUBLIC_ORIGIN__/og-image.png">
+<link rel="canonical" href="__PUBLIC_ORIGIN__/benchmark${S.htmlLang === 'zh-CN' ? '.zh' : ''}.html">
 <link rel="alternate" hreflang="en" href="__PUBLIC_ORIGIN__/benchmark.html">
 <link rel="alternate" hreflang="zh" href="__PUBLIC_ORIGIN__/benchmark.zh.html">
 <link rel="icon" href="./og-image.png" type="image/png">
