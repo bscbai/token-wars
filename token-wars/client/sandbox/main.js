@@ -145,6 +145,14 @@ const I18N = {
     simulate: 'Simulate 50',
     simAll: 'Simulate all 5 maps',
     simulatingAll: 'Simulating all 5 maps (20 matches each)…',
+    shareImage: 'Share image',
+    cardSaved: 'Card saved — post it anywhere.',
+    cardShared: 'Card shared.',
+    benchTitle: 'BOT BENCHMARK',
+    benchTagline: 'decide(state) — the same protocol as the live arena',
+    benchWin: 'win rate',
+    benchYou: 'Your bot',
+    benchBase: 'Balanced preset',
     llmPrompt: 'Copy LLM prompt',
     llmCopied: 'Prompt copied — paste it into ChatGPT/Claude, then paste the code back here.',
     fencesStripped: 'Markdown fences removed — the code inside was used.',
@@ -226,6 +234,14 @@ const I18N = {
     simulate: '模拟 50 场',
     simAll: '模拟五张地图',
     simulatingAll: '正在模拟五张地图（各 20 场）…',
+    shareImage: '生成基准图',
+    cardSaved: '基准图已保存，可直接发帖。',
+    cardShared: '基准图已分享。',
+    benchTitle: 'BOT 基准',
+    benchTagline: 'decide(state) —— 与线上竞技场同一套协议',
+    benchWin: '胜率',
+    benchYou: '你的策略',
+    benchBase: '均衡预设',
     llmPrompt: '复制 LLM 提示词',
     llmCopied: '提示词已复制——粘到 ChatGPT/Claude，再把生成的代码粘回编辑器。',
     fencesStripped: '已自动去掉 Markdown 代码围栏，直接使用其中的代码。',
@@ -301,6 +317,11 @@ const FMT = {
     simAllHeader: (t) => `${t.matches} matches vs the gatekeeper (20 per map):`
       + ` ${t.wins}W / ${t.losses}L / ${t.draws}D`,
     simAllRow: (map, o) => ` · ${map}: ${o.wins}W / ${o.losses}L (${o.winRate}%)`,
+    benchSubSingle: (n, map) => `${n} matches vs the Gatekeeper · ${map}`,
+    benchSubAll: (n) => `${n} matches vs the Gatekeeper · all 5 maps`,
+    benchRecord: (o) => `${o.wins}W–${o.losses}L–${o.draws}D`,
+    benchStats: (o) => `invalid ${o.invalid} · timeouts ${o.timeouts}`
+      + ` · avg ${o.avgTicks} ticks · ${o.avgDecisionMs}ms / decision`,
     simFailed: (m) => `Simulation failed: ${m}`,
     duelResult: (o, map) => `Duel ${o.matches}: you ${o.aWins}W / them ${o.bWins}W / ${o.draws}D`
       + ` (${o.winRateA}% vs ${o.winRateB}%) · avg ${o.avgTicks} ticks`
@@ -335,6 +356,11 @@ const FMT = {
     simAllHeader: (t) => `${t.matches} 场对守门 AI（每图 20 场）：`
       + `${t.wins}胜 / ${t.losses}负 / ${t.draws}平`,
     simAllRow: (map, o) => ` · ${map}：${o.wins}胜 ${o.losses}负（${o.winRate}%）`,
+    benchSubSingle: (n, map) => `对守门 AI ${n} 场 · ${map}`,
+    benchSubAll: (n) => `对守门 AI ${n} 场 · 五张地图`,
+    benchRecord: (o) => `${o.wins}胜 ${o.losses}负 ${o.draws}平`,
+    benchStats: (o) => `非法 ${o.invalid} · 超时 ${o.timeouts}`
+      + ` · 平均 ${o.avgTicks} tick · 决策 ${o.avgDecisionMs}ms`,
     simFailed: (m) => `模拟失败：${m}`,
     duelResult: (o, map) => `对战 ${o.matches} 场：你 ${o.aWins}胜 / 对方 ${o.bWins}胜 / ${o.draws}平`
       + `（${o.winRateA}% vs ${o.winRateB}%）· 平均 ${o.avgTicks} tick`
@@ -452,6 +478,7 @@ let lastAction = '-';
 let lastError = '';
 let lastDuel = null;
 let lastMulti = null;
+let lastSim = null; // Simulate 50 / 五图结果，用于生成基准图
 let lastResult = null;
 let lastReasonKey = null;
 let trace = [];
@@ -783,6 +810,8 @@ function simulateBatch() {
   ui.error.textContent = '';
   ui.simulate.disabled = true;
   ui.simResult.textContent = t('simulating');
+  lastSim = null;
+  ui.shareCard.hidden = true;
   const map = selectedMap;
   const mapName = mapLabel();
   // 先让浏览器画一帧，再进入同步模拟
@@ -792,6 +821,8 @@ function simulateBatch() {
       // 同一张图再跑一次内置「均衡型」预设，给胜率一个可对照的基线
       const baseline = simulateMatches(compilePolicy(SAMPLE_BALANCED), { count: 50, map });
       ui.simResult.textContent = f('simResult', out, mapName) + f('simBaseline', baseline);
+      lastSim = { kind: 'single', out, baseline, mapName, mapId: map.id };
+      ui.shareCard.hidden = false;
     } catch (err) {
       ui.error.textContent = f('simFailed', err.message);
       ui.simResult.textContent = '';
@@ -815,6 +846,8 @@ function simulateAllMaps() {
   ui.simulate.disabled = true;
   ui.simAll.disabled = true;
   ui.simResult.textContent = t('simulatingAll');
+  lastSim = null;
+  ui.shareCard.hidden = true;
   setTimeout(() => {
     try {
       const rows = MAP_LIST.map((m) => ({ map: m, out: simulateMatches(policy, { count: 20, map: m }) }));
@@ -823,10 +856,19 @@ function simulateAllMaps() {
         acc.wins += out.wins;
         acc.losses += out.losses;
         acc.draws += out.draws;
+        acc.invalid += out.invalid;
+        acc.timeouts += out.timeouts;
+        acc._ticks += out.avgTicks * out.matches;
+        acc._decision += out.avgDecisionMs * out.matches;
         return acc;
-      }, { matches: 0, wins: 0, losses: 0, draws: 0 });
+      }, { matches: 0, wins: 0, losses: 0, draws: 0, invalid: 0, timeouts: 0, _ticks: 0, _decision: 0 });
+      total.avgTicks = Math.round(total._ticks / total.matches);
+      total.avgDecisionMs = Math.round((total._decision / total.matches) * 100) / 100;
+      total.winRate = Math.round((total.wins / total.matches) * 100);
       ui.simResult.textContent = `${f('simAllHeader', total)}\n`
         + rows.map(({ map, out }) => f('simAllRow', mapNameOf(map), out)).join('\n');
+      lastSim = { kind: 'all', rows, total };
+      ui.shareCard.hidden = false;
     } catch (err) {
       ui.error.textContent = f('simFailed', err.message);
       ui.simResult.textContent = '';
@@ -835,6 +877,145 @@ function simulateAllMaps() {
       ui.simAll.disabled = false;
     }
   }, 30);
+}
+
+// --- 基准图（1200×630 PNG，把最近一次 Simulate 结果发到 X / Discord） --------
+
+function fitText(ctx, text, maxWidth, size, weight = '') {
+  let px = size;
+  do {
+    ctx.font = `${weight}${px}px 'Courier New', ui-monospace, monospace`;
+    if (ctx.measureText(text).width <= maxWidth) return px;
+    px -= 2;
+  } while (px > 10);
+  return px;
+}
+
+function buildBenchCard() {
+  const mono = "'Courier New', ui-monospace, monospace";
+  const all = lastSim.kind === 'all';
+  const stats = all ? lastSim.total : lastSim.out;
+  const rate = all ? lastSim.total.winRate : lastSim.out.winRate;
+  const color = rate >= 50 ? '#00ff88' : '#ff4466';
+
+  const card = document.createElement('canvas');
+  card.width = 1200;
+  card.height = 630;
+  const ctx = card.getContext('2d');
+
+  ctx.fillStyle = '#06060f';
+  ctx.fillRect(0, 0, 1200, 630);
+  ctx.strokeStyle = 'rgba(0,255,136,0.06)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 40; x < 1200; x += 40) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, 630); }
+  for (let y = 40; y < 630; y += 40) { ctx.moveTo(0, y + 0.5); ctx.lineTo(1200, y + 0.5); }
+  ctx.stroke();
+
+  ctx.fillStyle = '#00ff88';
+  ctx.font = `22px ${mono}`;
+  ctx.fillText('▚ TOKEN WARS', 60, 92);
+  ctx.strokeStyle = 'rgba(0,255,136,0.35)';
+  ctx.beginPath();
+  ctx.moveTo(60, 112);
+  ctx.lineTo(300, 112);
+  ctx.stroke();
+  ctx.fillStyle = '#88aaff';
+  ctx.font = `22px ${mono}`;
+  ctx.textAlign = 'right';
+  ctx.fillText(t('benchTitle'), 1140, 92);
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = '#5f7a71';
+  ctx.font = `18px ${mono}`;
+  ctx.fillText(t('benchWin').toUpperCase(), 60, 162);
+  ctx.fillStyle = color;
+  ctx.font = `bold 104px ${mono}`;
+  ctx.fillText(`${rate}%`, 60, 258);
+
+  const sub = all
+    ? f('benchSubAll', stats.matches)
+    : f('benchSubSingle', stats.matches, lastSim.mapName);
+  const subSize = fitText(ctx, sub, 620, 24);
+  ctx.fillStyle = '#8fb3a5';
+  ctx.font = `${subSize}px ${mono}`;
+  ctx.fillText(sub, 60, 308);
+
+  ctx.fillStyle = '#cfe8dd';
+  ctx.font = `26px ${mono}`;
+  ctx.fillText(f('benchRecord', stats), 60, 360);
+
+  const statLine = f('benchStats', stats);
+  const statSize = fitText(ctx, statLine, 620, 20);
+  ctx.fillStyle = '#5f7a71';
+  ctx.font = `${statSize}px ${mono}`;
+  ctx.fillText(statLine, 60, 400);
+
+  const bar = (label, value, y) => {
+    ctx.fillStyle = '#8fb3a5';
+    ctx.font = `18px ${mono}`;
+    ctx.fillText(label, 720, y - 10);
+    ctx.fillStyle = '#0a1520';
+    ctx.fillRect(720, y, 380, 16);
+    ctx.strokeStyle = '#1b2a24';
+    ctx.strokeRect(720.5, y + 0.5, 379, 15);
+    const w = Math.max(2, Math.round((380 * Math.min(100, Math.max(0, value))) / 100));
+    ctx.fillStyle = value >= 50 ? '#00ff88' : '#ff4466';
+    ctx.fillRect(720, y, w, 16);
+    ctx.fillStyle = '#cfe8dd';
+    ctx.font = `18px ${mono}`;
+    ctx.fillText(`${value}%`, 1112, y + 14);
+  };
+
+  if (all) {
+    lastSim.rows.forEach(({ map, out }, i) => bar(mapNameOf(map), out.winRate, 215 + i * 56));
+  } else {
+    bar(t('benchYou'), lastSim.out.winRate, 300);
+    bar(t('benchBase'), lastSim.baseline.winRate, 380);
+  }
+
+  ctx.strokeStyle = 'rgba(0,255,136,0.2)';
+  ctx.beginPath();
+  ctx.moveTo(60, 500);
+  ctx.lineTo(1140, 500);
+  ctx.stroke();
+  ctx.fillStyle = '#8fb3a5';
+  ctx.font = `20px ${mono}`;
+  ctx.fillText(t('benchTagline'), 60, 536);
+  ctx.fillStyle = '#00aa77';
+  ctx.font = `22px ${mono}`;
+  ctx.fillText('bscbai.github.io/token-wars/sandbox.html', 60, 580);
+
+  return card;
+}
+
+function benchCardFileName() {
+  const tag = lastSim.kind === 'all' ? 'all-maps' : lastSim.mapId;
+  const rate = lastSim.kind === 'all' ? lastSim.total.winRate : lastSim.out.winRate;
+  return `token-wars-bot-${tag}-${rate}pct.png`;
+}
+
+async function shareBenchCard() {
+  if (!lastSim) return;
+  const blob = await new Promise((resolve) => buildBenchCard().toBlob(resolve, 'image/png'));
+  if (!blob) return;
+  const file = new File([blob], benchCardFileName(), { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], text: t('benchTagline') });
+      ui.shareStatus.textContent = t('cardShared');
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  ui.shareStatus.textContent = t('cardSaved');
 }
 
 // 双策略对打：粘贴朋友的分享链接（#code=… 或 #vs=…）即可离线比一场
@@ -1109,6 +1290,7 @@ function boot() {
     download: $('download'),
     simulate: $('simulate'),
     simAll: $('simAll'),
+    shareCard: $('shareCard'),
     llm: $('llm'),
     simResult: $('simResult'),
     shareStatus: $('shareStatus'),
@@ -1162,8 +1344,11 @@ function boot() {
     selectedMap = MAP_LIST.find((m) => m.id === ui.mapSelect.value) || MAP;
     lastDuel = null;
     lastMulti = null;
+    lastSim = null;
     ui.duelResult.textContent = '';
     ui.duelAllResult.textContent = '';
+    ui.simResult.textContent = '';
+    ui.shareCard.hidden = true;
   });
   ui.run.addEventListener('click', start);
   ui.stop.addEventListener('click', () => { stop(); ui.reason.textContent = t('reasonStopped'); });
@@ -1171,6 +1356,7 @@ function boot() {
   ui.download.addEventListener('click', downloadAgent);
   ui.simulate.addEventListener('click', simulateBatch);
   ui.simAll.addEventListener('click', simulateAllMaps);
+  ui.shareCard.addEventListener('click', shareBenchCard);
   ui.llm.addEventListener('click', copyLlmPrompt);
   ui.duelRun.addEventListener('click', runDuel);
   ui.duelAll.addEventListener('click', runDuelAll);

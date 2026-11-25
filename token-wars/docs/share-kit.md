@@ -195,7 +195,9 @@ rules, strategy hints) for ChatGPT/Claude, and the sandbox accepts the fenced
 code block it returns. **Simulate 50** also prints the Balanced preset's win rate
 on the same map as a baseline, and **Simulate all 5 maps** runs the same
 comparison against the gatekeeper per map (20 matches each), so "80% wins" has
-context.
+context. **Share image** exports the latest run as a 1200×630 PNG — big win
+rate, record, invalid/timeout counts and per-map bars — so benchmark results
+can be posted without screenshots.
 
 ### Short posts (copy-paste)
 
@@ -208,7 +210,8 @@ context.
 **X / bot angle**
 > Give your LLM a body: Token Wars is a 1v1 grid arena with a decide(state) API.
 > The sandbox copies a ready prompt for ChatGPT/Claude, simulates 50 matches,
-> scores your policy on all 5 maps, and exports a runnable Node bot:
+> scores your policy on all 5 maps, exports a runnable Node bot — and renders
+> the result as a shareable benchmark card:
 > https://bscbai.github.io/token-wars/sandbox.html
 
 **X / daily challenge angle**

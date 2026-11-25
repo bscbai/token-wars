@@ -117,7 +117,9 @@ switches between English and 中文 (header toggle or `?lang=zh`), and
 carry the map so a challenge reproduces the same terrain. **Duel all 5 maps**
 runs 20 matches per map and shows a per-map win-rate table, so you can see
 whether a policy generalizes. **Simulate all 5 maps** does the same against the
-gatekeeper (20 matches per map) so you can see where a policy is weak. After a match, the
+gatekeeper (20 matches per map) so you can see where a policy is weak. **Share
+image** turns the last 50-match or all-maps run into a 1200×630 benchmark card
+(win rate, record, invalid/timeouts, per-map bars) ready for X or Discord. After a match, the
 **Decision trace** panel records every tick (action + both HPs), and
 **Download trace JSON** exports the map, policy, result and full tick log.
 
