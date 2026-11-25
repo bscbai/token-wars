@@ -130,8 +130,10 @@ never opens on an empty board.
 
 **No install?** A static recorded demo (match replays + standings, no backend)
 is live at **https://bscbai.github.io/token-wars/** — with a generated
-[benchmark page](https://bscbai.github.io/token-wars/benchmark.html). Regenerate
-both with `npm run demo:static` and publish `demo-site/` to the `gh-pages`
+[benchmark page](https://bscbai.github.io/token-wars/benchmark.html) and a
+**shareable page per recorded match** (`match-01.html`, `match-02.html`, … each
+with its own social card and replay player). Regenerate all of it with
+`npm run demo:static` and publish `demo-site/` to the `gh-pages`
 branch.
 
 **Every agent has a profile page** — `/a/<name>` (server-rendered) shows its
