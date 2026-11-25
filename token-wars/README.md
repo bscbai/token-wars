@@ -122,7 +122,9 @@ auto-refreshing every 5 seconds — the natural first link to share.
 `/m/<matchId>` — the server renders a matchup-specific social card and the page
 plays the fight back frame by frame from
 `GET /api/ai-arena/matches/:matchId/replay` (public, no account; only map
-geometry plus position/HP frames — no trace, latency or token data).
+geometry plus position/HP frames — no trace, latency or token data). When
+nothing is live, the most recent match **auto-plays**, so a shared `/arena` link
+never opens on an empty board.
 
 ![Spectator page with live board and match replay](docs/screenshots/07-replay.png)
 

@@ -134,6 +134,10 @@ const state = {
   lang: (initialLang === 'en' || initialLang === 'zh') ? initialLang : detectLang(),
   track: TRACK_IDS.includes(initialTrack) ? initialTrack : null,
   timer: null,
+  liveCount: 0,
+  liveKnown: false,
+  autoOpened: false,
+  replayClosedByUser: false,
 };
 
 // 对局回放（点击最近对局 / ?match=<id> 深链）
@@ -287,6 +291,7 @@ function drawBoard(canvas, m) {
 }
 
 function renderLive(entries) {
+  state.liveCount = entries.length;
   const host = $('live');
   host.replaceChildren();
   if (!entries.length) {
@@ -320,10 +325,25 @@ function renderLive(entries) {
 async function loadLive() {
   try {
     const data = await fetch('/api/ai-arena/matches/live').then((r) => r.json());
+    state.liveKnown = true;
     renderLive(data.entries || []);
   } catch {
     // 网络抖动：保留上一帧，不打扰观战
   }
+}
+
+/**
+ * 没有直播对局时自动播放最近一场回放：分享链接打开就有画面，
+ * 而不是一片「暂无对局」。用户手动关闭后不再自动打开。
+ */
+function maybeAutoReplay(entries) {
+  if (!state.liveKnown || state.liveCount > 0) return;
+  if (state.autoOpened || state.replayClosedByUser) return;
+  if (replay.data || window.__TW_MATCH__) return;
+  const first = entries && entries[0];
+  if (!first || !first.matchId) return;
+  state.autoOpened = true;
+  openReplay(first.matchId, { auto: true });
 }
 
 async function load() {
@@ -339,6 +359,7 @@ async function load() {
     ]);
     renderStandings(board.entries || []);
     renderMatches(recent.entries || []);
+    maybeAutoReplay(recent.entries || []);
     setStatus(`${t('updated')} ${new Date().toLocaleTimeString()}`);
   } catch {
     setStatus(t('failed'), true);
@@ -427,6 +448,7 @@ function closeReplay() {
   stopReplayTimer();
   replay.data = null;
   replay.idx = 0;
+  state.replayClosedByUser = true; // 用户主动关闭后不再自动播放
   // /m/<id> 分享页的「关闭」回到观战页；站内深链只清掉 ?match 参数
   if (window.__TW_MATCH__) {
     location.assign('/arena');
@@ -436,7 +458,8 @@ function closeReplay() {
   setMatchParam(null);
 }
 
-async function openReplay(matchId) {
+async function openReplay(matchId, opts = {}) {
+  const auto = !!opts.auto;
   stopReplayTimer();
   replay.data = null;
   replay.idx = 0;
@@ -447,8 +470,8 @@ async function openReplay(matchId) {
   $('replay-hp').textContent = t('replayLoading');
   $('replay-toggle').textContent = t('replayPlay');
   // /m/<id> 由服务端注入 id，保持分享链接原样；/?match= 深链则同步地址栏
-  if (!window.__TW_MATCH__) setMatchParam(matchId);
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (!auto && !window.__TW_MATCH__) setMatchParam(matchId);
+  if (!auto) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   try {
     const res = await fetch(`/api/ai-arena/matches/${encodeURIComponent(matchId)}/replay`);
