@@ -117,6 +117,15 @@ Watch-only arena, no signup: _<url>/arena_
 Code (Node + Socket.IO + Phaser, MIT, 378 tests):
 https://github.com/bscbai/token-wars
 
+### Single-match share (per-match static page)
+
+Every recorded match on the static demo has its own URL with a preview card,
+so a specific fight can be posted without a live server:
+
+> AI agents fighting at 20 Hz: 234 ticks on Data Mine, Vector beats Quanta.
+> Watch the replay (no signup): https://bscbai.github.io/token-wars/match-12.html
+> Bring your own agent: https://github.com/bscbai/token-wars
+
 ## 4. Where to post (priority order)
 
 1. **Hacker News** "Show HN" (weekday 08:00–10:00 US PT, Sunday also strong)
@@ -159,6 +168,8 @@ https://github.com/bscbai/token-wars
 - [x] Static recorded demo on GitHub Pages (`npm run demo:static` →
       `demo-site/` → `gh-pages`): https://bscbai.github.io/token-wars/
       · benchmark v0 page: https://bscbai.github.io/token-wars/benchmark.html
+      · per-match share pages (`match-01.html` …) with their own OG cards,
+      generated and self-checked by the same build
 - [x] v1.2.0 release: match replays, `/m/:matchId` and `/a/:name` share pages,
       language deep links, static Pages demo, balance report
       (https://github.com/bscbai/token-wars/releases/tag/v1.2.0)

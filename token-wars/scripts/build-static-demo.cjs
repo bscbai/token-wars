@@ -71,25 +71,8 @@ const stats = {
 
 const data = { generatedAt: new Date().toISOString(), standings, matches, stats };
 
-const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Token Wars — AI Arena (recorded demo)</title>
-<meta name="description" content="Recorded AI-agent matches from Token Wars: a real-time, server-authoritative arena where you bring your own agent. Static demo — run the game locally for live fights.">
-<meta property="og:title" content="Token Wars — AI Agent Arena">
-<meta property="og:description" content="Watch recorded AI-agent matches frame by frame, then bring your own agent.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="__PUBLIC_ORIGIN__/">
-<meta property="og:image" content="__PUBLIC_ORIGIN__/og-image.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Token Wars — AI Agent Arena">
-<meta name="twitter:description" content="Watch recorded AI-agent matches frame by frame, then bring your own agent.">
-<meta name="twitter:image" content="__PUBLIC_ORIGIN__/og-image.png">
-<style>
+// 回放播放器与样式在 index / 每场分享页之间共用，避免生成物里两份实现漂移
+const BASE_CSS = `
   :root { --bg:#0a0a1a; --panel:#0f1024; --line:#1d2b3a; --green:#00ff88; --green-dim:#00aa77;
           --blue:#88aaff; --text:#cfe8dd; --muted:#5f7a71; }
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -141,7 +124,191 @@ const html = `<!DOCTYPE html>
   .join pre { margin:10px 0 8px; padding:10px 12px; background:#06060f; border:1px solid #1b2a24;
               border-radius:4px; color:var(--text); font:inherit; font-size:12px; overflow-x:auto; }
   .stats { font-size:11px; color:var(--muted); margin-top:10px; }
-</style>
+  .note { font-size:12px; color:var(--muted); line-height:1.8; }
+  .note a { color:var(--green-dim); text-decoration:none; }
+  .note a:hover { color:var(--green); }
+  .match-links { margin-top:10px; font-size:11px; color:var(--muted); line-height:2; }
+  .match-links a { color:var(--green-dim); text-decoration:none; margin-right:6px; }
+  .match-links a:hover { color:var(--green); }
+`;
+
+// 单场回放播放器：读取 window.__MATCH__，绘制画布并提供播放/暂停/重播
+const PLAYER_JS = `
+(function () {
+  const d = window.__MATCH__;
+  if (!d) return;
+  const board = document.getElementById('board');
+  const toggle = document.getElementById('toggle');
+  const restart = document.getElementById('restart');
+  const duelEl = document.getElementById('duel');
+  const hpEl = document.getElementById('hp');
+  const ctxEl = document.getElementById('context');
+  const state = { frame: 0, timer: null, playing: false };
+
+  function draw() {
+    const m = d.map, f = d.frames[state.frame];
+    if (!f) return;
+    const cell = Math.floor(Math.min(320 / m.width, 320 / m.height));
+    board.width = m.width * cell;
+    board.height = m.height * cell;
+    const ctx = board.getContext('2d');
+    ctx.fillStyle = '#06060f';
+    ctx.fillRect(0, 0, board.width, board.height);
+    ctx.strokeStyle = 'rgba(0,255,136,0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 1; i < m.width; i++) { ctx.moveTo(i * cell + .5, 0); ctx.lineTo(i * cell + .5, board.height); }
+    for (let j = 1; j < m.height; j++) { ctx.moveTo(0, j * cell + .5); ctx.lineTo(board.width, j * cell + .5); }
+    ctx.stroke();
+    ctx.fillStyle = '#17242e';
+    for (const [x, y] of m.obstacles) ctx.fillRect(x * cell, y * cell, cell - 1, cell - 1);
+    for (const [p, on, off] of [[f.a, '#00ff88', '#2a5a44'], [f.b, '#ff4466', '#5a2a36']]) {
+      ctx.fillStyle = p.alive ? on : off;
+      ctx.fillRect(p.x * cell + 1, p.y * cell + 1, cell - 2, cell - 2);
+    }
+    hpEl.textContent = 'HP ' + f.a.hp + ' / ' + f.b.hp + ' · tick ' + f.t + ' · ' + (state.frame + 1) + '/' + d.frames.length;
+  }
+
+  function stop() { clearInterval(state.timer); state.timer = null; state.playing = false; toggle.textContent = 'Play'; }
+
+  function play() {
+    stop();
+    if (state.frame >= d.frames.length - 1) state.frame = 0;
+    state.playing = true;
+    toggle.textContent = 'Pause';
+    state.timer = setInterval(() => {
+      if (state.frame >= d.frames.length - 1) { stop(); return; }
+      state.frame++;
+      draw();
+    }, 100);
+  }
+
+  const a = document.createElement('span');
+  a.className = d.winner === 'A' ? 'win' : '';
+  a.textContent = '◆ ' + d.a;
+  const vs = document.createElement('span');
+  vs.textContent = d.winner === 'draw' ? '  draw  ' : '  vs  ';
+  const b = document.createElement('span');
+  b.className = d.winner === 'B' ? 'win' : '';
+  b.textContent = d.b + ' ◇';
+  duelEl.append(a, vs, b);
+  ctxEl.textContent = d.ticks + ' ticks · ' + d.map.name + ' · ' + (d.winner === 'draw' ? 'draw' : d.winner + ' wins');
+
+  toggle.addEventListener('click', () => (state.playing ? stop() : play()));
+  if (restart) restart.addEventListener('click', () => { state.frame = 0; draw(); play(); });
+  draw();
+  play();
+})();
+`;
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+const matchPageUrl = (i) => `${PUBLIC_ORIGIN}/match-${String(i + 1).padStart(2, '0')}.html`;
+const matchTitle = (m) => (m.winner === 'draw'
+  ? `${m.a} vs ${m.b} — draw`
+  : `${m.a} vs ${m.b} — ${m.winner === 'A' ? m.a : m.b} wins`);
+const matchDesc = (m) => `${m.ticks} ticks on ${m.map.name} · recorded AI-agent match from Token Wars, a server-authoritative arena where you bring your own agent.`;
+
+function matchPage(i, m) {
+  const title = matchTitle(m);
+  const desc = matchDesc(m);
+  const json = JSON.stringify(m).replace(/</g, '\\u003c');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(title)} · Token Wars</title>
+<meta name="description" content="${escapeHtml(desc)}">
+<link rel="canonical" href="${matchPageUrl(i)}">
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta property="og:description" content="${escapeHtml(desc)}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="${matchPageUrl(i)}">
+<meta property="og:image" content="${PUBLIC_ORIGIN}/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeHtml(title)}">
+<meta name="twitter:description" content="${escapeHtml(desc)}">
+<meta name="twitter:image" content="${PUBLIC_ORIGIN}/og-image.png">
+<style>${BASE_CSS}</style>
+</head>
+<body>
+  <header>
+    <h1>AI AGENT ARENA</h1>
+    <p id="subtitle">Recorded match — Token Wars</p>
+  </header>
+
+  <div class="banner">
+    This is a <b>static recording</b> (no server). Live ladder and your own bot run locally
+    in ~1 minute: <code>npm install &amp;&amp; npm run demo</code> —
+    or <a href="https://github.com/bscbai/token-wars">read the protocol</a>.
+  </div>
+
+  <main>
+    <section>
+      <h2>Match replay</h2>
+      <div class="stage">
+        <canvas id="board" width="320" height="320"></canvas>
+        <div class="meta">
+          <div id="duel" class="duel"></div>
+          <div id="hp" class="hp"></div>
+          <div id="context"></div>
+          <div class="controls">
+            <button id="toggle" type="button">Play</button>
+            <button id="restart" type="button">Restart</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2>Share this match</h2>
+      <p class="note">Every recorded match has its own page — paste the URL and it unfurls
+      with this match's result and a preview card.</p>
+      <p class="note" style="margin-top:10px">
+        <a href="./index.html">All recorded matches</a><br>
+        <a href="./benchmark.html">Benchmark v0</a><br>
+        <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5-minute agent quickstart</a><br>
+        <a href="https://github.com/bscbai/token-wars">GitHub</a>
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <span>Match ${i + 1} of ${matches.length}</span>
+    <span id="generated"></span>
+  </footer>
+
+<script>window.__MATCH__ = ${json};</script>
+<script src="./replay.js"></script>
+<script>document.getElementById('generated').textContent = 'recorded ' + ${JSON.stringify(data.generatedAt.slice(0, 10))};</script>
+</body>
+</html>
+`;
+}
+
+const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Token Wars — AI Arena (recorded demo)</title>
+<meta name="description" content="Recorded AI-agent matches from Token Wars: a real-time, server-authoritative arena where you bring your own agent. Static demo — run the game locally for live fights.">
+<meta property="og:title" content="Token Wars — AI Agent Arena">
+<meta property="og:description" content="Watch recorded AI-agent matches frame by frame, then bring your own agent.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="__PUBLIC_ORIGIN__/">
+<meta property="og:image" content="__PUBLIC_ORIGIN__/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Token Wars — AI Agent Arena">
+<meta name="twitter:description" content="Watch recorded AI-agent matches frame by frame, then bring your own agent.">
+<meta name="twitter:image" content="__PUBLIC_ORIGIN__/og-image.png">
+<style>${BASE_CSS}</style>
 </head>
 <body>
   <header>
@@ -199,6 +366,7 @@ npm run join -- --url &lt;arena-url&gt;</pre>
     <a href="./benchmark.html">Benchmark v0</a>
     <span id="generated"></span>
   </footer>
+  <div class="match-links" id="matchLinks"></div>
 
 <script>
 const DATA = __DATA__;
@@ -308,6 +476,18 @@ document.getElementById('generated').textContent = 'recorded ' + DATA.generatedA
 document.getElementById('stats').textContent =
   DATA.stats.matches + ' recorded matches · ' + DATA.stats.maps + ' maps · avg ' +
   DATA.stats.avgTicks + ' ticks · ' + DATA.stats.draws + ' draws';
+
+// 每场都有独立分享页（match-NN.html），这里给出可点链接方便逐场传播
+const links = document.getElementById('matchLinks');
+const lead = document.createElement('span');
+lead.textContent = 'Share a single match: ';
+links.appendChild(lead);
+DATA.matches.forEach((m, i) => {
+  const a = document.createElement('a');
+  a.href = './match-' + String(i + 1).padStart(2, '0') + '.html';
+  a.textContent = String(i + 1);
+  links.appendChild(a);
+});
 select(0);
 </script>
 </body>
@@ -318,6 +498,25 @@ fs.mkdirSync(OUT_DIR, { recursive: true });
 fs.writeFileSync(OUT_FILE, html.replace('__DATA__', JSON.stringify(data)).replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN), 'utf8');
 fs.writeFileSync(path.join(OUT_DIR, '.nojekyll'), '', 'utf8');
 fs.copyFileSync(OG_IMAGE_SRC, path.join(OUT_DIR, 'og-image.png')); // 分享卡图片（GitHub Pages 同目录）
+fs.writeFileSync(path.join(OUT_DIR, 'replay.js'), PLAYER_JS, 'utf8');
+
+// 单场分享页：OG 卡按场次生成，便于把某一场直接发到社区
+const pageFiles = [];
+matches.forEach((m, i) => {
+  const name = `match-${String(i + 1).padStart(2, '0')}.html`;
+  const file = path.join(OUT_DIR, name);
+  fs.writeFileSync(file, matchPage(i, m), 'utf8');
+  pageFiles.push({ name, bytes: fs.statSync(file).size });
+});
+
+// 生成物自检：分享页必须带 OG 卡、回放数据与外链播放器，否则构建失败
+for (const p of pageFiles) {
+  const text = fs.readFileSync(path.join(OUT_DIR, p.name), 'utf8');
+  if (!text.includes('property="og:url"') || !text.includes('window.__MATCH__ = {') || !text.includes('src="./replay.js"')) {
+    throw new Error(`static demo page invalid: ${p.name}`);
+  }
+}
+if (fs.statSync(path.join(OUT_DIR, 'replay.js')).size === 0) throw new Error('replay.js is empty');
 
 console.log(JSON.stringify({
   out: OUT_FILE,
@@ -325,6 +524,8 @@ console.log(JSON.stringify({
   framesTotal: matches.reduce((s, m) => s + m.frames.length, 0),
   standings,
   bytes: fs.statSync(OUT_FILE).size,
+  matchPages: pageFiles.length,
+  matchPageBytes: pageFiles.map((p) => p.bytes),
 }, null, 2));
 
 store.close();

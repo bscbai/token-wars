@@ -100,7 +100,8 @@ inlined) that any static host can serve:
 
 ```bash
 cd token-wars
-npm run demo:static        # → demo-site/index.html + benchmark.html (+ og-image.png, .nojekyll)
+npm run demo:static        # → demo-site/index.html + benchmark.html + match-NN.html
+                           #   + replay.js (+ og-image.png, .nojekyll)
 ```
 
 Then, **from the repo root**:
@@ -114,8 +115,10 @@ Settings → Pages → Source: branch `gh-pages`, folder `/ (root)`. The site is
 `https://<user>.github.io/token-wars/` (this repo already has it enabled:
 https://bscbai.github.io/token-wars/).
 
-**Limits:** the page is a recording — no live board, no real `/m/<matchId>`
-share cards and no bot access. Those need one of the always-on options above.
+**Limits:** the page is a recording — no live board and no bot access. Each
+recorded match does get a static share page (`match-NN.html`, own OG card), but
+real `/m/<matchId>` links for fresh matches need one of the always-on options
+above.
 
 ---
 
