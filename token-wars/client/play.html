@@ -43,10 +43,16 @@
   .stage { position:relative; }
   canvas { display:block; width:100%; height:auto; max-width:480px; background:#06060f;
            border:1px solid #1b2a24; border-radius:4px; image-rendering:pixelated; }
-  #result { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+  #result { position:absolute; inset:0; display:none; flex-direction:column; gap:8px;
+            align-items:center; justify-content:center;
             font-size:26px; letter-spacing:3px; color:var(--green); background:rgba(4,6,12,.78);
             border-radius:4px; text-align:center; padding:20px; }
   #result.show { display:flex; }
+  .result-cta { display:inline-block; font-size:11px; letter-spacing:0; color:var(--green);
+                border:1px solid #1b3a30; border-radius:4px; padding:5px 11px; text-decoration:none;
+                background:#0a1620; }
+  .result-cta:hover { background:#1b3529; border-color:var(--green); }
+  #resultCta[hidden] { display:none; }
   #result[data-result="loss"] { color:var(--red); }
   #result[data-result="draw"] { color:var(--blue); }
   #resultStats { font-size:11px; letter-spacing:0; color:var(--muted); line-height:1.7; }
@@ -124,7 +130,11 @@
     <section>
       <div class="stage">
         <canvas id="board" width="480" height="480"></canvas>
-        <div id="result"><span id="resultText"></span><span id="resultStats"></span></div>
+        <div id="result">
+          <span id="resultText"></span>
+          <span id="resultStats"></span>
+          <a id="resultCta" class="result-cta" hidden></a>
+        </div>
       </div>
       <div class="pad" aria-label="movement" data-i18n-aria="padAria">
         <button id="padUp" type="button" aria-label="up" data-i18n-aria="up">▲</button>

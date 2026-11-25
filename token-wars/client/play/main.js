@@ -68,6 +68,9 @@ const I18N = {
     resultWin: 'YOU WIN',
     resultLoss: 'GATEKEEPER WINS',
     resultDraw: 'DRAW',
+    resultCtaWin: 'Now beat a bot policy — open the sandbox →',
+    resultCtaLoss: 'Beat it with code — write a bot →',
+    resultCtaDraw: 'Try the bot sandbox →',
     hintAttack: 'Attack needs range ≤ 2',
     hintBurst: 'Burst needs range ≤ 2',
     shareCopied: 'Result copied — paste it in Discord, X or a PR.',
@@ -113,6 +116,9 @@ const I18N = {
     resultWin: '你赢了',
     resultLoss: 'GATEKEEPER 获胜',
     resultDraw: '平局',
+    resultCtaWin: '再去沙盒挑战策略 →',
+    resultCtaLoss: '用代码打败它——写个 bot →',
+    resultCtaDraw: '去沙盒写个 bot →',
     hintAttack: '普攻需要距离 ≤ 2',
     hintBurst: '爆发需要距离 ≤ 2',
     shareCopied: '战绩已复制——可以直接发到 Discord、X 或 PR。',
@@ -259,6 +265,7 @@ function reset() {
   lastResult = null;
   lastOutcome = null;
   ui.share.hidden = true;
+  ui.resultCta.hidden = true;
   ui.resultText.textContent = '';
   ui.resultStats.textContent = '';
   ui.result.classList.remove('show');
@@ -449,6 +456,11 @@ function renderResult() {
       newBest: lastOutcome.newBest,
     })
     : '';
+  const ctaKey = lastResult === 'win' ? 'resultCtaWin'
+    : (lastResult === 'loss' ? 'resultCtaLoss' : 'resultCtaDraw');
+  ui.resultCta.textContent = t(ctaKey);
+  ui.resultCta.href = `./sandbox.html?lang=${lang}`;
+  ui.resultCta.hidden = false;
   ui.result.classList.add('show');
   ui.result.dataset.result = lastResult;
 }
@@ -592,6 +604,7 @@ function boot() {
     result: $('result'),
     resultText: $('resultText'),
     resultStats: $('resultStats'),
+    resultCta: $('resultCta'),
     record: $('record'),
     hint: $('hint'),
     shieldTag: $('shieldTag'),
