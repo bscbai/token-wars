@@ -65,13 +65,19 @@ jobs:
           exit 1
 
       # 产物自检：目录与 asar 必须存在，避免把空壳 zip 发出去
+      # macOS 的 asar 在 .app/Contents/Resources 下，其它平台在 resources/
       - name: Verify packaged layout (unix)
         if: runner.os != 'Windows'
         working-directory: token-wars
         run: |
-          test -d "dist/Token Wars-${{ matrix.dir }}"
-          test -f "dist/Token Wars-${{ matrix.dir }}/resources/app.asar"
-          du -sh "dist/Token Wars-${{ matrix.dir }}"
+          app="dist/Token Wars-${{ matrix.dir }}"
+          test -d "$app"
+          if [ "${{ matrix.target }}" = "mac" ]; then
+            test -f "$app/Token Wars.app/Contents/Resources/app.asar"
+          else
+            test -f "$app/resources/app.asar"
+          fi
+          du -sh "$app"
 
       - name: Verify packaged layout (windows)
         if: runner.os == 'Windows'
