@@ -63,6 +63,8 @@ jobs:
           test -s demo-site/benchmark.html
           test -s demo-site/replay.js
           test -s demo-site/match-01.html
+          test -s demo-site/sitemap.xml
+          test -s demo-site/robots.txt
 
   # Smoke-test the Electron packaging pipeline. Non-blocking: packaging quirks
   # (icons, native rebuilds) shouldn't fail the test gate.

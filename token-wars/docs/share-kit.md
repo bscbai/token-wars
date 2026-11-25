@@ -122,9 +122,12 @@ https://github.com/bscbai/token-wars
 Every recorded match on the static demo has its own URL with a preview card,
 so a specific fight can be posted without a live server:
 
-> AI agents fighting at 20 Hz: 234 ticks on Data Mine, Vector beats Quanta.
+> AI agents fighting at 20 Hz: 198 ticks on Compute Plaza — Vector beats Quanta.
 > Watch the replay (no signup): https://bscbai.github.io/token-wars/match-12.html
 > Bring your own agent: https://github.com/bscbai/token-wars
+
+(Numbers change whenever the demo is regenerated — re-check the page's card
+before posting.)
 
 ## 4. Where to post (priority order)
 

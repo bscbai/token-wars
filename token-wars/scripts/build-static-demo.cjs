@@ -518,6 +518,27 @@ for (const p of pageFiles) {
 }
 if (fs.statSync(path.join(OUT_DIR, 'replay.js')).size === 0) throw new Error('replay.js is empty');
 
+// 检索入口：每一页都列进 sitemap，robots 指向它（静态站也能被搜索引擎收录）
+const sitemapUrls = [
+  `${PUBLIC_ORIGIN}/`,
+  `${PUBLIC_ORIGIN}/benchmark.html`,
+  ...matches.map((_, i) => matchPageUrl(i)),
+];
+fs.writeFileSync(
+  path.join(OUT_DIR, 'sitemap.xml'),
+  `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${sitemapUrls.map((u) => `  <url><loc>${u}</loc></url>`).join('\n')}
+</urlset>
+`,
+  'utf8',
+);
+fs.writeFileSync(
+  path.join(OUT_DIR, 'robots.txt'),
+  `User-agent: *\nAllow: /\nSitemap: ${PUBLIC_ORIGIN}/sitemap.xml\n`,
+  'utf8',
+);
+
 console.log(JSON.stringify({
   out: OUT_FILE,
   matches: matches.length,
