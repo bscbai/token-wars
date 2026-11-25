@@ -23,7 +23,16 @@ const TICK_MS = 50; // 20 Hz，与服务器同频
 const MATCH_MAX_MS = 120000;
 const CELL = 24;
 
-const MAP = AI_MAPS.DATA_MINE;
+const MAP_LIST = Object.values(AI_MAPS);
+const MAP_EN = {
+  data_mine: 'Data Mine',
+  compute_square: 'Compute Square',
+  cache_maze: 'Cache Maze',
+  arena_dome: 'Arena Dome',
+  data_torrent: 'Data Torrent',
+};
+const MAP_KEY = 'tw-play-map';
+let MAP = AI_MAPS.DATA_MINE;
 const brain = new BuiltinBrain();
 
 const I18N = {
@@ -36,6 +45,8 @@ const I18N = {
       <code>npm start</code>. <a href="./index.html">Watch recorded matches →</a>
       · <a href="./sandbox.html">Write an agent →</a>`,
     match: 'Match',
+    mapLabel: 'Arena',
+    mapAria: 'arena map',
     you: 'YOU',
     skillAttack: 'J Attack',
     skillBurst: 'K Burst',
@@ -84,6 +95,8 @@ const I18N = {
       <code>npm start</code> 运行。<a href="./index.html">看录制对局 →</a>
       · <a href="./sandbox.html">写个 agent →</a>`,
     match: '对局',
+    mapLabel: '竞技场',
+    mapAria: '竞技场地图',
     you: '你',
     skillAttack: 'J 普攻',
     skillBurst: 'K 爆发',
@@ -254,6 +267,28 @@ function freshAgents() {
   enemy = new AIAgent('local-gatekeeper', [], 'Gatekeeper');
   enemy.x = MAP.spawnB.x;
   enemy.y = MAP.spawnB.y;
+}
+
+const mapNameOf = (m) => (lang === 'zh' ? m.name : (MAP_EN[m.id] || m.id));
+
+function populateMaps() {
+  if (!ui.mapSelect) return;
+  ui.mapSelect.innerHTML = '';
+  for (const m of MAP_LIST) {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = mapNameOf(m);
+    opt.selected = m.id === MAP.id;
+    ui.mapSelect.appendChild(opt);
+  }
+}
+
+function selectMap(id) {
+  const next = MAP_LIST.find((m) => m.id === id);
+  if (!next || next.id === MAP.id) return;
+  MAP = next;
+  try { localStorage.setItem(MAP_KEY, MAP.id); } catch { /* 隐私模式忽略 */ }
+  reset();
 }
 
 function reset() {
@@ -543,6 +578,7 @@ function applyLang(next) {
   ui.lang.textContent = lang === 'zh' ? 'EN' : '中文';
   ui.lang.setAttribute('aria-label', lang === 'zh' ? 'Switch to English' : '切换到中文');
   ui.hint.textContent = '';
+  populateMaps();
   renderResult();
   updateRecordLine();
   updateHud();
@@ -618,6 +654,7 @@ function boot() {
     skillShield: $('skillShield'),
     skillDash: $('skillDash'),
     lang: $('lang'),
+    mapSelect: $('mapSelect'),
     padUp: $('padUp'),
     padDown: $('padDown'),
     padLeft: $('padLeft'),
@@ -629,6 +666,13 @@ function boot() {
     try { localStorage.setItem('tw-play-lang', next); } catch { /* 隐私模式忽略 */ }
     applyLang(next);
   });
+  try {
+    const storedMap = localStorage.getItem(MAP_KEY);
+    if (storedMap) MAP = MAP_LIST.find((m) => m.id === storedMap) || MAP;
+  } catch { /* 隐私模式忽略 */ }
+  populateMaps();
+  ui.mapSelect.addEventListener('change', () => selectMap(ui.mapSelect.value));
+
   const firstVisit = !introSeen();
   reset();
   applyLang();

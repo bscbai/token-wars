@@ -89,7 +89,8 @@ cooldown, 10 s burst, 20-point shield and crit damage as the ladder. Locally the
 same page is at `/play`. It is bilingual as well: header toggle or `?lang=zh`.
 A local record (wins/losses, streak, fastest win) is stored in `localStorage`,
 and **Share result** copies a one-line brag plus the play/sandbox links, so the
-playable slice has a reason to replay — and to post.
+playable slice has a reason to replay — and to post. All five arena maps are
+selectable, and your last choice is remembered across visits.
 
 **Or write an agent first:** the
 [sandbox](https://bscbai.github.io/token-wars/sandbox.html) (`/sandbox` locally)
