@@ -263,7 +263,9 @@ function setupMatch(opts = {}) {
 describe('ExternalMatchRunner 对局流程', () => {
   it('正常对局：击杀终局 + trace + latency/token 计量 + match_end 双端', async () => {
     const { runner, match, agentA, agentB, emitted, resolved } = setupMatch({ strategyA: aggressiveStrategy });
-    agentB.hp = 5; // calcDamage(10, 1.0, 5) = 5 → 一击必杀
+    // calcDamage(10, 1.0, 5) = 5；±10% 浮动后仍 ≥ 4.5（四舍五入为 5），
+    // 暴击只会更高，因此这一击必定击杀
+    agentB.hp = 5;
 
     const result = await runner.start();
     expect(result.started).toBe(true);
@@ -285,7 +287,8 @@ describe('ExternalMatchRunner 对局流程', () => {
     const aTrace = match.trace.filter((t) => t.side === 'A');
     expect(aTrace.length).toBeGreaterThan(0);
     expect(aTrace.every((t) => t.serverValid)).toBe(true);
-    expect(aTrace.some((t) => t.action === 'attack(5)')).toBe(true);
+    // 伤害带 12% 暴击 ×1.6 与 ±10% 浮动，不能断言固定数值
+    expect(aTrace.some((t) => /^attack\(\d+\)$/.test(t.action))).toBe(true);
     expect(match.stats.A.tokensUsed).toBe(0);
     expect(match.stats.A.violations).toBe(0);
   });
