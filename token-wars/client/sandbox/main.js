@@ -156,6 +156,14 @@ const I18N = {
     simAll: 'Simulate all 5 maps',
     simulatingAll: 'Simulating all 5 maps (20 matches each)…',
     shareImage: 'Share image',
+    shareDuelImage: 'Share duel card',
+    duelCardTitle: 'BOT DUEL',
+    duelWin: 'YOU WIN THE DUEL',
+    duelLoss: 'OPPONENT WINS',
+    duelDraw: 'DUEL DRAW',
+    duelYou: 'Your policy',
+    duelThem: "Friend's policy",
+    duelCardTagline: 'decide(state) vs decide(state) — offline, in one tab',
     dailyRun: 'Daily challenge',
     dailyRunning: "Running today's challenge (50 matches)…",
     cardSaved: 'Card saved — post it anywhere.',
@@ -247,6 +255,14 @@ const I18N = {
     simAll: '模拟五张地图',
     simulatingAll: '正在模拟五张地图（各 20 场）…',
     shareImage: '生成基准图',
+    shareDuelImage: '生成对战图',
+    duelCardTitle: 'BOT 对战',
+    duelWin: '你赢下对战',
+    duelLoss: '对手获胜',
+    duelDraw: '对战平局',
+    duelYou: '你的策略',
+    duelThem: '对方策略',
+    duelCardTagline: 'decide(state) vs decide(state) —— 离线单页对战',
     dailyRun: '每日挑战',
     dailyRunning: '正在跑今日挑战（50 场）…',
     cardSaved: '基准图已保存，可直接发帖。',
@@ -332,6 +348,10 @@ const FMT = {
       + ` ${t.wins}W / ${t.losses}L / ${t.draws}D`,
     simAllRow: (map, o) => ` · ${map}: ${o.wins}W / ${o.losses}L (${o.winRate}%)`,
     dailyPrefix: (n, map, mut) => `Daily #${n} · ${map} · ${mut}`,
+    duelCardSub: (n, map) => `${n} headless matches · ${map}`,
+    duelCardRecord: (o) => `you ${o.aWins}W · them ${o.bWins}W · ${o.draws}D`,
+    duelCardStats: (o) => `avg ${o.avgTicks} ticks · invalid ${o.aInvalid} vs ${o.bInvalid}`
+      + ` · timeouts ${o.aTimeouts} vs ${o.bTimeouts}`,
     benchSubSingle: (n, map) => `${n} matches vs the Gatekeeper · ${map}`,
     benchSubAll: (n) => `${n} matches vs the Gatekeeper · all 5 maps`,
     benchRecord: (o) => `${o.wins}W–${o.losses}L–${o.draws}D`,
@@ -372,6 +392,10 @@ const FMT = {
       + `${t.wins}胜 / ${t.losses}负 / ${t.draws}平`,
     simAllRow: (map, o) => ` · ${map}：${o.wins}胜 ${o.losses}负（${o.winRate}%）`,
     dailyPrefix: (n, map, mut) => `每日挑战 #${n} · ${map} · ${mut}`,
+    duelCardSub: (n, map) => `${n} 场无渲染对局 · ${map}`,
+    duelCardRecord: (o) => `你 ${o.aWins}胜 · 对方 ${o.bWins}胜 · ${o.draws}平`,
+    duelCardStats: (o) => `平均 ${o.avgTicks} tick · 非法 ${o.aInvalid} vs ${o.bInvalid}`
+      + ` · 超时 ${o.aTimeouts} vs ${o.bTimeouts}`,
     benchSubSingle: (n, map) => `对守门 AI ${n} 场 · ${map}`,
     benchSubAll: (n) => `对守门 AI ${n} 场 · 五张地图`,
     benchRecord: (o) => `${o.wins}胜 ${o.losses}负 ${o.draws}平`,
@@ -493,6 +517,7 @@ let stats = null;
 let lastAction = '-';
 let lastError = '';
 let lastDuel = null;
+let lastDuelMeta = null; // { mapId, mapName }，对战图用
 let lastMulti = null;
 let lastSim = null; // Simulate 50 / 五图结果，用于生成基准图
 let lastResult = null;
@@ -1091,6 +1116,128 @@ async function shareBenchCard() {
   ui.shareStatus.textContent = t('cardSaved');
 }
 
+// --- 对战图（1200×630 PNG，把 50 场 duel 结果发到 X / Discord） ---------------
+
+function buildDuelCard() {
+  const o = lastDuel;
+  const mono = "'Courier New', ui-monospace, monospace";
+  const mine = o.aWins;
+  const theirs = o.bWins;
+  const outcome = mine > theirs ? 'duelWin' : (theirs > mine ? 'duelLoss' : 'duelDraw');
+  const color = mine > theirs ? '#00ff88' : (theirs > mine ? '#ff4466' : '#88aaff');
+  const mapName = lastDuelMeta ? lastDuelMeta.mapName : mapNameOf(selectedMap);
+
+  const card = document.createElement('canvas');
+  card.width = 1200;
+  card.height = 630;
+  const ctx = card.getContext('2d');
+
+  ctx.fillStyle = '#06060f';
+  ctx.fillRect(0, 0, 1200, 630);
+  ctx.strokeStyle = 'rgba(0,255,136,0.06)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 40; x < 1200; x += 40) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, 630); }
+  for (let y = 40; y < 630; y += 40) { ctx.moveTo(0, y + 0.5); ctx.lineTo(1200, y + 0.5); }
+  ctx.stroke();
+
+  ctx.fillStyle = '#00ff88';
+  ctx.font = `22px ${mono}`;
+  ctx.fillText('▚ TOKEN WARS', 60, 92);
+  ctx.strokeStyle = 'rgba(0,255,136,0.35)';
+  ctx.beginPath();
+  ctx.moveTo(60, 112);
+  ctx.lineTo(300, 112);
+  ctx.stroke();
+  ctx.fillStyle = '#88aaff';
+  ctx.font = `22px ${mono}`;
+  ctx.textAlign = 'right';
+  ctx.fillText(t('duelCardTitle'), 1140, 92);
+  ctx.textAlign = 'left';
+
+  const resultText = t(outcome);
+  const resultSize = fitText(ctx, resultText, 640, 76, 'bold ');
+  ctx.fillStyle = color;
+  ctx.font = `bold ${resultSize}px ${mono}`;
+  ctx.fillText(resultText, 60, 235);
+
+  const sub = f('duelCardSub', o.matches, mapName);
+  const subSize = fitText(ctx, sub, 620, 24);
+  ctx.fillStyle = '#8fb3a5';
+  ctx.font = `${subSize}px ${mono}`;
+  ctx.fillText(sub, 60, 288);
+
+  ctx.fillStyle = '#cfe8dd';
+  ctx.font = `26px ${mono}`;
+  ctx.fillText(f('duelCardRecord', o), 60, 340);
+
+  const statLine = f('duelCardStats', o);
+  const statSize = fitText(ctx, statLine, 620, 20);
+  ctx.fillStyle = '#5f7a71';
+  ctx.font = `${statSize}px ${mono}`;
+  ctx.fillText(statLine, 60, 382);
+
+  const bar = (label, value, y) => {
+    ctx.fillStyle = '#8fb3a5';
+    ctx.font = `18px ${mono}`;
+    ctx.fillText(label, 720, y - 10);
+    ctx.fillStyle = '#0a1520';
+    ctx.fillRect(720, y, 380, 16);
+    ctx.strokeStyle = '#1b2a24';
+    ctx.strokeRect(720.5, y + 0.5, 379, 15);
+    const w = Math.max(2, Math.round((380 * Math.min(100, Math.max(0, value))) / 100));
+    ctx.fillStyle = value >= 50 ? '#00ff88' : '#ff4466';
+    ctx.fillRect(720, y, w, 16);
+    ctx.fillStyle = '#cfe8dd';
+    ctx.font = `18px ${mono}`;
+    ctx.fillText(`${value}%`, 1112, y + 14);
+  };
+  bar(t('duelYou'), o.winRateA, 300);
+  bar(t('duelThem'), o.winRateB, 380);
+
+  ctx.strokeStyle = 'rgba(0,255,136,0.2)';
+  ctx.beginPath();
+  ctx.moveTo(60, 500);
+  ctx.lineTo(1140, 500);
+  ctx.stroke();
+  ctx.fillStyle = '#8fb3a5';
+  ctx.font = `20px ${mono}`;
+  ctx.fillText(t('duelCardTagline'), 60, 536);
+  ctx.fillStyle = '#00aa77';
+  ctx.font = `22px ${mono}`;
+  ctx.fillText('bscbai.github.io/token-wars/sandbox.html', 60, 580);
+
+  return card;
+}
+
+function duelCardFileName() {
+  const mapId = lastDuelMeta ? lastDuelMeta.mapId : selectedMap.id;
+  return `token-wars-duel-${mapId}-${lastDuel.aWins}w-${lastDuel.bWins}w.png`;
+}
+
+async function shareDuelCard() {
+  if (!lastDuel) return;
+  const blob = await new Promise((resolve) => buildDuelCard().toBlob(resolve, 'image/png'));
+  if (!blob) return;
+  const file = new File([blob], duelCardFileName(), { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], text: t('duelCardTagline') });
+      ui.shareStatus.textContent = t('cardShared');
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  ui.shareStatus.textContent = t('cardSaved');
+}
+
 // 双策略对打：粘贴朋友的分享链接（#code=… 或 #vs=…）即可离线比一场
 function loadOpponentFromInput() {
   const raw = ui.duelLink.value.trim();
@@ -1114,6 +1261,8 @@ function loadOpponentFromInput() {
     selectedMap = MAP_LIST.find((m) => m.id === mapParam[1]);
   }
   lastDuel = null;
+  lastDuelMeta = null;
+  ui.duelCard.hidden = true;
   ui.duelResult.textContent = t('opponentLoaded');
 }
 
@@ -1162,7 +1311,9 @@ function runDuel() {
   ui.error.textContent = '';
   ui.duelRun.disabled = true;
   lastDuel = null;
+  lastDuelMeta = null;
   lastMulti = null;
+  ui.duelCard.hidden = true;
   ui.duelAllResult.textContent = '';
   ui.duelResult.textContent = t('dueling');
   const map = selectedMap;
@@ -1171,6 +1322,8 @@ function runDuel() {
     try {
       const out = simulateMatchesBetween(mine, theirs, { count: 50, map });
       lastDuel = out;
+      lastDuelMeta = { mapId: map.id, mapName };
+      ui.duelCard.hidden = false;
       ui.duelResult.textContent = f('duelResult', out, mapName);
     } catch (err) {
       ui.error.textContent = f('duelFailed', err.message);
@@ -1216,7 +1369,9 @@ function runDuelAll() {
   ui.duelRun.disabled = true;
   ui.duelAll.disabled = true;
   lastDuel = null;
+  lastDuelMeta = null;
   lastMulti = null;
+  ui.duelCard.hidden = true;
   ui.duelResult.textContent = '';
   ui.duelAllResult.textContent = t('duelingAll');
   setTimeout(() => {
@@ -1378,6 +1533,7 @@ function boot() {
     duelLoad: $('duelLoad'),
     duelShare: $('duelShare'),
     duelCopy: $('duelCopy'),
+    duelCard: $('duelCard'),
     lang: $('lang'),
     error: $('error'),
     result: $('result'),
@@ -1418,10 +1574,12 @@ function boot() {
   ui.mapSelect.addEventListener('change', () => {
     selectedMap = MAP_LIST.find((m) => m.id === ui.mapSelect.value) || MAP;
     lastDuel = null;
+    lastDuelMeta = null;
     lastMulti = null;
     lastSim = null;
     ui.duelResult.textContent = '';
     ui.duelAllResult.textContent = '';
+    ui.duelCard.hidden = true;
     ui.simResult.textContent = '';
     ui.shareCard.hidden = true;
   });
@@ -1439,6 +1597,7 @@ function boot() {
   ui.duelLoad.addEventListener('click', loadOpponentFromInput);
   ui.duelShare.addEventListener('click', copyDuelLink);
   ui.duelCopy.addEventListener('click', copyDuelResult);
+  ui.duelCard.addEventListener('click', shareDuelCard);
   ui.traceDownload.addEventListener('click', downloadTrace);
   ui.traceDetails.addEventListener('toggle', () => {
     if (ui.traceDetails.open) renderTrace();

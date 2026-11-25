@@ -111,7 +111,8 @@ prompt for ChatGPT/Claude — paste the generated `decide()` back and fight.
 and reports win rate, invalid actions, timeouts and decision time, so you can
 tune the policy before exporting. **Duel** takes a friend's share link, loads
 their policy and plays 50 offline matches — no accounts, no server — then
-**Copy result** gives you a postable summary plus the duel link. The whole page
+**Copy result** gives you a postable summary plus the duel link, and
+**Share duel card** exports both win rates as a 1200×630 PNG. The whole page
 switches between English and 中文 (header toggle or `?lang=zh`), and
 **Simulate 50 / Duel 50** can run on any of the five arena maps; duel links
 carry the map so a challenge reproduces the same terrain. **Duel all 5 maps**
