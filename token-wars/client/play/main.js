@@ -43,6 +43,13 @@ const I18N = {
     skillDash: '␣ Dash',
     restart: 'Restart (R)',
     shareResult: 'Share result',
+    howToPlay: 'How to play',
+    introTitle: 'How to fight',
+    introMove: '<b>WASD / arrows</b> move — on a phone, use the pad.',
+    introAttack: '<b>J</b> attacks when the enemy is within 2 tiles.',
+    introSkills: '<b>K</b> burst · <b>L</b> shield absorbs 20 · <b>Space</b> dash 3 tiles.',
+    introWin: 'Drop the gatekeeper to 0 HP. It uses the same cooldowns you do.',
+    introStart: 'Start fighting',
     controlsNote: `<b>WASD / arrows</b> move · <b>J</b> attack (range ≤ 2) · <b>K</b> burst
       (1.5×, 10 s) · <b>L</b> shield (absorbs 20) · <b>Space</b> dash toward the
       enemy · <b>R</b> restart. Touch: use the pad and buttons above.`,
@@ -81,6 +88,13 @@ const I18N = {
     skillDash: '␣ 冲刺',
     restart: '重开 (R)',
     shareResult: '分享战绩',
+    howToPlay: '操作说明',
+    introTitle: '怎么打',
+    introMove: '<b>WASD / 方向键</b> 移动——手机用上方方向键。',
+    introAttack: '<b>J</b> 在距离 ≤ 2 时普攻。',
+    introSkills: '<b>K</b> 爆发 · <b>L</b> 护盾吸收 20 点 · <b>空格</b> 向敌方冲刺 3 格。',
+    introWin: '把守门 AI 打到 0 血即可获胜；它的冷却和你完全一样。',
+    introStart: '开始对战',
     controlsNote: `<b>WASD / 方向键</b> 移动 · <b>J</b> 普攻（距离 ≤ 2）· <b>K</b> 爆发
       （1.5×，10 s）· <b>L</b> 护盾（吸收 20）· <b>空格</b> 向敌方冲刺 · <b>R</b> 重开。
       触屏：用上方方向键和技能按钮。`,
@@ -183,6 +197,27 @@ function updateRecordLine() {
     ...record,
     best: record.bestWinMs ? secs(record.bestWinMs) : null,
   });
+}
+
+// 首访操作说明：暂停比赛，关掉后继续；之后可从页脚「操作说明」再打开
+const INTRO_KEY = 'tw-play-intro-v1';
+function introSeen() {
+  try { return localStorage.getItem(INTRO_KEY) === '1'; } catch { return true; }
+}
+
+function openIntro() {
+  if (!ui.intro) return;
+  stop();
+  ui.intro.hidden = false;
+}
+
+function closeIntro() {
+  try { localStorage.setItem(INTRO_KEY, '1'); } catch { /* 隐私模式忽略 */ }
+  ui.intro.hidden = true;
+  if (!ended) {
+    running = true;
+    start();
+  }
 }
 
 const ui = {};
@@ -505,6 +540,7 @@ function applyLang(next) {
 
 function bindInput() {
   window.addEventListener('keydown', (e) => {
+    if (ui.intro && !ui.intro.hidden) return;
     const key = e.key.toLowerCase();
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'w', 'a', 's', 'd',
       'j', 'k', 'l'].includes(key)) e.preventDefault();
@@ -538,6 +574,8 @@ function bindInput() {
   ui.skillDash.addEventListener('click', () => tryDash(performance.now()));
   ui.restart.addEventListener('click', reset);
   ui.share.addEventListener('click', shareMatch);
+  ui.howto.addEventListener('click', openIntro);
+  ui.introStart.addEventListener('click', closeIntro);
 }
 
 // --- 启动 -------------------------------------------------------------------
@@ -559,6 +597,9 @@ function boot() {
     shieldTag: $('shieldTag'),
     restart: $('restart'),
     share: $('share'),
+    intro: $('intro'),
+    introStart: $('introStart'),
+    howto: $('howto'),
     skillAttack: $('skillAttack'),
     skillBurst: $('skillBurst'),
     skillShield: $('skillShield'),
@@ -575,9 +616,11 @@ function boot() {
     try { localStorage.setItem('tw-play-lang', next); } catch { /* 隐私模式忽略 */ }
     applyLang(next);
   });
+  const firstVisit = !introSeen();
   reset();
   applyLang();
   updateRecordLine();
+  if (firstVisit) openIntro();
 }
 
 if (document.readyState === 'loading') {

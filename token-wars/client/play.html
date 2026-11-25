@@ -85,6 +85,19 @@
   #padDown { grid-column:2; grid-row:2; }
   #padRight { grid-column:3; grid-row:2; }
   #hint { min-height:16px; margin-top:8px; font-size:11px; color:#ffd479; }
+  #intro { position:fixed; inset:0; z-index:20; background:rgba(4,6,12,.88);
+           display:flex; align-items:center; justify-content:center; padding:18px; }
+  #intro[hidden] { display:none; }
+  .intro-card { width:100%; max-width:430px; background:var(--panel); border:1px solid #1b3a30;
+                border-radius:8px; padding:18px 18px 16px; }
+  .intro-card h2 { color:var(--green); margin-bottom:10px; }
+  .intro-card ul { list-style:none; display:grid; gap:8px; font-size:12px; line-height:1.7; }
+  .intro-card li::before { content:'▸ '; color:var(--green-dim); }
+  .intro-card b { color:var(--green); }
+  #introStart { margin-top:14px; width:100%; font:inherit; font-size:13px; padding:9px; cursor:pointer;
+                color:#04110b; background:var(--green); border:1px solid var(--green); border-radius:4px; }
+  #howto { font:inherit; font-size:12px; color:var(--green-dim); background:none; border:0; cursor:pointer; padding:0; }
+  #howto:hover { color:var(--green); }
   .note { font-size:11px; color:var(--muted); line-height:1.8; margin-top:10px; }
   .note a { color:var(--green-dim); text-decoration:none; }
   .note a:hover { color:var(--green); }
@@ -163,7 +176,21 @@
     </section>
   </main>
 
+  <div id="intro" hidden>
+    <div class="intro-card">
+      <h2 data-i18n="introTitle">How to fight</h2>
+      <ul>
+        <li data-i18n-html="introMove"><b>WASD / arrows</b> move — on a phone, use the pad.</li>
+        <li data-i18n-html="introAttack"><b>J</b> attacks when the enemy is within 2 tiles.</li>
+        <li data-i18n-html="introSkills"><b>K</b> burst · <b>L</b> shield absorbs 20 · <b>Space</b> dash.</li>
+        <li data-i18n-html="introWin">Drop the gatekeeper to 0 HP. It uses the same cooldowns you do.</li>
+      </ul>
+      <button id="introStart" type="button" data-i18n="introStart">Start fighting</button>
+    </div>
+  </div>
+
   <footer>
+    <button id="howto" type="button" data-i18n="howToPlay">How to play</button>
     <a href="./index.html" data-i18n="footerMatches">Recorded matches</a>
     <a href="./sandbox.html" data-i18n="footerAgent">Write an agent</a>
     <a href="./benchmark.html" data-i18n="footerBenchmark">Benchmark v0</a>
