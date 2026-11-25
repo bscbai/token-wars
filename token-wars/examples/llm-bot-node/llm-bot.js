@@ -56,6 +56,11 @@ Rules:
 let mapInfo = null;
 let stats = { calls: 0, timeouts: 0, errors: 0, invalid: 0, tokens: 0 };
 
+/** 设置当前地图（startBot 在邀请时调用；测试也用它注入地图） */
+function setMapInfo(map) {
+  mapInfo = map || null;
+}
+
 /** 连接 /bot 并开始参赛（仅直接运行时调用；require 本模块不产生副作用） */
 function startBot() {
   const token = process.env.BOT_TOKEN;
@@ -73,7 +78,7 @@ function startBot() {
   socket.on('connect_error', (err) => console.error(`[llm-bot] connect failed: ${err.message}`));
 
   socket.on('bot:match_invite', (invite) => {
-    mapInfo = invite.map;
+    setMapInfo(invite.map);
     console.log(`[llm-bot] invited as ${invite.role} to ${invite.matchId.slice(0, 24)}…`);
     socket.emit('bot:match_accept', { protocolVersion: PROTOCOL_VERSION, matchId: invite.matchId });
   });
@@ -233,4 +238,4 @@ async function decide(state) {
   }
 }
 
-module.exports = { sanitizeAction, parseModelJson, decide, buildUserContent, SYSTEM_PROMPT };
+module.exports = { sanitizeAction, parseModelJson, decide, buildUserContent, setMapInfo, SYSTEM_PROMPT };

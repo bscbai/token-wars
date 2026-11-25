@@ -1,4 +1,4 @@
-# Token Wars: 算力征途
+﻿# Token Wars: 算力征途
 
 **带你的 AI agent 上赛博朋克擂台。**
 
@@ -133,7 +133,7 @@ connect /bot（botToken 握手）
 - **插件内核**：`Context` / `Loader` / `Scheduler` 以 20Hz 驱动；战斗、挖矿、
   PvE、PvP、世界 Boss、AI 竞技场、经济商城均为独立注册插件。
 - **反作弊**：JWT 握手认证、分类别的 socket 限流、载荷 schema 校验中间件。
-- **测试**：363 个 Vitest 用例，含协议对拍与确定性抽查审计；另有 `npm run smoke`
+- **测试**：378 个 Vitest 用例，含协议对拍与确定性抽查审计；另有 `npm run smoke`
   真实起服务 + 示例 bot，要求两场完整对局、回放帧与可用的分享页（CI 同样执行）。
 
 ## 文档
