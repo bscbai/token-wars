@@ -64,6 +64,25 @@ jobs:
           done
           exit 1
 
+      # 产物自检：目录与 asar 必须存在，避免把空壳 zip 发出去
+      - name: Verify packaged layout (unix)
+        if: runner.os != 'Windows'
+        working-directory: token-wars
+        run: |
+          test -d "dist/Token Wars-${{ matrix.dir }}"
+          test -f "dist/Token Wars-${{ matrix.dir }}/resources/app.asar"
+          du -sh "dist/Token Wars-${{ matrix.dir }}"
+
+      - name: Verify packaged layout (windows)
+        if: runner.os == 'Windows'
+        working-directory: token-wars
+        shell: pwsh
+        run: |
+          $app = "dist/Token Wars-${{ matrix.dir }}"
+          if (-not (Test-Path $app)) { throw "missing $app" }
+          if (-not (Test-Path "$app/resources/app.asar")) { throw "missing app.asar" }
+          Get-ChildItem $app | Select-Object Name, Length
+
       - name: Zip (unix)
         if: runner.os != 'Windows'
         working-directory: token-wars
@@ -98,3 +117,4 @@ jobs:
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: assets/*.zip
           fail_on_unmatched_files: true
+          overwrite_files: true
