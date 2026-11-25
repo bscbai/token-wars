@@ -92,7 +92,7 @@
   .restart:hover { background:#1b3529; }
   .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
   .actions .restart { margin-top:0; flex:1 1 auto; }
-  #share[hidden] { display:none; }
+  #share[hidden], #shareCard[hidden] { display:none; }
   .pad { display:grid; grid-template-columns:repeat(3, 46px); grid-template-rows:repeat(2, 40px);
          gap:6px; margin-top:14px; }
   .pad button { font:inherit; font-size:15px; cursor:pointer; color:var(--green-dim);
@@ -192,6 +192,7 @@
       <div class="actions">
         <button class="restart" id="restart" type="button" data-i18n="restart">Restart (R)</button>
         <button class="restart" id="share" type="button" data-i18n="shareResult" hidden>Share result</button>
+        <button class="restart" id="shareCard" type="button" data-i18n="shareImage" hidden>Share image</button>
       </div>
 
       <p class="note" data-i18n-html="controlsNote">

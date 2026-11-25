@@ -168,7 +168,8 @@ before posting.)
 > map plus one rule twist (60 s blitz, 60 HP glass, shielded foe, +25% AI
 > attack, 60 HP handicap) with a local best time for today. **Share result**
 > copies a ready-to-post line — including `Daily #N` when you played it — with
-> both the play and sandbox links.
+> both the play and sandbox links, and **Share image** exports a 1200×630 PNG
+> of the final board, time and record (native share sheet on mobile).
 >
 > It is also an installable PWA: an **Install app** button appears when the
 > browser supports it, and the play/sandbox pages keep working offline after the
@@ -212,8 +213,8 @@ context.
 
 **X / daily challenge angle**
 > Token Wars has a daily challenge: same map + same rule twist for everyone
-> (60 s blitz, 60 HP glass, shielded foe…), one local best time, one line to
-> share. Beat #329 and post your time:
+> (60 s blitz, 60 HP glass, shielded foe…), one local best time, and a
+> one-tap **Share image** card with the final board. Beat #329 and post yours:
 > https://bscbai.github.io/token-wars/play.html
 
 **Discord / forum blurb**

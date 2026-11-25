@@ -115,6 +115,10 @@ const I18N = {
     hintBurst: 'Burst needs range ≤ 2',
     shareCopied: 'Result copied — paste it in Discord, X or a PR.',
     sharePrompt: 'Copy this result',
+    shareImage: 'Share image',
+    cardSaved: 'Card saved — post it anywhere.',
+    cardShared: 'Card shared.',
+    cardTagline: "Human vs the arena's built-in AI",
     dailyTitle: 'Daily challenge',
     dailyNone: 'Not played today',
     dailyLoss: '✗ today',
@@ -176,6 +180,10 @@ const I18N = {
     hintBurst: '爆发需要距离 ≤ 2',
     shareCopied: '战绩已复制——可以直接发到 Discord、X 或 PR。',
     sharePrompt: '复制此战绩',
+    shareImage: '生成战绩图',
+    cardSaved: '战绩图已保存，可直接发帖。',
+    cardShared: '战绩图已分享。',
+    cardTagline: '人类 vs 竞技场内置 AI',
     dailyTitle: '每日挑战',
     dailyNone: '今日未挑战',
     dailyLoss: '✗ 今日未通过',
@@ -211,6 +219,7 @@ const FMT = {
     mapRecord: (r) => `${r.wins}W–${r.losses}L${r.draws ? `–${r.draws}D` : ''}`,
     dailyWin: (s) => `✓ ${s}s today`,
     dailyTries: (n) => ` · ${n} ${n === 1 ? 'try' : 'tries'}`,
+    cardRecord: (r) => `${r.wins}W–${r.losses}L · streak ${r.streak}`,
     shareText: (o) => {
       const score = `${o.wins}W–${o.losses}L${o.draws ? `–${o.draws}D` : ''}`;
       const line = o.result === 'win'
@@ -233,6 +242,7 @@ const FMT = {
     mapRecord: (r) => `${r.wins}胜${r.losses}负${r.draws ? `${r.draws}平` : ''}`,
     dailyWin: (s) => `✓ 今日 ${s} 秒`,
     dailyTries: (n) => ` · ${n} 次`,
+    cardRecord: (r) => `${r.wins}胜–${r.losses}负 · 连胜 ${r.streak}`,
     shareText: (o) => {
       const score = `${o.wins}胜–${o.losses}负${o.draws ? `–${o.draws}平` : ''}`;
       const line = o.result === 'win'
@@ -420,6 +430,7 @@ function reset() {
   lastResult = null;
   lastOutcome = null;
   ui.share.hidden = true;
+  ui.shareCard.hidden = true;
   ui.resultCta.hidden = true;
   ui.resultText.textContent = '';
   ui.resultStats.textContent = '';
@@ -550,6 +561,142 @@ async function shareMatch() {
   }
 }
 
+// --- 战绩图（1200×630 PNG，可直接发 X / Discord） -----------------------------
+
+function fitText(ctx, text, maxWidth, size, weight = '') {
+  let px = size;
+  do {
+    ctx.font = `${weight}${px}px 'Courier New', ui-monospace, monospace`;
+    if (ctx.measureText(text).width <= maxWidth) return px;
+    px -= 2;
+  } while (px > 10);
+  return px;
+}
+
+/** 把终局棋盘与统计合成一张社交卡，返回未插入文档的 canvas */
+function buildShareCard() {
+  const card = document.createElement('canvas');
+  card.width = 1200;
+  card.height = 630;
+  const ctx = card.getContext('2d');
+  const mono = "'Courier New', ui-monospace, monospace";
+
+  ctx.fillStyle = '#06060f';
+  ctx.fillRect(0, 0, 1200, 630);
+  ctx.strokeStyle = 'rgba(0,255,136,0.06)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 40; x < 1200; x += 40) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, 630); }
+  for (let y = 40; y < 630; y += 40) { ctx.moveTo(0, y + 0.5); ctx.lineTo(1200, y + 0.5); }
+  ctx.stroke();
+
+  // 右侧：终局棋盘快照（480×480 → 420×420，保持像素锐利）
+  const bx = 740;
+  const by = 105;
+  const bs = 420;
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(bx - 10, by - 10, bs + 20, bs + 20);
+  ctx.strokeStyle = '#1b3a30';
+  ctx.strokeRect(bx - 10.5, by - 10.5, bs + 21, bs + 21);
+  ctx.imageSmoothingEnabled = false;
+  ctx.save();
+  ctx.filter = 'brightness(1.8) saturate(1.2)';
+  ctx.drawImage(ui.canvas, bx, by, bs, bs);
+  ctx.restore();
+
+  // 阵亡棋子不再绘制，用同色 × 标出倒下位置，卡片上仍能看出战况
+  const cell = bs / MAP.width;
+  const markFallen = (a, color) => {
+    if (!a || a.alive) return;
+    const cx = bx + a.x * cell + cell / 2;
+    const cy = by + a.y * cell + cell / 2;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx - 8, cy - 8);
+    ctx.lineTo(cx + 8, cy + 8);
+    ctx.moveTo(cx + 8, cy - 8);
+    ctx.lineTo(cx - 8, cy + 8);
+    ctx.stroke();
+  };
+  markFallen(you, 'rgba(0,255,136,0.75)');
+  markFallen(enemy, 'rgba(255,68,102,0.85)');
+
+  const green = '#00ff88';
+  const color = lastResult === 'win' ? green : (lastResult === 'loss' ? '#ff4466' : '#88aaff');
+
+  ctx.fillStyle = green;
+  ctx.font = `22px ${mono}`;
+  ctx.fillText('▚ TOKEN WARS', 60, 92);
+  ctx.strokeStyle = 'rgba(0,255,136,0.35)';
+  ctx.beginPath();
+  ctx.moveTo(60, 112);
+  ctx.lineTo(300, 112);
+  ctx.stroke();
+
+  const resultKey = lastResult === 'win' ? 'resultWin' : (lastResult === 'loss' ? 'resultLoss' : 'resultDraw');
+  const resultText = t(resultKey);
+  const resultSize = fitText(ctx, resultText, 640, 76, 'bold ');
+  ctx.fillStyle = color;
+  ctx.font = `bold ${resultSize}px ${mono}`;
+  ctx.fillText(resultText, 60, 215);
+
+  const sub = dailyMode
+    ? `${t('dailyTitle')} #${dailyMode.number} · ${mapNameOf(dailyMode.map)}`
+      + ` · ${t(`mut_${dailyMode.mutator.id}`)}`
+    : mapNameOf(MAP);
+  const subSize = fitText(ctx, sub, 640, 26);
+  ctx.fillStyle = '#8fb3a5';
+  ctx.font = `${subSize}px ${mono}`;
+  ctx.fillText(sub, 60, 266);
+
+  ctx.fillStyle = green;
+  ctx.font = `bold 54px ${mono}`;
+  ctx.fillText(`${secs(lastOutcome.ms)}s`, 60, 372);
+  ctx.fillStyle = '#5f7a71';
+  ctx.font = `22px ${mono}`;
+  ctx.fillText(f('cardRecord', lastOutcome.record), 60, 414);
+
+  ctx.fillStyle = '#8fb3a5';
+  ctx.font = `20px ${mono}`;
+  ctx.fillText(t('cardTagline'), 60, 502);
+  ctx.fillStyle = '#00aa77';
+  ctx.font = `22px ${mono}`;
+  ctx.fillText('bscbai.github.io/token-wars/play.html', 60, 556);
+
+  return card;
+}
+
+function cardFileName() {
+  const parts = ['token-wars'];
+  parts.push(dailyMode ? `daily-${dailyMode.number}` : MAP.id);
+  parts.push(lastResult || 'match');
+  return `${parts.join('-')}.png`;
+}
+
+async function shareCardImage() {
+  if (!lastOutcome) return;
+  const blob = await new Promise((resolve) => buildShareCard().toBlob(resolve, 'image/png'));
+  if (!blob) return;
+  const file = new File([blob], cardFileName(), { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], text: t('cardTagline') });
+      flashHint('cardShared');
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  flashHint('cardSaved');
+}
+
 // --- 主循环 -----------------------------------------------------------------
 
 function tick() {
@@ -635,6 +782,7 @@ function finish(result) {
   renderDaily();
   updateHud();
   ui.share.hidden = false;
+  ui.shareCard.hidden = false;
 }
 
 function renderResult() {
@@ -788,6 +936,7 @@ function bindInput() {
   ui.skillDash.addEventListener('click', () => tryDash(performance.now()));
   ui.restart.addEventListener('click', reset);
   ui.share.addEventListener('click', shareMatch);
+  ui.shareCard.addEventListener('click', shareCardImage);
   ui.daily.addEventListener('click', startDaily);
   ui.howto.addEventListener('click', openIntro);
   ui.introStart.addEventListener('click', closeIntro);
@@ -815,6 +964,7 @@ function boot() {
     shieldTag: $('shieldTag'),
     restart: $('restart'),
     share: $('share'),
+    shareCard: $('shareCard'),
     intro: $('intro'),
     introStart: $('introStart'),
     howto: $('howto'),

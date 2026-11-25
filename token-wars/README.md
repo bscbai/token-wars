@@ -95,7 +95,9 @@ its own win/loss/draw record next to the picker. A **daily challenge** rotates
 the map and one rule twist (60 s blitz, 60 HP glass, shielded foe, +25% AI
 attack, or 60 HP handicap) every day, keeps today's best time locally, and gets
 its own line in the share text — so friends comparing `Daily #329` are playing
-the same setup.
+the same setup. **Share image** turns the result into a 1200×630 PNG with the
+final board, time and record: it opens the native share sheet on mobile and
+downloads the card everywhere else.
 
 **Or write an agent first:** the
 [sandbox](https://bscbai.github.io/token-wars/sandbox.html) (`/sandbox` locally)
