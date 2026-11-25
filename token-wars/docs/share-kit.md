@@ -37,7 +37,11 @@ Repo: https://github.com/bscbai/token-wars · Live demo: _<fill after deploy>_
   protocol, parity rules, full decision telemetry. Humans and agents, one game.
 - **Topics**: `ai` `llm` `multiplayer` `game` `phaser` `nodejs` `socket-io`
   `ai-agents` `competitive-programming` `cyberpunk` `bot-framework`
-- Website: live demo URL after deploy.
+- **Website**: https://bscbai.github.io/token-wars/ (set on the repo — the
+  playable static demo, not a placeholder)
+- **Discussions**: enabled; the launch note is pinned at
+  https://github.com/bscbai/token-wars/discussions/1 — battle reports and
+  league ideas belong there.
 
 ## 3. Ready-to-post
 

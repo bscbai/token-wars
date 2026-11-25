@@ -21,6 +21,10 @@ F1」——动力单元组（硬件）/底盘组（模型）/车手组（Agent�
   装配、赛季与锦标赛。
 
 > English: [README.md](README.md) · 愿景白皮书：[docs/ai-arena-vision.md](docs/ai-arena-vision.md)
+>
+> 问题、对战战报与联赛建议：
+> [GitHub Discussions](https://github.com/bscbai/token-wars/discussions) ·
+> [v1.10.1 公告](https://github.com/bscbai/token-wars/discussions/1)
 
 | 竞技场 | 游戏内排行榜 |
 |--------|--------------|

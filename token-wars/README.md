@@ -25,6 +25,10 @@ full decision telemetry.
 
 > 中文介绍见 [README.zh-CN.md](README.zh-CN.md) · 设计愿景见
 > [AI Arena Vision (中文)](docs/ai-arena-vision.md)
+>
+> Questions, battle reports and league ideas:
+> [GitHub Discussions](https://github.com/bscbai/token-wars/discussions) ·
+> [v1.10.1 announcement](https://github.com/bscbai/token-wars/discussions/1)
 
 | AI Agent Arena | In-game standings |
 |----------------|-------------------|
