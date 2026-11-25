@@ -96,9 +96,218 @@ function decide(state) {
 }`;
 
 const PRESETS = [
-  { id: 'balanced', label: 'Balanced (chase + burst + shield)', code: SAMPLE_BALANCED },
-  { id: 'turtle', label: 'Shield first (turtle)', code: SAMPLE_TURTLE },
+  { id: 'balanced', label: 'Balanced (chase + burst + shield)', labelZh: '均衡型（追击 + 爆发 + 护盾）', code: SAMPLE_BALANCED },
+  { id: 'turtle', label: 'Shield first (turtle)', labelZh: '先盾型（龟缩换血）', code: SAMPLE_TURTLE },
 ];
+
+// --- 文案（英文为默认，中文用于 ?lang=zh / 浏览器语言 / 手动切换） -------------
+
+const I18N = {
+  en: {
+    subtitle: 'Write <code>decide(state)</code>, fight the arena\'s built-in AI — locally, in this tab.',
+    banner: `Real rules: protocol validation, cooldowns, shield drain and damage rolls come from the same
+      modules the server uses. Parity limits apply too — 500&nbsp;ms decision deadline,
+      3 consecutive timeouts or &gt;10 invalid actions = loss, 120&nbsp;s draw.
+      Your code never leaves the browser. <a href="./play.html">Prefer to play yourself? →</a>`,
+    liveMatch: 'Live match',
+    yourAgent: 'YOUR AGENT',
+    yourPolicy: 'Your policy',
+    presetAria: 'preset',
+    editorAria: 'agent code',
+    run: 'Run (Ctrl+Enter)',
+    stop: 'Stop',
+    reset: 'Reset',
+    share: 'Copy share link',
+    download: 'Download Node bot',
+    simulate: 'Simulate 50',
+    api: `<b>state</b>: <code>{ tick, timeLeftMs, you:{ x,y,hp,maxHp,shield,shieldActive,skills[{id,cooldownRemaining}] }, enemy:{ x,y,hp,maxHp,visible }, map:{ width,height,obstacles } }</code><br>
+      <b>return</b>: <code>{type:'move',x,y}</code> · <code>{type:'attack'}</code> ·
+      <code>{type:'skill',id:'token_burst'|'dodge_roll'|'shield'}</code> ·
+      <code>{type:'shield'}</code> · <code>{type:'idle'}</code><br>
+      Note: in a real match the server streams this state at 20&nbsp;Hz and your process has
+      500&nbsp;ms per decision; here everything runs synchronously in one tab.
+      <b>Copy share link</b> encodes your policy in the URL (nothing is stored);
+      <b>Download Node bot</b> gives you a runnable competitor for a real arena;
+      <b>Simulate 50</b> runs the same rules headlessly and reports win rate,
+      invalid actions, timeouts and decision time — tune the policy, then export.`,
+    duelTitle: 'Duel another policy (50 matches)',
+    duelNote: `Paste a friend's share link — a solo link (<code>#code=…</code>) or a duel
+      link — to load their policy, then duel offline. Nothing is uploaded.
+      <b>Copy result</b> gives a postable summary plus the duel link.`,
+    duelPlaceholder: 'https://bscbai.github.io/token-wars/sandbox.html#code=…',
+    load: 'Load',
+    copyDuelLink: 'Copy duel link',
+    opponentAria: 'opponent code',
+    duelRun: 'Duel 50',
+    copyResult: 'Copy result',
+    footerPlay: 'Play as a human',
+    footerMatches: 'Recorded matches',
+    footerQuickstart: '5-minute quickstart',
+    footerProtocol: 'Bot protocol',
+    resultWin: 'YOUR AGENT WINS',
+    resultLoss: 'GATEKEEPER WINS',
+    resultDraw: 'DRAW',
+    reasonTimeouts: '3 consecutive decision timeouts',
+    reasonInvalid: 'more than 10 invalid actions',
+    reasonHp: 'hp reached 0',
+    reasonBoth: 'both agents died on the same tick',
+    reasonLimit: '120 s match limit',
+    reasonThrew: 'your decide() threw',
+    reasonStopped: 'stopped',
+    decideMissing: 'Define a function named decide(state).',
+    shareTooLarge: 'Policy too large for a link — use Download instead.',
+    shareCopied: 'Share link copied — it opens this policy and runs it.',
+    copyLinkPrompt: 'Copy this link',
+    downloaded: 'Downloaded token-wars-agent.js — run it with BOT_TOKEN=… node token-wars-agent.js',
+    simulating: 'Simulating 50 matches…',
+    decodeFail: 'Could not decode an opponent policy from that link.',
+    opponentLoaded: 'Opponent loaded — click "Duel 50".',
+    bothLoaded: 'Both policies loaded from the link — click "Duel 50".',
+    duelLinkCopied: 'Duel link copied — it opens both policies.',
+    copyDuelPrompt: 'Copy this duel link',
+    needDuel: 'Run a duel first — then this copies a postable result.',
+    dueling: 'Dueling 50 matches…',
+    resultCopied: 'Result copied — paste it in Discord, X or a PR.',
+    copyResultPrompt: 'Copy this result',
+    loadedShare: 'Loaded a shared policy from the link.',
+  },
+  zh: {
+    subtitle: '编写 <code>decide(state)</code>，与竞技场内置 AI 对战——全部在本标签页本地运行。',
+    banner: `真实规则：协议校验、冷却、护盾消耗与伤害掷骰都复用服务端同一套模块。
+      同样执行 parity 限制——500&nbsp;ms 决策截止、连续 3 次超时或 &gt;10 次非法动作判负、
+      120&nbsp;s 平局。你的代码不会离开浏览器。
+      <a href="./play.html">想亲自上场？→</a>`,
+    liveMatch: '实时对局',
+    yourAgent: '你的 AGENT',
+    yourPolicy: '你的策略',
+    presetAria: '预设策略',
+    editorAria: 'agent 代码',
+    run: '运行 (Ctrl+Enter)',
+    stop: '停止',
+    reset: '重置',
+    share: '复制分享链接',
+    download: '下载 Node bot',
+    simulate: '模拟 50 场',
+    api: `<b>state</b>：<code>{ tick, timeLeftMs, you:{ x,y,hp,maxHp,shield,shieldActive,skills[{id,cooldownRemaining}] }, enemy:{ x,y,hp,maxHp,visible }, map:{ width,height,obstacles } }</code><br>
+      <b>返回</b>：<code>{type:'move',x,y}</code> · <code>{type:'attack'}</code> ·
+      <code>{type:'skill',id:'token_burst'|'dodge_roll'|'shield'}</code> ·
+      <code>{type:'shield'}</code> · <code>{type:'idle'}</code><br>
+      说明：真实对局中服务端以 20&nbsp;Hz 推送该 state，每个决策限时 500&nbsp;ms；
+      这里全部在一个标签页内同步执行。
+      <b>复制分享链接</b> 会把策略编码进 URL（不存储任何内容）；
+      <b>下载 Node bot</b> 生成可直接参赛的脚本；
+      <b>模拟 50 场</b> 用同一套规则无渲染跑 50 场，报告胜率、非法动作、超时与决策耗时——调好再导出。`,
+    duelTitle: '与其他策略对战（50 场）',
+    duelNote: `粘贴朋友的分享链接——单策略链接（<code>#code=…</code>）或对战链接——载入对方策略后离线对战，
+      不上传任何内容。<b>复制战绩</b> 生成可直接发帖的摘要和链接。`,
+    duelPlaceholder: 'https://bscbai.github.io/token-wars/sandbox.html#code=…',
+    load: '载入',
+    copyDuelLink: '复制对战链接',
+    opponentAria: '对手代码',
+    duelRun: '对战 50 场',
+    copyResult: '复制战绩',
+    footerPlay: '亲自试玩',
+    footerMatches: '录制对局',
+    footerQuickstart: '5 分钟上手',
+    footerProtocol: 'Bot 协议',
+    resultWin: '你的 AGENT 获胜',
+    resultLoss: 'GATEKEEPER 获胜',
+    resultDraw: '平局',
+    reasonTimeouts: '连续 3 次决策超时',
+    reasonInvalid: '非法动作超过 10 次',
+    reasonHp: '血量归零',
+    reasonBoth: '双方在同一 tick 阵亡',
+    reasonLimit: '达到 120 秒上限',
+    reasonThrew: '你的 decide() 抛错',
+    reasonStopped: '已停止',
+    decideMissing: '请定义名为 decide(state) 的函数。',
+    shareTooLarge: '策略太大，无法放入链接——请改用下载。',
+    shareCopied: '分享链接已复制——打开即可载入并运行该策略。',
+    copyLinkPrompt: '复制此链接',
+    downloaded: '已下载 token-wars-agent.js——用 BOT_TOKEN=… node token-wars-agent.js 运行',
+    simulating: '正在模拟 50 场…',
+    decodeFail: '无法从该链接解析出对手策略。',
+    opponentLoaded: '对手已载入——点击“对战 50 场”。',
+    bothLoaded: '已从链接载入双方策略——点击“对战 50 场”。',
+    duelLinkCopied: '对战链接已复制——打开即可载入双方策略。',
+    copyDuelPrompt: '复制此对战链接',
+    needDuel: '先跑一场对战，再复制战绩。',
+    dueling: '正在对战 50 场…',
+    resultCopied: '战绩已复制——可粘贴到 Discord、X 或 PR。',
+    copyResultPrompt: '复制此战绩',
+    loadedShare: '已从链接载入分享的策略。',
+  },
+};
+
+const FMT = {
+  en: {
+    compileError: (m) => `Compile error: ${m}`,
+    decideThrew: (m) => `decide() threw: ${m}`,
+    timeoutAction: (ms) => `idle(timeout ${Math.round(ms)}ms)`,
+    simResult: (o) => `${o.matches} matches: ${o.wins}W / ${o.losses}L / ${o.draws}D`
+      + ` (${o.winRate}% win) · avg ${o.avgTicks} ticks`
+      + ` · invalid ${o.invalid} · timeouts ${o.timeouts}`
+      + ` · decision avg ${o.avgDecisionMs}ms / max ${o.maxDecisionMs}ms`
+      + ` · ${o.wallMs}ms wall`,
+    simFailed: (m) => `Simulation failed: ${m}`,
+    duelResult: (o) => `Duel ${o.matches}: you ${o.aWins}W / them ${o.bWins}W / ${o.draws}D`
+      + ` (${o.winRateA}% vs ${o.winRateB}%) · avg ${o.avgTicks} ticks`
+      + ` · your invalid ${o.aInvalid} / timeouts ${o.aTimeouts}`
+      + ` · their invalid ${o.bInvalid} / timeouts ${o.bTimeouts}`
+      + ` · ${o.wallMs}ms`,
+    duelFailed: (m) => `Duel failed: ${m}`,
+    duelPost: (o, url) => `Token Wars duel — 50 headless matches, my decide(state) vs a friend's:`
+      + ` you ${o.aWins}W / them ${o.bWins}W / ${o.draws}D`
+      + ` (${o.winRateA}% vs ${o.winRateB}%), avg ${o.avgTicks} ticks.`
+      + (url ? ` Beat it: ${url}` : ''),
+    stats: (o) => `tick ${o.tick} · decisions ${o.decisions} · invalid ${o.invalid}`
+      + ` · timeouts ${o.timeouts} · avg ${o.avg}ms (max ${o.max}ms)`,
+    lastAction: (label) => `last action: ${label}`,
+    shield: (n) => `SHIELD ${n}`,
+  },
+  zh: {
+    compileError: (m) => `编译错误：${m}`,
+    decideThrew: (m) => `decide() 抛错：${m}`,
+    timeoutAction: (ms) => `idle(超时 ${Math.round(ms)}ms)`,
+    simResult: (o) => `${o.matches} 场：${o.wins}胜 / ${o.losses}负 / ${o.draws}平`
+      + `（胜率 ${o.winRate}%）· 平均 ${o.avgTicks} tick`
+      + ` · 非法 ${o.invalid} · 超时 ${o.timeouts}`
+      + ` · 决策 平均 ${o.avgDecisionMs}ms / 最大 ${o.maxDecisionMs}ms`
+      + ` · 总耗时 ${o.wallMs}ms`,
+    simFailed: (m) => `模拟失败：${m}`,
+    duelResult: (o) => `对战 ${o.matches} 场：你 ${o.aWins}胜 / 对方 ${o.bWins}胜 / ${o.draws}平`
+      + `（${o.winRateA}% vs ${o.winRateB}%）· 平均 ${o.avgTicks} tick`
+      + ` · 你 非法 ${o.aInvalid} / 超时 ${o.aTimeouts}`
+      + ` · 对方 非法 ${o.bInvalid} / 超时 ${o.bTimeouts}`
+      + ` · 总耗时 ${o.wallMs}ms`,
+    duelFailed: (m) => `对战失败：${m}`,
+    duelPost: (o, url) => `Token Wars 对战——50 场无渲染对局，我的 decide(state) vs 朋友的：`
+      + ` 我 ${o.aWins}胜 / 对方 ${o.bWins}胜 / ${o.draws}平`
+      + `（${o.winRateA}% vs ${o.winRateB}%），平均 ${o.avgTicks} tick。`
+      + (url ? ` 来挑战：${url}` : ''),
+    stats: (o) => `tick ${o.tick} · 决策 ${o.decisions} · 非法 ${o.invalid}`
+      + ` · 超时 ${o.timeouts} · 平均 ${o.avg}ms（最大 ${o.max}ms）`,
+    lastAction: (label) => `最近动作：${label}`,
+    shield: (n) => `护盾 ${n}`,
+  },
+};
+
+function initialLang() {
+  const q = new URLSearchParams(location.search).get('lang');
+  if (q === 'zh' || q === 'en') return q;
+  try {
+    const stored = localStorage.getItem('tw-sandbox-lang');
+    if (stored === 'zh' || stored === 'en') return stored;
+  } catch { /* 隐私模式忽略 */ }
+  return (navigator.language || 'en').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+}
+
+let lang = initialLang();
+const t = (key) => (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
+const f = (key, ...args) => {
+  const table = FMT[lang] || FMT.en;
+  return (table[key] || FMT.en[key])(...args);
+};
 
 const brain = new BuiltinBrain();
 const ui = {};
@@ -114,6 +323,8 @@ let stats = null;
 let lastAction = '-';
 let lastError = '';
 let lastDuel = null;
+let lastResult = null;
+let lastReasonKey = null;
 
 const isWalkable = (x, y) => x >= 0 && y >= 0 && x < MAP.width && y < MAP.height
   && !MAP.obstacles.some(([ox, oy]) => ox === x && oy === y);
@@ -138,7 +349,7 @@ function resetStats() {
 function compilePolicy(code = ui.editor.value) {
   const factory = new Function(`${code}\n;return typeof decide === 'function' ? decide : null;`);
   const fn = factory();
-  if (typeof fn !== 'function') throw new Error('Define a function named decide(state).');
+  if (typeof fn !== 'function') throw new Error(t('decideMissing'));
   return fn;
 }
 
@@ -148,6 +359,8 @@ function start() {
   ui.error.textContent = '';
   ui.result.classList.remove('show');
   ui.resultText.textContent = '';
+  lastResult = null;
+  lastReasonKey = null;
   ended = false;
   running = true;
   elapsed = 0;
@@ -160,7 +373,7 @@ function start() {
   } catch (err) {
     running = false;
     lastError = err.message;
-    ui.error.textContent = `Compile error: ${err.message}`;
+    ui.error.textContent = f('compileError', err.message);
     draw();
     updateHud();
     return;
@@ -176,16 +389,22 @@ function stop() {
   running = false;
 }
 
-function finish(result, reason) {
+function renderOutcome() {
+  if (!lastResult) return;
+  const key = lastResult === 'win' ? 'resultWin' : (lastResult === 'loss' ? 'resultLoss' : 'resultDraw');
+  ui.resultText.textContent = t(key);
+  ui.result.dataset.result = lastResult;
+  ui.result.classList.add('show');
+  ui.reason.textContent = lastReasonKey ? t(lastReasonKey) : '';
+}
+
+function finish(result, reasonKey) {
   ended = true;
   running = false;
   stop();
-  const text = result === 'win' ? 'YOUR AGENT WINS'
-    : (result === 'loss' ? 'GATEKEEPER WINS' : 'DRAW');
-  ui.resultText.textContent = text;
-  ui.result.dataset.result = result;
-  ui.result.classList.add('show');
-  ui.reason.textContent = reason || '';
+  lastResult = result;
+  lastReasonKey = reasonKey || null;
+  renderOutcome();
   updateHud();
 }
 
@@ -218,9 +437,9 @@ function playerTurn(now) {
     // structuredClone 模拟线上序列化：策略改动 state 不会污染对局
     action = policy(structuredClone(snapshot));
   } catch (err) {
-    lastError = `decide() threw: ${err.message}`;
+    lastError = f('decideThrew', err.message);
     ui.error.textContent = lastError;
-    finish('loss', 'your decide() threw');
+    finish('loss', 'reasonThrew');
     return false;
   }
   const decideMs = performance.now() - t0;
@@ -232,7 +451,7 @@ function playerTurn(now) {
   if (decideMs > DECISION_DEADLINE_MS) {
     stats.timeouts++;
     stats.consecutiveTimeouts++;
-    lastAction = `idle(timeout ${Math.round(decideMs)}ms)`;
+    lastAction = f('timeoutAction', decideMs);
     return true;
   }
   stats.consecutiveTimeouts = 0;
@@ -269,13 +488,13 @@ function step() {
   draw();
   updateHud();
 
-  if (stats.consecutiveTimeouts >= TIMEOUT_LIMIT) return finish('loss', '3 consecutive decision timeouts');
-  if (stats.invalid > VIOLATION_LIMIT) return finish('loss', 'more than 10 invalid actions');
+  if (stats.consecutiveTimeouts >= TIMEOUT_LIMIT) return finish('loss', 'reasonTimeouts');
+  if (stats.invalid > VIOLATION_LIMIT) return finish('loss', 'reasonInvalid');
   if (!you.alive || !enemy.alive) {
     return finish(you.alive ? 'win' : (enemy.alive ? 'loss' : 'draw'),
-      you.alive || enemy.alive ? 'hp reached 0' : 'both agents died on the same tick');
+      you.alive || enemy.alive ? 'reasonHp' : 'reasonBoth');
   }
-  if (elapsed >= MATCH_MAX_MS) return finish('draw', '120 s match limit');
+  if (elapsed >= MATCH_MAX_MS) return finish('draw', 'reasonLimit');
 }
 
 // --- 分享与导出 ---------------------------------------------------------------
@@ -314,16 +533,16 @@ function codeFromHash() {
 async function copyShareLink() {
   const code = ui.editor.value;
   if (code.length > MAX_HASH_CHARS) {
-    ui.shareStatus.textContent = 'Policy too large for a link — use Download instead.';
+    ui.shareStatus.textContent = t('shareTooLarge');
     return;
   }
   const url = `${location.href.split('#')[0]}#code=${encodeCode(code)}`;
   history.replaceState(null, '', url);
   try {
     await navigator.clipboard.writeText(url);
-    ui.shareStatus.textContent = 'Share link copied — it opens this policy and runs it.';
+    ui.shareStatus.textContent = t('shareCopied');
   } catch {
-    window.prompt('Copy this link', url);
+    window.prompt(t('copyLinkPrompt'), url);
   }
 }
 
@@ -340,7 +559,7 @@ function downloadAgent() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(href), 2000);
-  ui.shareStatus.textContent = 'Downloaded token-wars-agent.js — run it with BOT_TOKEN=… node token-wars-agent.js';
+  ui.shareStatus.textContent = t('downloaded');
 }
 
 // 批量评估：暂停动画，直接跑 50 场，给出胜率与耗时（AI 作者调参用）
@@ -349,24 +568,20 @@ function simulateBatch() {
   try {
     policy = compilePolicy();
   } catch (err) {
-    ui.error.textContent = `Compile error: ${err.message}`;
+    ui.error.textContent = f('compileError', err.message);
     return;
   }
   stop();
   ui.error.textContent = '';
   ui.simulate.disabled = true;
-  ui.simResult.textContent = 'Simulating 50 matches…';
+  ui.simResult.textContent = t('simulating');
   // 先让浏览器画一帧，再进入同步模拟
   setTimeout(() => {
     try {
       const out = simulateMatches(policy, { count: 50, map: MAP });
-      ui.simResult.textContent = `${out.matches} matches: ${out.wins}W / ${out.losses}L / ${out.draws}D`
-        + ` (${out.winRate}% win) · avg ${out.avgTicks} ticks`
-        + ` · invalid ${out.invalid} · timeouts ${out.timeouts}`
-        + ` · decision avg ${out.avgDecisionMs}ms / max ${out.maxDecisionMs}ms`
-        + ` · ${out.wallMs}ms wall`;
+      ui.simResult.textContent = f('simResult', out);
     } catch (err) {
-      ui.error.textContent = `Simulation failed: ${err.message}`;
+      ui.error.textContent = f('simFailed', err.message);
       ui.simResult.textContent = '';
     } finally {
       ui.simulate.disabled = false;
@@ -387,12 +602,12 @@ function loadOpponentFromInput() {
   }
   if (!code) code = decodeCode(raw.replace(/^.*#/, ''));
   if (!code) {
-    ui.duelResult.textContent = 'Could not decode an opponent policy from that link.';
+    ui.duelResult.textContent = t('decodeFail');
     return;
   }
   ui.opponentEditor.value = code;
   lastDuel = null;
-  ui.duelResult.textContent = 'Opponent loaded — click "Duel 50".';
+  ui.duelResult.textContent = t('opponentLoaded');
 }
 
 function duelUrl() {
@@ -405,28 +620,25 @@ function duelUrl() {
 function copyDuelLink() {
   const url = duelUrl();
   if (!url) {
-    ui.duelResult.textContent = 'Policies too large for a link — use Download instead.';
+    ui.duelResult.textContent = t('shareTooLarge');
     return;
   }
   history.replaceState(null, '', url);
   navigator.clipboard.writeText(url)
-    .then(() => { ui.duelResult.textContent = 'Duel link copied — it opens both policies.'; })
-    .catch(() => { window.prompt('Copy this duel link', url); });
+    .then(() => { ui.duelResult.textContent = t('duelLinkCopied'); })
+    .catch(() => { window.prompt(t('copyDuelPrompt'), url); });
 }
 
 function copyDuelResult() {
   if (!lastDuel) {
-    ui.duelResult.textContent = 'Run a duel first — then this copies a postable result.';
+    ui.duelResult.textContent = t('needDuel');
     return;
   }
   const url = duelUrl();
-  const text = `Token Wars duel — 50 headless matches, my decide(state) vs a friend's:`
-    + ` you ${lastDuel.aWins}W / them ${lastDuel.bWins}W / ${lastDuel.draws}D`
-    + ` (${lastDuel.winRateA}% vs ${lastDuel.winRateB}%), avg ${lastDuel.avgTicks} ticks.`
-    + (url ? ` Beat it: ${url}` : '');
+  const text = f('duelPost', lastDuel, url);
   navigator.clipboard.writeText(text)
-    .then(() => { ui.duelResult.textContent = 'Result copied — paste it in Discord, X or a PR.'; })
-    .catch(() => { window.prompt('Copy this result', text); });
+    .then(() => { ui.duelResult.textContent = t('resultCopied'); })
+    .catch(() => { window.prompt(t('copyResultPrompt'), text); });
 }
 
 function runDuel() {
@@ -436,25 +648,21 @@ function runDuel() {
     mine = compilePolicy();
     theirs = compilePolicy(ui.opponentEditor.value);
   } catch (err) {
-    ui.error.textContent = `Compile error: ${err.message}`;
+    ui.error.textContent = f('compileError', err.message);
     return;
   }
   stop();
   ui.error.textContent = '';
   ui.duelRun.disabled = true;
   lastDuel = null;
-  ui.duelResult.textContent = 'Dueling 50 matches…';
+  ui.duelResult.textContent = t('dueling');
   setTimeout(() => {
     try {
       const out = simulateMatchesBetween(mine, theirs, { count: 50, map: MAP });
       lastDuel = out;
-      ui.duelResult.textContent = `Duel ${out.matches}: you ${out.aWins}W / them ${out.bWins}W / ${out.draws}D`
-        + ` (${out.winRateA}% vs ${out.winRateB}%) · avg ${out.avgTicks} ticks`
-        + ` · your invalid ${out.aInvalid} / timeouts ${out.aTimeouts}`
-        + ` · their invalid ${out.bInvalid} / timeouts ${out.bTimeouts}`
-        + ` · ${out.wallMs}ms`;
+      ui.duelResult.textContent = f('duelResult', out);
     } catch (err) {
-      ui.error.textContent = `Duel failed: ${err.message}`;
+      ui.error.textContent = f('duelFailed', err.message);
       ui.duelResult.textContent = '';
     } finally {
       ui.duelRun.disabled = false;
@@ -505,11 +713,42 @@ function updateHud() {
   const left = Math.max(0, MATCH_MAX_MS - elapsed);
   const s = Math.ceil(left / 1000);
   ui.clock.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-  ui.stats.textContent = `tick ${tick} · decisions ${stats.decisions} · invalid ${stats.invalid}`
-    + ` · timeouts ${stats.timeouts} · avg ${stats.decisions ? Math.round(stats.totalDecideMs / stats.decisions) : 0}ms`
-    + ` (max ${Math.round(stats.maxDecideMs)}ms)`;
-  ui.lastAction.textContent = `last action: ${lastAction}`;
-  ui.shieldTag.textContent = you.shieldActive ? `SHIELD ${you.shield}` : '';
+  ui.stats.textContent = f('stats', {
+    tick,
+    decisions: stats.decisions,
+    invalid: stats.invalid,
+    timeouts: stats.timeouts,
+    avg: stats.decisions ? Math.round(stats.totalDecideMs / stats.decisions) : 0,
+    max: Math.round(stats.maxDecideMs),
+  });
+  ui.lastAction.textContent = f('lastAction', lastAction);
+  ui.shieldTag.textContent = you.shieldActive ? f('shield', you.shield) : '';
+}
+
+function populatePresets() {
+  const prev = ui.preset.value;
+  ui.preset.innerHTML = '';
+  PRESETS.forEach((p) => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = lang === 'zh' ? p.labelZh : p.label;
+    ui.preset.appendChild(opt);
+  });
+  ui.preset.value = PRESETS.some((p) => p.id === prev) ? prev : PRESETS[0].id;
+}
+
+function applyLang(next) {
+  if (next === 'zh' || next === 'en') lang = next;
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+  ui.lang.textContent = lang === 'zh' ? 'EN' : '中文';
+  ui.lang.setAttribute('aria-label', lang === 'zh' ? 'Switch to English' : '切换到中文');
+  populatePresets();
+  renderOutcome();
+  updateHud();
 }
 
 // --- 启动 -------------------------------------------------------------------
@@ -535,6 +774,7 @@ function boot() {
     duelLoad: $('duelLoad'),
     duelShare: $('duelShare'),
     duelCopy: $('duelCopy'),
+    lang: $('lang'),
     error: $('error'),
     result: $('result'),
     resultText: $('resultText'),
@@ -549,30 +789,25 @@ function boot() {
     shieldTag: $('shieldTag'),
   });
 
-  PRESETS.forEach((p) => {
-    const opt = document.createElement('option');
-    opt.value = p.id;
-    opt.textContent = p.label;
-    ui.preset.appendChild(opt);
-  });
+  populatePresets();
   ui.editor.value = SAMPLE_BALANCED;
   ui.opponentEditor.value = SAMPLE_TURTLE;
   const shared = codeFromHash();
   if (shared) {
     ui.editor.value = shared;
-    ui.shareStatus.textContent = 'Loaded a shared policy from the link.';
+    ui.shareStatus.textContent = t('loadedShare');
   }
   const sharedOpponent = paramFromHash('vs');
   if (sharedOpponent) {
     ui.opponentEditor.value = sharedOpponent;
-    ui.duelResult.textContent = 'Both policies loaded from the link — click "Duel 50".';
+    ui.duelResult.textContent = t('bothLoaded');
   }
   ui.preset.addEventListener('change', () => {
     const preset = PRESETS.find((p) => p.id === ui.preset.value) || PRESETS[0];
     ui.editor.value = preset.code;
   });
   ui.run.addEventListener('click', start);
-  ui.stop.addEventListener('click', () => { stop(); ui.reason.textContent = 'stopped'; });
+  ui.stop.addEventListener('click', () => { stop(); ui.reason.textContent = t('reasonStopped'); });
   ui.share.addEventListener('click', copyShareLink);
   ui.download.addEventListener('click', downloadAgent);
   ui.simulate.addEventListener('click', simulateBatch);
@@ -580,6 +815,11 @@ function boot() {
   ui.duelLoad.addEventListener('click', loadOpponentFromInput);
   ui.duelShare.addEventListener('click', copyDuelLink);
   ui.duelCopy.addEventListener('click', copyDuelResult);
+  ui.lang.addEventListener('click', () => {
+    const next = lang === 'zh' ? 'en' : 'zh';
+    try { localStorage.setItem('tw-sandbox-lang', next); } catch { /* 隐私模式忽略 */ }
+    applyLang(next);
+  });
   ui.editor.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
@@ -591,6 +831,8 @@ function boot() {
     ended = false;
     elapsed = 0;
     tick = 0;
+    lastResult = null;
+    lastReasonKey = null;
     resetStats();
     freshAgents();
     ui.result.classList.remove('show');
@@ -601,6 +843,7 @@ function boot() {
 
   freshAgents();
   resetStats();
+  applyLang();
   draw();
   updateHud();
 

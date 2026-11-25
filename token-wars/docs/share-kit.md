@@ -152,6 +152,8 @@ URL), **simulate 50 matches** to get a win rate, **duel a friend** by pasting
 their share link (50 offline matches, both sides' invalid/timeout counts), or
 export it as a runnable Node bot for a real arena. After a duel, **Copy result**
 gives a ready-to-post line ("you 34W / them 12W / 4D …") plus the duel link.
+The page is bilingual — header toggle or `?lang=zh` — and Chinese browsers
+default to 中文.
 
 Locally the same evaluation is a CLI:
 `npm run simulate -- examples/sample-bot-node/decide.js --matches 50`, and

@@ -27,6 +27,8 @@
            linear-gradient(rgba(0,255,136,.04) 1px, transparent 1px) 0 0/40px 40px,
            linear-gradient(90deg, rgba(0,255,136,.04) 1px, transparent 1px) 0 0/40px 40px, var(--bg); }
   header, main, footer, .banner { max-width:1120px; margin:0 auto; }
+  header { position:relative; }
+  #lang { position:absolute; right:0; top:2px; font-size:11px; padding:4px 9px; }
   h1 { font-size:24px; letter-spacing:3px; color:var(--green); }
   h1::before { content:'▚ '; color:var(--green-dim); }
   #subtitle { color:var(--muted); font-size:12px; margin-top:6px; }
@@ -90,10 +92,11 @@
 <body>
   <header>
     <h1>AGENT SANDBOX</h1>
-    <p id="subtitle">Write <code>decide(state)</code>, fight the arena's built-in AI — locally, in this tab.</p>
+    <button id="lang" type="button" aria-label="切换到中文">中文</button>
+    <p id="subtitle" data-i18n-html="subtitle">Write <code>decide(state)</code>, fight the arena's built-in AI — locally, in this tab.</p>
   </header>
 
-  <div class="banner">
+  <div class="banner" data-i18n-html="banner">
     Real rules: protocol validation, cooldowns, shield drain and damage rolls come from the same
     modules the server uses. Parity limits apply too — 500&nbsp;ms decision deadline,
     3 consecutive timeouts or &gt;10 invalid actions = loss, 120&nbsp;s draw.
@@ -102,14 +105,14 @@
 
   <main>
     <section>
-      <h2>Live match</h2>
+      <h2 data-i18n="liveMatch">Live match</h2>
       <div class="stage">
         <canvas id="board" width="480" height="480"></canvas>
         <div id="result"><span id="resultText"></span><span id="reason"></span></div>
       </div>
       <div class="bars">
         <div class="bar-row">
-          <span class="who">YOUR AGENT</span>
+          <span class="who" data-i18n="yourAgent">YOUR AGENT</span>
           <div class="track"><div class="fill" id="barYou"></div></div>
           <span class="num" id="hpYou">100</span>
         </div>
@@ -125,21 +128,21 @@
     </section>
 
     <section>
-      <h2>Your policy</h2>
-      <select id="preset" aria-label="preset"></select>
-      <textarea id="editor" spellcheck="false" aria-label="agent code"></textarea>
+      <h2 data-i18n="yourPolicy">Your policy</h2>
+      <select id="preset" aria-label="preset" data-i18n-aria="presetAria"></select>
+      <textarea id="editor" spellcheck="false" aria-label="agent code" data-i18n-aria="editorAria"></textarea>
       <div class="controls">
-        <button id="run" type="button">Run (Ctrl+Enter)</button>
-        <button id="stop" type="button">Stop</button>
-        <button id="reset" type="button">Reset</button>
-        <button id="share" type="button">Copy share link</button>
-        <button id="download" type="button">Download Node bot</button>
-        <button id="simulate" type="button">Simulate 50</button>
+        <button id="run" type="button" data-i18n="run">Run (Ctrl+Enter)</button>
+        <button id="stop" type="button" data-i18n="stop">Stop</button>
+        <button id="reset" type="button" data-i18n="reset">Reset</button>
+        <button id="share" type="button" data-i18n="share">Copy share link</button>
+        <button id="download" type="button" data-i18n="download">Download Node bot</button>
+        <button id="simulate" type="button" data-i18n="simulate">Simulate 50</button>
       </div>
       <div id="shareStatus"></div>
       <div id="simResult"></div>
       <div id="error"></div>
-      <div class="api">
+      <div class="api" data-i18n-html="api">
         <b>state</b>: <code>{ tick, timeLeftMs, you:{ x,y,hp,maxHp,shield,shieldActive,skills[{id,cooldownRemaining}] }, enemy:{ x,y,hp,maxHp,visible }, map:{ width,height,obstacles } }</code><br>
         <b>return</b>: <code>{type:'move',x,y}</code> · <code>{type:'attack'}</code> ·
         <code>{type:'skill',id:'token_burst'|'dodge_roll'|'shield'}</code> ·
@@ -153,21 +156,21 @@
       </div>
 
       <details class="duel">
-        <summary>Duel another policy (50 matches)</summary>
-        <p class="note" style="margin-top:8px">
+        <summary data-i18n="duelTitle">Duel another policy (50 matches)</summary>
+        <p class="note" style="margin-top:8px" data-i18n-html="duelNote">
           Paste a friend's share link — a solo link (<code>#code=…</code>) or a duel
           link — to load their policy, then duel offline. Nothing is uploaded.
           <b>Copy result</b> gives a postable summary plus the duel link.
         </p>
         <div class="duel-link">
-          <input id="duelLink" placeholder="https://bscbai.github.io/token-wars/sandbox.html#code=…">
-          <button id="duelLoad" type="button">Load</button>
-          <button id="duelShare" type="button">Copy duel link</button>
+          <input id="duelLink" placeholder="https://bscbai.github.io/token-wars/sandbox.html#code=…" data-i18n-placeholder="duelPlaceholder">
+          <button id="duelLoad" type="button" data-i18n="load">Load</button>
+          <button id="duelShare" type="button" data-i18n="copyDuelLink">Copy duel link</button>
         </div>
-        <textarea id="opponentEditor" spellcheck="false" aria-label="opponent code"></textarea>
+        <textarea id="opponentEditor" spellcheck="false" aria-label="opponent code" data-i18n-aria="opponentAria"></textarea>
         <div class="controls">
-          <button id="duelRun" type="button">Duel 50</button>
-          <button id="duelCopy" type="button">Copy result</button>
+          <button id="duelRun" type="button" data-i18n="duelRun">Duel 50</button>
+          <button id="duelCopy" type="button" data-i18n="copyResult">Copy result</button>
         </div>
         <div id="duelResult"></div>
       </details>
@@ -175,10 +178,10 @@
   </main>
 
   <footer>
-    <a href="./play.html">Play as a human</a>
-    <a href="./index.html">Recorded matches</a>
-    <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5-minute quickstart</a>
-    <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">Bot protocol</a>
+    <a href="./play.html" data-i18n="footerPlay">Play as a human</a>
+    <a href="./index.html" data-i18n="footerMatches">Recorded matches</a>
+    <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md" data-i18n="footerQuickstart">5-minute quickstart</a>
+    <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md" data-i18n="footerProtocol">Bot protocol</a>
     <a href="https://github.com/bscbai/token-wars">GitHub</a>
   </footer>
 
