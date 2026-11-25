@@ -37,7 +37,8 @@ const MAP_EN = {
   data_torrent: 'Data Torrent',
 };
 let selectedMap = MAP;
-const mapLabel = () => (lang === 'zh' ? selectedMap.name : (MAP_EN[selectedMap.id] || selectedMap.id));
+const mapNameOf = (m) => (lang === 'zh' ? m.name : (MAP_EN[m.id] || m.id));
+const mapLabel = () => mapNameOf(selectedMap);
 const PROTOCOL_VERSION = 1;
 
 const SAMPLE_BALANCED = `// 靠近 → 爆发/普攻 → 残血举盾
@@ -161,6 +162,8 @@ const I18N = {
     copyDuelLink: 'Copy duel link',
     opponentAria: 'opponent code',
     duelRun: 'Duel 50',
+    duelAll: 'Duel all 5 maps',
+    duelingAll: 'Dueling all 5 maps (20 matches each)…',
     copyResult: 'Copy result',
     footerPlay: 'Play as a human',
     footerMatches: 'Recorded matches',
@@ -232,6 +235,8 @@ const I18N = {
     copyDuelLink: '复制对战链接',
     opponentAria: '对手代码',
     duelRun: '对战 50 场',
+    duelAll: '全地图对战',
+    duelingAll: '正在跑 5 张地图（每图 20 场）…',
     copyResult: '复制战绩',
     footerPlay: '亲自试玩',
     footerMatches: '录制对局',
@@ -291,6 +296,10 @@ const FMT = {
       + ` you ${o.aWins}W / them ${o.bWins}W / ${o.draws}D`
       + ` (${o.winRateA}% vs ${o.winRateB}%), avg ${o.avgTicks} ticks on ${map}.`
       + (url ? ` Beat it: ${url}` : ''),
+    duelAllStats: (o) => `${o.aWins}W / ${o.bWins}W / ${o.draws}D · ${o.winRateA}%`,
+    duelAllSummary: (o) => `${o.matches} matches: you ${o.aWins}W / them ${o.bWins}W / ${o.draws}D`
+      + ` (${o.winRateA}% vs ${o.winRateB}%) · ${o.wallMs}ms`,
+    duelAllFailed: (m) => `All-map duel failed: ${m}`,
     stats: (o) => `tick ${o.tick} · decisions ${o.decisions} · invalid ${o.invalid}`
       + ` · timeouts ${o.timeouts} · avg ${o.avg}ms (max ${o.max}ms)`,
     lastAction: (label) => `last action: ${label}`,
@@ -317,6 +326,10 @@ const FMT = {
       + ` 我 ${o.aWins}胜 / 对方 ${o.bWins}胜 / ${o.draws}平`
       + `（${o.winRateA}% vs ${o.winRateB}%），${map}，平均 ${o.avgTicks} tick。`
       + (url ? ` 来挑战：${url}` : ''),
+    duelAllStats: (o) => `${o.aWins}胜 / ${o.bWins}胜 / ${o.draws}平 · ${o.winRateA}%`,
+    duelAllSummary: (o) => `${o.matches} 场：你 ${o.aWins}胜 / 对方 ${o.bWins}胜 / ${o.draws}平`
+      + `（${o.winRateA}% vs ${o.winRateB}%）· 总耗时 ${o.wallMs}ms`,
+    duelAllFailed: (m) => `全地图对战失败：${m}`,
     stats: (o) => `tick ${o.tick} · 决策 ${o.decisions} · 非法 ${o.invalid}`
       + ` · 超时 ${o.timeouts} · 平均 ${o.avg}ms（最大 ${o.max}ms）`,
     lastAction: (label) => `最近动作：${label}`,
@@ -356,6 +369,7 @@ let stats = null;
 let lastAction = '-';
 let lastError = '';
 let lastDuel = null;
+let lastMulti = null;
 let lastResult = null;
 let lastReasonKey = null;
 let trace = [];
@@ -752,6 +766,8 @@ function runDuel() {
   ui.error.textContent = '';
   ui.duelRun.disabled = true;
   lastDuel = null;
+  lastMulti = null;
+  ui.duelAllResult.textContent = '';
   ui.duelResult.textContent = t('dueling');
   const map = selectedMap;
   const mapName = mapLabel();
@@ -765,6 +781,74 @@ function runDuel() {
       ui.duelResult.textContent = '';
     } finally {
       ui.duelRun.disabled = false;
+    }
+  }, 30);
+}
+
+function renderAllMaps() {
+  if (!ui.duelAllResult) return;
+  ui.duelAllResult.innerHTML = '';
+  if (!lastMulti) return;
+  lastMulti.rows.forEach(({ map, out }) => {
+    const row = document.createElement('div');
+    row.className = 'mapline';
+    const name = document.createElement('span');
+    name.textContent = mapNameOf(map) + ' ';
+    const stats = document.createElement('span');
+    stats.textContent = f('duelAllStats', out);
+    row.append(name, stats);
+    ui.duelAllResult.appendChild(row);
+  });
+  const total = document.createElement('div');
+  total.className = 'mapline total';
+  total.textContent = f('duelAllSummary', lastMulti.total);
+  ui.duelAllResult.appendChild(total);
+}
+
+function runDuelAll() {
+  let mine;
+  let theirs;
+  try {
+    mine = compilePolicy();
+    theirs = compilePolicy(ui.opponentEditor.value);
+  } catch (err) {
+    ui.error.textContent = f('compileError', err.message);
+    return;
+  }
+  stop();
+  ui.error.textContent = '';
+  ui.duelRun.disabled = true;
+  ui.duelAll.disabled = true;
+  lastDuel = null;
+  lastMulti = null;
+  ui.duelResult.textContent = '';
+  ui.duelAllResult.textContent = t('duelingAll');
+  setTimeout(() => {
+    const t0 = performance.now();
+    try {
+      const per = 20;
+      const rows = MAP_LIST.map((m) => ({
+        map: m,
+        out: simulateMatchesBetween(mine, theirs, { count: per, map: m }),
+      }));
+      const total = rows.reduce((acc, { out }) => {
+        acc.matches += out.matches;
+        acc.aWins += out.aWins;
+        acc.bWins += out.bWins;
+        acc.draws += out.draws;
+        return acc;
+      }, { matches: 0, aWins: 0, bWins: 0, draws: 0 });
+      total.winRateA = total.matches ? Math.round((total.aWins / total.matches) * 100) : 0;
+      total.winRateB = total.matches ? Math.round((total.bWins / total.matches) * 100) : 0;
+      total.wallMs = Math.round(performance.now() - t0);
+      lastMulti = { per, rows, total };
+      renderAllMaps();
+    } catch (err) {
+      ui.error.textContent = f('duelAllFailed', err.message);
+      ui.duelAllResult.textContent = '';
+    } finally {
+      ui.duelRun.disabled = false;
+      ui.duelAll.disabled = false;
     }
   }, 30);
 }
@@ -863,6 +947,7 @@ function applyLang(next) {
   populateMaps();
   renderOutcome();
   renderTrace();
+  renderAllMaps();
   updateHud();
 }
 
@@ -885,7 +970,9 @@ function boot() {
     shareStatus: $('shareStatus'),
     opponentEditor: $('opponentEditor'),
     duelRun: $('duelRun'),
+    duelAll: $('duelAll'),
     duelResult: $('duelResult'),
+    duelAllResult: $('duelAllResult'),
     duelLink: $('duelLink'),
     duelLoad: $('duelLoad'),
     duelShare: $('duelShare'),
@@ -930,7 +1017,9 @@ function boot() {
   ui.mapSelect.addEventListener('change', () => {
     selectedMap = MAP_LIST.find((m) => m.id === ui.mapSelect.value) || MAP;
     lastDuel = null;
+    lastMulti = null;
     ui.duelResult.textContent = '';
+    ui.duelAllResult.textContent = '';
   });
   ui.run.addEventListener('click', start);
   ui.stop.addEventListener('click', () => { stop(); ui.reason.textContent = t('reasonStopped'); });
@@ -938,6 +1027,7 @@ function boot() {
   ui.download.addEventListener('click', downloadAgent);
   ui.simulate.addEventListener('click', simulateBatch);
   ui.duelRun.addEventListener('click', runDuel);
+  ui.duelAll.addEventListener('click', runDuelAll);
   ui.duelLoad.addEventListener('click', loadOpponentFromInput);
   ui.duelShare.addEventListener('click', copyDuelLink);
   ui.duelCopy.addEventListener('click', copyDuelResult);

@@ -97,7 +97,9 @@ their policy and plays 50 offline matches — no accounts, no server — then
 **Copy result** gives you a postable summary plus the duel link. The whole page
 switches between English and 中文 (header toggle or `?lang=zh`), and
 **Simulate 50 / Duel 50** can run on any of the five arena maps; duel links
-carry the map so a challenge reproduces the same terrain. After a match, the
+carry the map so a challenge reproduces the same terrain. **Duel all 5 maps**
+runs 20 matches per map and shows a per-map win-rate table, so you can see
+whether a policy generalizes. After a match, the
 **Decision trace** panel records every tick (action + both HPs), and
 **Download trace JSON** exports the map, policy, result and full tick log.
 

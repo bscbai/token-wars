@@ -159,6 +159,8 @@ gives a ready-to-post line ("you 34W / them 12W / 4D …") plus the duel link.
 The page is bilingual — header toggle or `?lang=zh` — and Chinese browsers
 default to 中文. **Simulate 50 / Duel 50** can run on any of the five arena
 maps, and duel links encode the map so a challenge replays the same terrain.
+**Duel all 5 maps** runs 20 matches per map and shows a per-map win-rate table,
+which makes generalization gaps obvious.
 After a match, **Decision trace** lists every tick's action and HP, and
 **Download trace JSON** exports map + policy + result + ticks for offline analysis.
 

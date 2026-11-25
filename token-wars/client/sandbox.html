@@ -92,6 +92,10 @@
   .map-row { display:flex; gap:8px; align-items:center; margin-top:8px; font-size:11px; color:var(--muted); }
   .map-row select { flex:1; min-width:0; }
   #duelResult { min-height:16px; margin-top:8px; font-size:11px; color:var(--blue); line-height:1.7; }
+  #duelAllResult { margin-top:8px; font-size:11px; color:var(--blue); line-height:1.7; }
+  #duelAllResult .mapline { display:flex; justify-content:space-between; gap:10px; border-bottom:1px dashed #16222c; padding:2px 0; }
+  #duelAllResult .mapline span:first-child { color:var(--muted); }
+  #duelAllResult .mapline.total { color:var(--green); border-bottom:0; margin-top:2px; }
   .api { margin-top:12px; font-size:11px; color:var(--muted); line-height:1.9; }
   .api code { color:var(--green-dim); overflow-wrap:anywhere; }
   .api b { color:var(--text); font-weight:normal; }
@@ -190,9 +194,11 @@
         <textarea id="opponentEditor" spellcheck="false" aria-label="opponent code" data-i18n-aria="opponentAria"></textarea>
         <div class="controls">
           <button id="duelRun" type="button" data-i18n="duelRun">Duel 50</button>
+          <button id="duelAll" type="button" data-i18n="duelAll">Duel all 5 maps</button>
           <button id="duelCopy" type="button" data-i18n="copyResult">Copy result</button>
         </div>
         <div id="duelResult"></div>
+        <div id="duelAllResult"></div>
       </details>
     </section>
   </main>
