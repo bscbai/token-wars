@@ -28,6 +28,16 @@ const TIMEOUT_LIMIT = 3;
 const VIOLATION_LIMIT = 10;
 const CELL = 24;
 const MAP = AI_MAPS.DATA_MINE;
+const MAP_LIST = Object.values(AI_MAPS);
+const MAP_EN = {
+  data_mine: 'Data Mine',
+  compute_square: 'Compute Square',
+  cache_maze: 'Cache Maze',
+  arena_dome: 'Arena Dome',
+  data_torrent: 'Data Torrent',
+};
+let selectedMap = MAP;
+const mapLabel = () => (lang === 'zh' ? selectedMap.name : (MAP_EN[selectedMap.id] || selectedMap.id));
 const PROTOCOL_VERSION = 1;
 
 const SAMPLE_BALANCED = `// 靠近 → 爆发/普攻 → 残血举盾
@@ -61,7 +71,10 @@ function decide(state) {
   const go = Math.abs(foe.y - me.y) > Math.abs(foe.x - me.x)
     ? (step(0, dy) || step(dx, 0))
     : (step(dx, 0) || step(0, dy));
-  return go || { type: 'idle' };
+  if (go) return go;
+  // 被墙挡死时先纵向绕行（例如正中心有障碍的地图）
+  const side = me.y > 0 ? -1 : 1;
+  return step(0, side) || step(0, -side) || { type: 'idle' };
 }`;
 
 const SAMPLE_TURTLE = `// 先举盾再换血：护盾吸收 20 点，冷却好了就补
@@ -92,6 +105,14 @@ function decide(state) {
     if (Math.abs(sx) + Math.abs(sy) !== 1) continue;
     return { type: 'move', x, y };
   }
+  // 被墙挡死时纵向绕行，避免在正中心障碍前卡死
+  const side = me.y > 0 ? -1 : 1;
+  for (const sy of [side, -side]) {
+    const y = me.y + sy;
+    if (y < 0 || y >= state.map.height) continue;
+    if (blocked.has(me.x + ',' + y)) continue;
+    return { type: 'move', x: me.x, y };
+  }
   return { type: 'idle' };
 }`;
 
@@ -113,6 +134,7 @@ const I18N = {
     yourAgent: 'YOUR AGENT',
     yourPolicy: 'Your policy',
     presetAria: 'preset',
+    mapLabel: 'Simulate / Duel map',
     editorAria: 'agent code',
     run: 'Run (Ctrl+Enter)',
     stop: 'Stop',
@@ -181,6 +203,7 @@ const I18N = {
     yourAgent: '你的 AGENT',
     yourPolicy: '你的策略',
     presetAria: '预设策略',
+    mapLabel: '模拟 / 对战地图',
     editorAria: 'agent 代码',
     run: '运行 (Ctrl+Enter)',
     stop: '停止',
@@ -244,21 +267,21 @@ const FMT = {
     compileError: (m) => `Compile error: ${m}`,
     decideThrew: (m) => `decide() threw: ${m}`,
     timeoutAction: (ms) => `idle(timeout ${Math.round(ms)}ms)`,
-    simResult: (o) => `${o.matches} matches: ${o.wins}W / ${o.losses}L / ${o.draws}D`
+    simResult: (o, map) => `${o.matches} matches: ${o.wins}W / ${o.losses}L / ${o.draws}D`
       + ` (${o.winRate}% win) · avg ${o.avgTicks} ticks`
       + ` · invalid ${o.invalid} · timeouts ${o.timeouts}`
       + ` · decision avg ${o.avgDecisionMs}ms / max ${o.maxDecisionMs}ms`
-      + ` · ${o.wallMs}ms wall`,
+      + ` · map ${map} · ${o.wallMs}ms wall`,
     simFailed: (m) => `Simulation failed: ${m}`,
-    duelResult: (o) => `Duel ${o.matches}: you ${o.aWins}W / them ${o.bWins}W / ${o.draws}D`
+    duelResult: (o, map) => `Duel ${o.matches}: you ${o.aWins}W / them ${o.bWins}W / ${o.draws}D`
       + ` (${o.winRateA}% vs ${o.winRateB}%) · avg ${o.avgTicks} ticks`
       + ` · your invalid ${o.aInvalid} / timeouts ${o.aTimeouts}`
       + ` · their invalid ${o.bInvalid} / timeouts ${o.bTimeouts}`
-      + ` · ${o.wallMs}ms`,
+      + ` · map ${map} · ${o.wallMs}ms`,
     duelFailed: (m) => `Duel failed: ${m}`,
-    duelPost: (o, url) => `Token Wars duel — 50 headless matches, my decide(state) vs a friend's:`
+    duelPost: (o, url, map) => `Token Wars duel — 50 headless matches, my decide(state) vs a friend's:`
       + ` you ${o.aWins}W / them ${o.bWins}W / ${o.draws}D`
-      + ` (${o.winRateA}% vs ${o.winRateB}%), avg ${o.avgTicks} ticks.`
+      + ` (${o.winRateA}% vs ${o.winRateB}%), avg ${o.avgTicks} ticks on ${map}.`
       + (url ? ` Beat it: ${url}` : ''),
     stats: (o) => `tick ${o.tick} · decisions ${o.decisions} · invalid ${o.invalid}`
       + ` · timeouts ${o.timeouts} · avg ${o.avg}ms (max ${o.max}ms)`,
@@ -269,21 +292,21 @@ const FMT = {
     compileError: (m) => `编译错误：${m}`,
     decideThrew: (m) => `decide() 抛错：${m}`,
     timeoutAction: (ms) => `idle(超时 ${Math.round(ms)}ms)`,
-    simResult: (o) => `${o.matches} 场：${o.wins}胜 / ${o.losses}负 / ${o.draws}平`
+    simResult: (o, map) => `${o.matches} 场：${o.wins}胜 / ${o.losses}负 / ${o.draws}平`
       + `（胜率 ${o.winRate}%）· 平均 ${o.avgTicks} tick`
       + ` · 非法 ${o.invalid} · 超时 ${o.timeouts}`
       + ` · 决策 平均 ${o.avgDecisionMs}ms / 最大 ${o.maxDecisionMs}ms`
-      + ` · 总耗时 ${o.wallMs}ms`,
+      + ` · 地图 ${map} · 总耗时 ${o.wallMs}ms`,
     simFailed: (m) => `模拟失败：${m}`,
-    duelResult: (o) => `对战 ${o.matches} 场：你 ${o.aWins}胜 / 对方 ${o.bWins}胜 / ${o.draws}平`
+    duelResult: (o, map) => `对战 ${o.matches} 场：你 ${o.aWins}胜 / 对方 ${o.bWins}胜 / ${o.draws}平`
       + `（${o.winRateA}% vs ${o.winRateB}%）· 平均 ${o.avgTicks} tick`
       + ` · 你 非法 ${o.aInvalid} / 超时 ${o.aTimeouts}`
       + ` · 对方 非法 ${o.bInvalid} / 超时 ${o.bTimeouts}`
-      + ` · 总耗时 ${o.wallMs}ms`,
+      + ` · 地图 ${map} · 总耗时 ${o.wallMs}ms`,
     duelFailed: (m) => `对战失败：${m}`,
-    duelPost: (o, url) => `Token Wars 对战——50 场无渲染对局，我的 decide(state) vs 朋友的：`
+    duelPost: (o, url, map) => `Token Wars 对战——50 场无渲染对局，我的 decide(state) vs 朋友的：`
       + ` 我 ${o.aWins}胜 / 对方 ${o.bWins}胜 / ${o.draws}平`
-      + `（${o.winRateA}% vs ${o.winRateB}%），平均 ${o.avgTicks} tick。`
+      + `（${o.winRateA}% vs ${o.winRateB}%），${map}，平均 ${o.avgTicks} tick。`
       + (url ? ` 来挑战：${url}` : ''),
     stats: (o) => `tick ${o.tick} · 决策 ${o.decisions} · 非法 ${o.invalid}`
       + ` · 超时 ${o.timeouts} · 平均 ${o.avg}ms（最大 ${o.max}ms）`,
@@ -575,11 +598,13 @@ function simulateBatch() {
   ui.error.textContent = '';
   ui.simulate.disabled = true;
   ui.simResult.textContent = t('simulating');
+  const map = selectedMap;
+  const mapName = mapLabel();
   // 先让浏览器画一帧，再进入同步模拟
   setTimeout(() => {
     try {
-      const out = simulateMatches(policy, { count: 50, map: MAP });
-      ui.simResult.textContent = f('simResult', out);
+      const out = simulateMatches(policy, { count: 50, map });
+      ui.simResult.textContent = f('simResult', out, mapName);
     } catch (err) {
       ui.error.textContent = f('simFailed', err.message);
       ui.simResult.textContent = '';
@@ -606,6 +631,11 @@ function loadOpponentFromInput() {
     return;
   }
   ui.opponentEditor.value = code;
+  const mapParam = /(?:^|[#&])map=([a-z_]+)/.exec(raw);
+  if (mapParam && MAP_LIST.some((m) => m.id === mapParam[1])) {
+    ui.mapSelect.value = mapParam[1];
+    selectedMap = MAP_LIST.find((m) => m.id === mapParam[1]);
+  }
   lastDuel = null;
   ui.duelResult.textContent = t('opponentLoaded');
 }
@@ -614,7 +644,7 @@ function duelUrl() {
   const code = ui.editor.value;
   const opp = ui.opponentEditor.value;
   if (code.length + opp.length > MAX_HASH_CHARS) return null;
-  return `${location.href.split('#')[0]}#code=${encodeCode(code)}&vs=${encodeCode(opp)}`;
+  return `${location.href.split('#')[0]}#code=${encodeCode(code)}&vs=${encodeCode(opp)}&map=${selectedMap.id}`;
 }
 
 function copyDuelLink() {
@@ -635,7 +665,7 @@ function copyDuelResult() {
     return;
   }
   const url = duelUrl();
-  const text = f('duelPost', lastDuel, url);
+  const text = f('duelPost', lastDuel, url, mapLabel());
   navigator.clipboard.writeText(text)
     .then(() => { ui.duelResult.textContent = t('resultCopied'); })
     .catch(() => { window.prompt(t('copyResultPrompt'), text); });
@@ -656,11 +686,13 @@ function runDuel() {
   ui.duelRun.disabled = true;
   lastDuel = null;
   ui.duelResult.textContent = t('dueling');
+  const map = selectedMap;
+  const mapName = mapLabel();
   setTimeout(() => {
     try {
-      const out = simulateMatchesBetween(mine, theirs, { count: 50, map: MAP });
+      const out = simulateMatchesBetween(mine, theirs, { count: 50, map });
       lastDuel = out;
-      ui.duelResult.textContent = f('duelResult', out);
+      ui.duelResult.textContent = f('duelResult', out, mapName);
     } catch (err) {
       ui.error.textContent = f('duelFailed', err.message);
       ui.duelResult.textContent = '';
@@ -737,6 +769,20 @@ function populatePresets() {
   ui.preset.value = PRESETS.some((p) => p.id === prev) ? prev : PRESETS[0].id;
 }
 
+function populateMaps() {
+  const prev = (ui.mapSelect && ui.mapSelect.value) || selectedMap.id;
+  ui.mapSelect.innerHTML = '';
+  MAP_LIST.forEach((m) => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = lang === 'zh' ? m.name : (MAP_EN[m.id] || m.id);
+    ui.mapSelect.appendChild(opt);
+  });
+  const next = MAP_LIST.some((m) => m.id === prev) ? prev : MAP.id;
+  ui.mapSelect.value = next;
+  selectedMap = MAP_LIST.find((m) => m.id === next) || MAP;
+}
+
 function applyLang(next) {
   if (next === 'zh' || next === 'en') lang = next;
   document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
@@ -747,6 +793,7 @@ function applyLang(next) {
   ui.lang.textContent = lang === 'zh' ? 'EN' : '中文';
   ui.lang.setAttribute('aria-label', lang === 'zh' ? 'Switch to English' : '切换到中文');
   populatePresets();
+  populateMaps();
   renderOutcome();
   updateHud();
 }
@@ -759,6 +806,7 @@ function boot() {
     canvas: $('board'),
     editor: $('editor'),
     preset: $('preset'),
+    mapSelect: $('mapSelect'),
     run: $('run'),
     stop: $('stop'),
     reset: $('reset'),
@@ -806,6 +854,11 @@ function boot() {
     const preset = PRESETS.find((p) => p.id === ui.preset.value) || PRESETS[0];
     ui.editor.value = preset.code;
   });
+  ui.mapSelect.addEventListener('change', () => {
+    selectedMap = MAP_LIST.find((m) => m.id === ui.mapSelect.value) || MAP;
+    lastDuel = null;
+    ui.duelResult.textContent = '';
+  });
   ui.run.addEventListener('click', start);
   ui.stop.addEventListener('click', () => { stop(); ui.reason.textContent = t('reasonStopped'); });
   ui.share.addEventListener('click', copyShareLink);
@@ -844,6 +897,11 @@ function boot() {
   freshAgents();
   resetStats();
   applyLang();
+  const sharedMap = /(?:^|[#&])map=([a-z_]+)/.exec(location.hash || '');
+  if (sharedMap && MAP_LIST.some((m) => m.id === sharedMap[1])) {
+    ui.mapSelect.value = sharedMap[1];
+    selectedMap = MAP_LIST.find((m) => m.id === sharedMap[1]);
+  }
   draw();
   updateHud();
 

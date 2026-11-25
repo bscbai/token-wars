@@ -82,6 +82,8 @@
   .duel-link input { flex:1; min-width:180px; font:inherit; font-size:11px; padding:7px 8px;
                      color:var(--text); background:#06060f; border:1px solid #1b2a24; border-radius:4px; }
   #opponentEditor { min-height:180px; margin-top:10px; }
+  .map-row { display:flex; gap:8px; align-items:center; margin-top:8px; font-size:11px; color:var(--muted); }
+  .map-row select { flex:1; min-width:0; }
   #duelResult { min-height:16px; margin-top:8px; font-size:11px; color:var(--blue); line-height:1.7; }
   .api { margin-top:12px; font-size:11px; color:var(--muted); line-height:1.9; }
   .api code { color:var(--green-dim); overflow-wrap:anywhere; }
@@ -130,6 +132,10 @@
     <section>
       <h2 data-i18n="yourPolicy">Your policy</h2>
       <select id="preset" aria-label="preset" data-i18n-aria="presetAria"></select>
+      <div class="map-row">
+        <label for="mapSelect" data-i18n="mapLabel">Simulate / Duel map</label>
+        <select id="mapSelect"></select>
+      </div>
       <textarea id="editor" spellcheck="false" aria-label="agent code" data-i18n-aria="editorAria"></textarea>
       <div class="controls">
         <button id="run" type="button" data-i18n="run">Run (Ctrl+Enter)</button>

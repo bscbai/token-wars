@@ -156,7 +156,8 @@ their share link (50 offline matches, both sides' invalid/timeout counts), or
 export it as a runnable Node bot for a real arena. After a duel, **Copy result**
 gives a ready-to-post line ("you 34W / them 12W / 4D …") plus the duel link.
 The page is bilingual — header toggle or `?lang=zh` — and Chinese browsers
-default to 中文.
+default to 中文. **Simulate 50 / Duel 50** can run on any of the five arena
+maps, and duel links encode the map so a challenge replays the same terrain.
 
 Locally the same evaluation is a CLI:
 `npm run simulate -- examples/sample-bot-node/decide.js --matches 50`, and
