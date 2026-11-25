@@ -29,6 +29,16 @@ const VIOLATION_LIMIT = 10;
 const CELL = 24;
 const MAP = AI_MAPS.DATA_MINE;
 const MAP_LIST = Object.values(AI_MAPS);
+const { dailyInfo } = require('../../shared/dailyChallenge');
+const DAILY_RULE_KEYS = ['maxMs', 'hp', 'youHp', 'enemyShield', 'enemyAtkMult'];
+
+function dailyRules(mutator) {
+  const rules = {};
+  for (const key of DAILY_RULE_KEYS) {
+    if (mutator[key] !== undefined) rules[key] = mutator[key];
+  }
+  return rules;
+}
 const MAP_EN = {
   data_mine: 'Data Mine',
   compute_square: 'Compute Square',
@@ -146,6 +156,8 @@ const I18N = {
     simAll: 'Simulate all 5 maps',
     simulatingAll: 'Simulating all 5 maps (20 matches each)…',
     shareImage: 'Share image',
+    dailyRun: 'Daily challenge',
+    dailyRunning: "Running today's challenge (50 matches)…",
     cardSaved: 'Card saved — post it anywhere.',
     cardShared: 'Card shared.',
     benchTitle: 'BOT BENCHMARK',
@@ -235,6 +247,8 @@ const I18N = {
     simAll: '模拟五张地图',
     simulatingAll: '正在模拟五张地图（各 20 场）…',
     shareImage: '生成基准图',
+    dailyRun: '每日挑战',
+    dailyRunning: '正在跑今日挑战（50 场）…',
     cardSaved: '基准图已保存，可直接发帖。',
     cardShared: '基准图已分享。',
     benchTitle: 'BOT 基准',
@@ -317,6 +331,7 @@ const FMT = {
     simAllHeader: (t) => `${t.matches} matches vs the gatekeeper (20 per map):`
       + ` ${t.wins}W / ${t.losses}L / ${t.draws}D`,
     simAllRow: (map, o) => ` · ${map}: ${o.wins}W / ${o.losses}L (${o.winRate}%)`,
+    dailyPrefix: (n, map, mut) => `Daily #${n} · ${map} · ${mut}`,
     benchSubSingle: (n, map) => `${n} matches vs the Gatekeeper · ${map}`,
     benchSubAll: (n) => `${n} matches vs the Gatekeeper · all 5 maps`,
     benchRecord: (o) => `${o.wins}W–${o.losses}L–${o.draws}D`,
@@ -356,6 +371,7 @@ const FMT = {
     simAllHeader: (t) => `${t.matches} 场对守门 AI（每图 20 场）：`
       + `${t.wins}胜 / ${t.losses}负 / ${t.draws}平`,
     simAllRow: (map, o) => ` · ${map}：${o.wins}胜 ${o.losses}负（${o.winRate}%）`,
+    dailyPrefix: (n, map, mut) => `每日挑战 #${n} · ${map} · ${mut}`,
     benchSubSingle: (n, map) => `对守门 AI ${n} 场 · ${map}`,
     benchSubAll: (n) => `对守门 AI ${n} 场 · 五张地图`,
     benchRecord: (o) => `${o.wins}胜 ${o.losses}负 ${o.draws}平`,
@@ -879,6 +895,60 @@ function simulateAllMaps() {
   }, 30);
 }
 
+// 每日挑战：今天的图 + 规则变体（配置来自 shared/dailyChallenge.js）
+function renderDailyLabel() {
+  if (!ui.dailyRun) return;
+  ui.dailyRun.textContent = `${t('dailyRun')} #${dailyInfo().number}`;
+}
+
+function runDaily() {
+  let policy;
+  try {
+    policy = compilePolicy();
+  } catch (err) {
+    ui.error.textContent = f('compileError', err.message);
+    return;
+  }
+  stop();
+  ui.error.textContent = '';
+  ui.simulate.disabled = true;
+  ui.simAll.disabled = true;
+  ui.dailyRun.disabled = true;
+  lastSim = null;
+  ui.shareCard.hidden = true;
+
+  const info = dailyInfo();
+  const map = MAP_LIST.find((m) => m.id === info.mapId) || MAP;
+  const mutText = lang === 'zh' ? info.mutator.zh : info.mutator.en;
+  const mapName = mapNameOf(map);
+  const rules = dailyRules(info.mutator);
+  selectedMap = map;
+  ui.mapSelect.value = map.id;
+  ui.simResult.textContent = t('dailyRunning');
+
+  setTimeout(() => {
+    try {
+      const opts = { count: 50, map, rules };
+      const out = simulateMatches(policy, opts);
+      const baseline = simulateMatches(compilePolicy(SAMPLE_BALANCED), opts);
+      ui.simResult.textContent = `${f('dailyPrefix', info.number, mapName, mutText)}\n`
+        + f('simResult', out, mapName) + f('simBaseline', baseline);
+      lastSim = {
+        kind: 'single', out, baseline, mapName, mapId: map.id,
+        daily: { number: info.number, mut: mutText },
+      };
+      ui.shareCard.hidden = false;
+    } catch (err) {
+      ui.error.textContent = f('simFailed', err.message);
+      ui.simResult.textContent = '';
+    } finally {
+      ui.simulate.disabled = false;
+      ui.simAll.disabled = false;
+      ui.dailyRun.disabled = false;
+    }
+  }, 30);
+}
+
 // --- 基准图（1200×630 PNG，把最近一次 Simulate 结果发到 X / Discord） --------
 
 function fitText(ctx, text, maxWidth, size, weight = '') {
@@ -935,7 +1005,9 @@ function buildBenchCard() {
 
   const sub = all
     ? f('benchSubAll', stats.matches)
-    : f('benchSubSingle', stats.matches, lastSim.mapName);
+    : (lastSim.daily
+      ? f('dailyPrefix', lastSim.daily.number, lastSim.mapName, lastSim.daily.mut)
+      : f('benchSubSingle', stats.matches, lastSim.mapName));
   const subSize = fitText(ctx, sub, 620, 24);
   ctx.fillStyle = '#8fb3a5';
   ctx.font = `${subSize}px ${mono}`;
@@ -990,8 +1062,9 @@ function buildBenchCard() {
 }
 
 function benchCardFileName() {
-  const tag = lastSim.kind === 'all' ? 'all-maps' : lastSim.mapId;
   const rate = lastSim.kind === 'all' ? lastSim.total.winRate : lastSim.out.winRate;
+  if (lastSim.daily) return `token-wars-bot-daily-${lastSim.daily.number}-${rate}pct.png`;
+  const tag = lastSim.kind === 'all' ? 'all-maps' : lastSim.mapId;
   return `token-wars-bot-${tag}-${rate}pct.png`;
 }
 
@@ -1271,6 +1344,7 @@ function applyLang(next) {
   renderOutcome();
   renderTrace();
   renderAllMaps();
+  renderDailyLabel();
   updateHud();
 }
 
@@ -1290,6 +1364,7 @@ function boot() {
     download: $('download'),
     simulate: $('simulate'),
     simAll: $('simAll'),
+    dailyRun: $('dailyRun'),
     shareCard: $('shareCard'),
     llm: $('llm'),
     simResult: $('simResult'),
@@ -1356,6 +1431,7 @@ function boot() {
   ui.download.addEventListener('click', downloadAgent);
   ui.simulate.addEventListener('click', simulateBatch);
   ui.simAll.addEventListener('click', simulateAllMaps);
+  ui.dailyRun.addEventListener('click', runDaily);
   ui.shareCard.addEventListener('click', shareBenchCard);
   ui.llm.addEventListener('click', copyLlmPrompt);
   ui.duelRun.addEventListener('click', runDuel);
@@ -1410,6 +1486,11 @@ function boot() {
 
   // 打开页面即跑一次默认策略，先看到效果再改代码
   start();
+
+  // ?daily=1：直接用今天的图与规则评估当前策略（分享「今天的 bot 挑战」用）
+  if (new URLSearchParams(location.search).get('daily') === '1') {
+    setTimeout(runDaily, 120);
+  }
 }
 
 if (document.readyState === 'loading') {

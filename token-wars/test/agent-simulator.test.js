@@ -5,7 +5,7 @@
  */
 
 const {
-  simulateMatch, simulateMatches, simulateDuel, simulateMatchesBetween,
+  simulateMatch, simulateMatches, simulateDuel, simulateMatchesBetween, applySimRules,
 } = require('../server/game/agentSimulator');
 const sample = require('../examples/sample-bot-node/decide');
 
@@ -45,6 +45,55 @@ describe('simulateMatch', () => {
     expect(out.result).toBe('loss');
     expect(out.reason).toMatch(/timeouts/);
     expect(out.timeouts).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('每日挑战规则（applySimRules / rules 选项）', () => {
+  const mk = () => ({
+    maxHp: 100, hp: 100, shield: 0, shieldActive: false, shieldMax: 20, baseAtk: 10,
+    enableShield(amount) { this.shieldActive = true; this.shield = amount; },
+  });
+
+  it('hp 同时改双方，youHp 只改玩家', () => {
+    const you = mk();
+    const enemy = mk();
+    applySimRules(you, enemy, { hp: 60 });
+    expect([you.hp, you.maxHp, enemy.hp, enemy.maxHp]).toEqual([60, 60, 60, 60]);
+
+    const you2 = mk();
+    const enemy2 = mk();
+    applySimRules(you2, enemy2, { youHp: 60 });
+    expect([you2.hp, you2.maxHp, enemy2.hp, enemy2.maxHp]).toEqual([60, 60, 100, 100]);
+  });
+
+  it('enemyShield 让对手开盾，enemyAtkMult 提升攻击', () => {
+    const you = mk();
+    const enemy = mk();
+    applySimRules(you, enemy, { enemyShield: true, enemyAtkMult: 1.25 });
+    expect(enemy.shieldActive).toBe(true);
+    expect(enemy.shield).toBe(20);
+    expect(enemy.baseAtk).toBe(13);
+    expect(you.shieldActive).toBe(false);
+  });
+
+  it('规则里的 maxMs 限制对局时长，state.timeLeftMs 同步', () => {
+    let firstLeft;
+    const spy = (state) => {
+      if (firstLeft === undefined) firstLeft = state.timeLeftMs;
+      return { type: 'idle' };
+    };
+    const out = simulateMatch(spy, { rules: { maxMs: 1000 } });
+    expect(out.result).toBe('draw');
+    expect(out.reason).toMatch(/^1 s match limit/);
+    expect(out.ticks).toBe(20); // 1000ms / 50ms
+    expect(firstLeft).toBe(950); // 首个 tick 已过 50ms
+  });
+
+  it('批量结果回显 maxMs 与 rules', () => {
+    const out = simulateMatches(idle, { count: 2, rules: { maxMs: 1000, hp: 60 } });
+    expect(out.maxMs).toBe(1000);
+    expect(out.rules).toEqual({ maxMs: 1000, hp: 60 });
+    expect(out.avgTicks).toBe(20);
   });
 });
 

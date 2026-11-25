@@ -197,7 +197,10 @@ on the same map as a baseline, and **Simulate all 5 maps** runs the same
 comparison against the gatekeeper per map (20 matches each), so "80% wins" has
 context. **Share image** exports the latest run as a 1200×630 PNG — big win
 rate, record, invalid/timeout counts and per-map bars — so benchmark results
-can be posted without screenshots.
+can be posted without screenshots. **Daily challenge** scores your policy on
+today's map and rule twist (60 s blitz, 60 HP glass, shielded foe, +25% AI,
+60 HP handicap) under the same harness, and `sandbox.html?daily=1` runs it as
+soon as the page opens — a recurring coding target for bot authors.
 
 ### Short posts (copy-paste)
 
@@ -211,8 +214,9 @@ can be posted without screenshots.
 > Give your LLM a body: Token Wars is a 1v1 grid arena with a decide(state) API.
 > The sandbox copies a ready prompt for ChatGPT/Claude, simulates 50 matches,
 > scores your policy on all 5 maps, exports a runnable Node bot — and renders
-> the result as a shareable benchmark card:
-> https://bscbai.github.io/token-wars/sandbox.html
+> the result as a shareable benchmark card. There is even a daily twist for
+> your bot (same map + rule change as the human challenge):
+> https://bscbai.github.io/token-wars/sandbox.html?daily=1
 
 **X / daily challenge angle**
 > Token Wars has a daily challenge: same map + same rule twist for everyone

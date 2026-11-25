@@ -18,6 +18,7 @@ const { AIAgent } = require('../../server/models/AIAgent');
 const BuiltinBrain = require('../../server/game/BuiltinBrain');
 const { rollArenaDamage } = require('../../server/game/arenaDamage');
 const { AI_MAPS } = require('../../shared/arenaMaps');
+const { MUTATORS, dailyInfo } = require('../../shared/dailyChallenge');
 
 const TICK_MS = 50; // 20 Hz，与服务器同频
 const MATCH_MAX_MS = 120000;
@@ -35,32 +36,9 @@ const MAP_KEY = 'tw-play-map';
 let MAP = AI_MAPS.DATA_MINE;
 const brain = new BuiltinBrain();
 
-// 每日挑战：本地日期决定「地图 + 规则变体」，每天轮换，无需服务端。
-// 地图每天变；规则变体每 5 天换一档（5 张图 × 5 变体 = 25 天不重复组合）。
-const DAILY_EPOCH = Date.UTC(2026, 0, 1);
-const DAILY_MUTATORS = [
-  { id: 'blitz', maxMs: 60000 },
-  { id: 'glass', hp: 60 },
-  { id: 'guarded', enemyShield: true },
-  { id: 'fierce', enemyAtkMult: 1.25 },
-  { id: 'fragile', youHp: 60 },
-];
-
-function dailyInfo(date = new Date()) {
-  const localMidnight = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
-  const day = Math.floor((localMidnight - DAILY_EPOCH) / 86400000);
-  const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-    + `-${String(date.getDate()).padStart(2, '0')}`;
-  const mapIndex = ((day % MAP_LIST.length) + MAP_LIST.length) % MAP_LIST.length;
-  const mutIndex = ((Math.floor(day / MAP_LIST.length) % DAILY_MUTATORS.length)
-    + DAILY_MUTATORS.length) % DAILY_MUTATORS.length;
-  return {
-    key,
-    number: day + 1,
-    map: MAP_LIST[mapIndex],
-    mutator: DAILY_MUTATORS[mutIndex],
-  };
-}
+// 每日挑战：本地日期决定「地图 + 规则变体」，配置在 shared/dailyChallenge.js
+const mapById = (id) => MAP_LIST.find((m) => m.id === id) || MAP;
+const mutLabel = (mutator) => (lang === 'zh' ? mutator.zh : mutator.en);
 
 const I18N = {
   en: {
@@ -123,11 +101,6 @@ const I18N = {
     dailyNone: 'Not played today',
     dailyLoss: '✗ today',
     dailyDraw: '= today',
-    mut_blitz: 'Blitz 60s',
-    mut_glass: 'Glass 60 HP',
-    mut_guarded: 'Shielded foe',
-    mut_fierce: 'Fierce AI',
-    mut_fragile: 'Fragile: you 60 HP',
   },
   zh: {
     subtitle: '人类 vs 竞技场内置 AI——同一套规则，全部在浏览器里。',
@@ -188,11 +161,6 @@ const I18N = {
     dailyNone: '今日未挑战',
     dailyLoss: '✗ 今日未通过',
     dailyDraw: '＝ 今日平局',
-    mut_blitz: '极速 60 秒',
-    mut_glass: '玻璃 60 血',
-    mut_guarded: '对手带盾',
-    mut_fierce: '狂暴 AI',
-    mut_fragile: '脆弱：你只有 60 血',
   },
 };
 
@@ -305,8 +273,8 @@ function renderDaily() {
   if (!ui.daily) return;
   const info = dailyInfo();
   const rec = record.daily[info.key];
-  ui.daily.textContent = `${t('dailyTitle')} #${info.number} · ${mapNameOf(info.map)}`
-    + ` · ${t(`mut_${info.mutator.id}`)}`;
+  ui.daily.textContent = `${t('dailyTitle')} #${info.number} · ${mapNameOf(mapById(info.mapId))}`
+    + ` · ${mutLabel(info.mutator)}`;
   ui.daily.classList.toggle('active', !!dailyMode && dailyMode.key === info.key);
   if (!rec) {
     ui.dailyStatus.textContent = t('dailyNone');
@@ -320,7 +288,7 @@ function renderDaily() {
 
 function startDaily() {
   dailyMode = dailyInfo();
-  MAP = dailyMode.map;
+  MAP = mapById(dailyMode.mapId);
   populateMaps();
   reset();
 }
@@ -544,7 +512,7 @@ async function shareMatch() {
     ? {
       number: lastOutcome.daily.number,
       map: mapNameOf(MAP_LIST.find((m) => m.id === lastOutcome.daily.mapId) || MAP),
-      mut: t(`mut_${lastOutcome.daily.mutId}`),
+      mut: mutLabel(MUTATORS.find((m) => m.id === lastOutcome.daily.mutId) || MUTATORS[0]),
     }
     : null;
   const text = f('shareText', {
@@ -642,8 +610,8 @@ function buildShareCard() {
   ctx.fillText(resultText, 60, 215);
 
   const sub = dailyMode
-    ? `${t('dailyTitle')} #${dailyMode.number} · ${mapNameOf(dailyMode.map)}`
-      + ` · ${t(`mut_${dailyMode.mutator.id}`)}`
+    ? `${t('dailyTitle')} #${dailyMode.number} · ${mapNameOf(mapById(dailyMode.mapId))}`
+      + ` · ${mutLabel(dailyMode.mutator)}`
     : mapNameOf(MAP);
   const subSize = fitText(ctx, sub, 640, 26);
   ctx.fillStyle = '#8fb3a5';
@@ -773,7 +741,7 @@ function finish(result) {
     newBest: result === 'win' && (!prevBest || ms < prevBest),
     record: { ...record },
     daily: dailyMode
-      ? { number: dailyMode.number, mapId: dailyMode.map.id, mutId: dailyMode.mutator.id }
+      ? { number: dailyMode.number, mapId: dailyMode.mapId, mutId: dailyMode.mutator.id }
       : null,
   };
   renderResult();
@@ -998,7 +966,7 @@ function boot() {
   // 深链 ?daily=1：直接进入今天的挑战（首页 CTA / 分享链接用）
   if (new URLSearchParams(location.search).get('daily') === '1') {
     dailyMode = dailyInfo();
-    MAP = dailyMode.map;
+    MAP = mapById(dailyMode.mapId);
     populateMaps();
   }
 

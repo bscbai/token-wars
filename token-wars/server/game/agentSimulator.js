@@ -32,11 +32,11 @@ function isWalkableOn(map, x, y) {
   return !map.obstacles.some(([ox, oy]) => ox === x && oy === y);
 }
 
-function buildState(you, enemy, tick, now, elapsed, map) {
+function buildState(you, enemy, tick, now, elapsed, map, maxMs) {
   return {
     matchId: 'sim',
     tick,
-    timeLeftMs: Math.max(0, MAX_MS - elapsed),
+    timeLeftMs: Math.max(0, maxMs - elapsed),
     you: {
       x: you.x, y: you.y, hp: you.hp, maxHp: you.maxHp,
       shield: you.shield, shieldActive: you.shieldActive,
@@ -52,9 +52,32 @@ function buildState(you, enemy, tick, now, elapsed, map) {
 }
 
 /**
+ * 应用每日挑战 / 自定义规则到模拟双方（与 play 页 applyDailyRules 同语义）。
+ * @param {AIAgent} you
+ * @param {AIAgent} enemy
+ * @param {{ hp?:number, youHp?:number, enemyShield?:boolean, enemyAtkMult?:number }} [rules]
+ */
+function applySimRules(you, enemy, rules = {}) {
+  if (!rules) return;
+  if (rules.hp) {
+    you.maxHp = rules.hp;
+    you.hp = rules.hp;
+    enemy.maxHp = rules.hp;
+    enemy.hp = rules.hp;
+  }
+  if (rules.youHp) {
+    you.maxHp = rules.youHp;
+    you.hp = rules.youHp;
+  }
+  if (rules.enemyShield) enemy.enableShield(enemy.shieldMax);
+  if (rules.enemyAtkMult) enemy.baseAtk = Math.round(enemy.baseAtk * rules.enemyAtkMult);
+}
+
+/**
  * 跑一场无渲染对局。
  * @param {(state: object) => object} policy
- * @param {{ map?: object, deadlineMs?: number, maxMs?: number }} [options]
+ * @param {{ map?: object, deadlineMs?: number, maxMs?: number,
+ *           rules?: { hp?:number, youHp?:number, enemyShield?:boolean, enemyAtkMult?:number } }} [options]
  * @returns {{ result:'win'|'loss'|'draw', ticks:number, reason:string,
  *             invalid:number, timeouts:number, decisions:number,
  *             error?:string, avgDecisionMs:number, maxDecisionMs:number }}
@@ -62,7 +85,7 @@ function buildState(you, enemy, tick, now, elapsed, map) {
 function simulateMatch(policy, options = {}) {
   const map = options.map || DEFAULT_MAP;
   const deadlineMs = options.deadlineMs || DEADLINE_MS;
-  const maxMs = options.maxMs || MAX_MS;
+  const maxMs = options.maxMs || (options.rules && options.rules.maxMs) || MAX_MS;
   const brain = new BuiltinBrain();
 
   const you = new AIAgent('sim-player', [], 'Policy');
@@ -71,6 +94,7 @@ function simulateMatch(policy, options = {}) {
   const enemy = new AIAgent('sim-house', [], 'Gatekeeper');
   enemy.x = map.spawnB.x;
   enemy.y = map.spawnB.y;
+  applySimRules(you, enemy, options.rules);
 
   const isWalkable = (x, y) => isWalkableOn(map, x, y);
   const stats = { invalid: 0, timeouts: 0, consecutiveTimeouts: 0, decisions: 0, totalMs: 0, maxMs: 0 };
@@ -99,7 +123,7 @@ function simulateMatch(policy, options = {}) {
 
     if (canAct[0]) {
       you.tickShield();
-      const state = buildState(you, enemy, tick, now, elapsed, map);
+      const state = buildState(you, enemy, tick, now, elapsed, map, maxMs);
       const started = performance.now();
       let action;
       try {
@@ -146,7 +170,7 @@ function simulateMatch(policy, options = {}) {
     }
   }
 
-  return result || finish('draw', '120 s match limit');
+  return result || finish('draw', `${Math.round(maxMs / 1000)} s match limit`);
 }
 
 /**
@@ -160,6 +184,8 @@ function simulateMatches(policy, options = {}) {
   const summary = {
     matches: count, wins: 0, losses: 0, draws: 0, invalid: 0, timeouts: 0, errors: 0,
     totalTicks: 0, avgTicks: 0, avgDecisionMs: 0, maxDecisionMs: 0, wallMs: 0, winRate: 0,
+    maxMs: options.maxMs || (options.rules && options.rules.maxMs) || MAX_MS,
+    rules: options.rules ? { ...options.rules } : null,
   };
   let decisionTotal = 0;
   let decisionCount = 0;
@@ -328,5 +354,6 @@ function simulateMatchesBetween(policyA, policyB, options = {}) {
 }
 
 module.exports = {
-  simulateMatch, simulateMatches, simulateDuel, simulateMatchesBetween, DEFAULT_MAP,
+  simulateMatch, simulateMatches, simulateDuel, simulateMatchesBetween,
+  applySimRules, DEFAULT_MAP,
 };
