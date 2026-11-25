@@ -158,6 +158,7 @@ https://github.com/bscbai/token-wars
       install (deps installed, port 3000 forwarded)
 - [x] Static recorded demo on GitHub Pages (`npm run demo:static` →
       `demo-site/` → `gh-pages`): https://bscbai.github.io/token-wars/
+      · benchmark v0 page: https://bscbai.github.io/token-wars/benchmark.html
 - [x] v1.2.0 release: match replays, `/m/:matchId` and `/a/:name` share pages,
       language deep links, static Pages demo, balance report
       (https://github.com/bscbai/token-wars/releases/tag/v1.2.0)
