@@ -82,6 +82,7 @@ const BASE_CSS = `
            linear-gradient(rgba(0,255,136,.04) 1px, transparent 1px) 0 0/40px 40px,
            linear-gradient(90deg, rgba(0,255,136,.04) 1px, transparent 1px) 0 0/40px 40px, var(--bg); }
   header, main, footer, .banner { max-width:1000px; margin:0 auto; }
+  header { position:relative; }
   h1 { font-size:26px; letter-spacing:3px; color:var(--green); }
   h1::before { content:'▚ '; color:var(--green-dim); }
   #subtitle { color:var(--muted); font-size:13px; margin-top:6px; }
@@ -164,6 +165,9 @@ const PLAYER_JS = `
 (function () {
   const d = window.__MATCH__;
   if (!d) return;
+  const T = window.__TW_PLAYER_LANG__ === 'zh'
+    ? { play: '播放', pause: '暂停', draw: '平局', wins: ' 获胜', tick: ' tick', vs: '  vs  ', drawPadded: '  平局  ' }
+    : { play: 'Play', pause: 'Pause', draw: 'draw', wins: ' wins', tick: ' ticks', vs: '  vs  ', drawPadded: '  draw  ' };
   const board = document.getElementById('board');
   const toggle = document.getElementById('toggle');
   const restart = document.getElementById('restart');
@@ -196,13 +200,13 @@ const PLAYER_JS = `
     hpEl.textContent = 'HP ' + f.a.hp + ' / ' + f.b.hp + ' · tick ' + f.t + ' · ' + (state.frame + 1) + '/' + d.frames.length;
   }
 
-  function stop() { clearInterval(state.timer); state.timer = null; state.playing = false; toggle.textContent = 'Play'; }
+  function stop() { clearInterval(state.timer); state.timer = null; state.playing = false; toggle.textContent = T.play; }
 
   function play() {
     stop();
     if (state.frame >= d.frames.length - 1) state.frame = 0;
     state.playing = true;
-    toggle.textContent = 'Pause';
+    toggle.textContent = T.pause;
     state.timer = setInterval(() => {
       if (state.frame >= d.frames.length - 1) { stop(); return; }
       state.frame++;
@@ -214,12 +218,12 @@ const PLAYER_JS = `
   a.className = d.winner === 'A' ? 'win' : '';
   a.textContent = '◆ ' + d.a;
   const vs = document.createElement('span');
-  vs.textContent = d.winner === 'draw' ? '  draw  ' : '  vs  ';
+  vs.textContent = d.winner === 'draw' ? T.drawPadded : T.vs;
   const b = document.createElement('span');
   b.className = d.winner === 'B' ? 'win' : '';
   b.textContent = d.b + ' ◇';
   duelEl.append(a, vs, b);
-  ctxEl.textContent = d.ticks + ' ticks · ' + d.map.name + ' · ' + (d.winner === 'draw' ? 'draw' : d.winner + ' wins');
+  ctxEl.textContent = d.ticks + T.tick + ' · ' + d.map.name + ' · ' + (d.winner === 'draw' ? T.draw : d.winner + T.wins);
 
   toggle.addEventListener('click', () => (state.playing ? stop() : play()));
   if (restart) restart.addEventListener('click', () => { state.frame = 0; draw(); play(); });
@@ -232,28 +236,85 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-const matchPageUrl = (i) => `${PUBLIC_ORIGIN}/match-${String(i + 1).padStart(2, '0')}.html`;
-const matchTitle = (m) => (m.winner === 'draw'
-  ? `${m.a} vs ${m.b} — draw`
-  : `${m.a} vs ${m.b} — ${m.winner === 'A' ? m.a : m.b} wins`);
-const matchDesc = (m) => `${m.ticks} ticks on ${m.map.name} · recorded AI-agent match from Token Wars, a server-authoritative arena where you bring your own agent.`;
+const MATCH_STRINGS = {
+  en: {
+    htmlLang: 'en',
+    suffix: '',
+    otherLang: '中文',
+    subtitle: 'Recorded match — Token Wars',
+    bannerHtml: `This is a <b>static recording</b> (no server). Live ladder and your own bot run locally
+      in ~1 minute: <code>npm install &amp;&amp; npm run demo</code> —
+      or <a href="https://github.com/bscbai/token-wars">read the protocol</a>.`,
+    h2Replay: 'Match replay',
+    h2Share: 'Share this match',
+    shareNote: `Every recorded match has its own page — paste the URL and it unfurls
+      with this match's result and a preview card.`,
+    linksHtml: `<a href="./play.html">Play this matchup yourself</a><br>
+      <a href="./sandbox.html">Write your own agent (browser sandbox)</a><br>
+      <a href="./index.html">All recorded matches</a><br>
+      <a href="./benchmark.html">Benchmark v0</a><br>
+      <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5-minute agent quickstart</a><br>
+      <a href="https://github.com/bscbai/token-wars">GitHub</a>`,
+    play: 'Play',
+    restart: 'Restart',
+    recorded: 'recorded ',
+    footerMatch: (i, total) => `Match ${i + 1} of ${total}`,
+    title: (m) => (m.winner === 'draw'
+      ? `${m.a} vs ${m.b} — draw`
+      : `${m.a} vs ${m.b} — ${m.winner === 'A' ? m.a : m.b} wins`),
+    desc: (m) => `${m.ticks} ticks on ${m.map.name} · recorded AI-agent match from Token Wars, a server-authoritative arena where you bring your own agent.`,
+  },
+  zh: {
+    htmlLang: 'zh-CN',
+    suffix: '.zh',
+    otherLang: 'EN',
+    subtitle: '录制对局 — Token Wars',
+    bannerHtml: `这是<b>静态录制</b>（无服务端）。实时天梯与你的 bot 可在本地约 1 分钟跑起来：
+      <code>npm install &amp;&amp; npm run demo</code>——或
+      <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.md">阅读协议（中文）</a>。`,
+    h2Replay: '对局回放',
+    h2Share: '分享这场比赛',
+    shareNote: '每场录制对局都有独立页面——粘贴链接即可展开本场结果与预览卡。',
+    linksHtml: `<a href="./play.html?lang=zh">亲自打这场对局</a><br>
+      <a href="./sandbox.html?lang=zh">写自己的 agent（浏览器沙盒）</a><br>
+      <a href="./index.zh.html">全部录制对局</a><br>
+      <a href="./benchmark.zh.html">基准测试 v0</a><br>
+      <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5 分钟 agent 上手</a><br>
+      <a href="https://github.com/bscbai/token-wars">GitHub</a>`,
+    play: '播放',
+    restart: '重播',
+    recorded: '录制于 ',
+    footerMatch: (i, total) => `第 ${i + 1} / ${total} 场`,
+    title: (m) => (m.winner === 'draw'
+      ? `${m.a} vs ${m.b} — 平局`
+      : `${m.a} vs ${m.b} — ${m.winner === 'A' ? m.a : m.b} 获胜`),
+    desc: (m) => `${m.map.name} · ${m.ticks} tick · 来自 Token Wars 的 AI agent 录制对局，服务端权威、可带自己的 agent 参赛。`,
+  },
+};
 
-function matchPage(i, m) {
-  const title = matchTitle(m);
-  const desc = matchDesc(m);
+const matchFile = (i, lang) => `match-${String(i + 1).padStart(2, '0')}${lang === 'zh' ? '.zh' : ''}.html`;
+const matchPageUrl = (i, lang = 'en') => `${PUBLIC_ORIGIN}/${matchFile(i, lang)}`;
+
+function matchPage(i, m, lang = 'en') {
+  const S = MATCH_STRINGS[lang];
+  const title = S.title(m);
+  const desc = S.desc(m);
+  const otherHref = `./${matchFile(i, lang === 'zh' ? 'en' : 'zh')}`;
   const json = JSON.stringify(m).replace(/</g, '\\u003c');
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${S.htmlLang}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${escapeHtml(title)} · Token Wars</title>
 <meta name="description" content="${escapeHtml(desc)}">
-<link rel="canonical" href="${matchPageUrl(i)}">
+<link rel="canonical" href="${matchPageUrl(i, lang)}">
+<link rel="alternate" hreflang="en" href="${matchPageUrl(i, 'en')}">
+<link rel="alternate" hreflang="zh" href="${matchPageUrl(i, 'zh')}">
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(desc)}">
 <meta property="og:type" content="article">
-<meta property="og:url" content="${matchPageUrl(i)}">
+<meta property="og:url" content="${matchPageUrl(i, lang)}">
 <meta property="og:image" content="${PUBLIC_ORIGIN}/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -267,18 +328,17 @@ function matchPage(i, m) {
 <body>
   <header>
     <h1>AI AGENT ARENA</h1>
-    <p id="subtitle">Recorded match — Token Wars</p>
+    <a class="lang-switch" href="${otherHref}" hreflang="${lang === 'zh' ? 'en' : 'zh'}">${S.otherLang}</a>
+    <p id="subtitle">${S.subtitle}</p>
   </header>
 
   <div class="banner">
-    This is a <b>static recording</b> (no server). Live ladder and your own bot run locally
-    in ~1 minute: <code>npm install &amp;&amp; npm run demo</code> —
-    or <a href="https://github.com/bscbai/token-wars">read the protocol</a>.
+    ${S.bannerHtml}
   </div>
 
   <main>
     <section>
-      <h2>Match replay</h2>
+      <h2>${S.h2Replay}</h2>
       <div class="stage">
         <canvas id="board" width="320" height="320"></canvas>
         <div class="meta">
@@ -286,35 +346,29 @@ function matchPage(i, m) {
           <div id="hp" class="hp"></div>
           <div id="context"></div>
           <div class="controls">
-            <button id="toggle" type="button">Play</button>
-            <button id="restart" type="button">Restart</button>
+            <button id="toggle" type="button">${S.play}</button>
+            <button id="restart" type="button">${S.restart}</button>
           </div>
         </div>
       </div>
     </section>
     <section>
-      <h2>Share this match</h2>
-      <p class="note">Every recorded match has its own page — paste the URL and it unfurls
-      with this match's result and a preview card.</p>
+      <h2>${S.h2Share}</h2>
+      <p class="note">${S.shareNote}</p>
       <p class="note" style="margin-top:10px">
-        <a href="./play.html">Play this matchup yourself</a><br>
-        <a href="./sandbox.html">Write your own agent (browser sandbox)</a><br>
-        <a href="./index.html">All recorded matches</a><br>
-        <a href="./benchmark.html">Benchmark v0</a><br>
-        <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5-minute agent quickstart</a><br>
-        <a href="https://github.com/bscbai/token-wars">GitHub</a>
+        ${S.linksHtml}
       </p>
     </section>
   </main>
 
   <footer>
-    <span>Match ${i + 1} of ${matches.length}</span>
+    <span>${S.footerMatch(i, matches.length)}</span>
     <span id="generated"></span>
   </footer>
 
-<script>window.__MATCH__ = ${json};</script>
+<script>window.__MATCH__ = ${json};window.__TW_PLAYER_LANG__ = ${JSON.stringify(lang)};</script>
 <script src="./replay.js"></script>
-<script>document.getElementById('generated').textContent = 'recorded ' + ${JSON.stringify(data.generatedAt.slice(0, 10))};</script>
+<script>document.getElementById('generated').textContent = ${JSON.stringify(S.recorded)} + ${JSON.stringify(data.generatedAt.slice(0, 10))};</script>
 </body>
 </html>
 `;
@@ -378,6 +432,7 @@ const INDEX_STRINGS = {
     heroMaps: ' MAPS · AVG ',
     heroTicks: ' TICKS · RECORDED ',
     shareLead: 'Share a single match: ',
+    matchSuffix: '',
     recorded: 'recorded ',
     colAgent: 'Agent',
   },
@@ -437,6 +492,7 @@ const INDEX_STRINGS = {
     heroMaps: ' 张地图 · 平均 ',
     heroTicks: ' tick · 录制于 ',
     shareLead: '单场分享：',
+    matchSuffix: '.zh',
     recorded: '录制于 ',
     colAgent: 'Agent',
   },
@@ -674,7 +730,7 @@ lead.textContent = S.shareLead;
 links.appendChild(lead);
 DATA.matches.forEach((m, i) => {
   const a = document.createElement('a');
-  a.href = './match-' + String(i + 1).padStart(2, '0') + '.html';
+  a.href = './match-' + String(i + 1).padStart(2, '0') + S.matchSuffix + '.html';
   a.textContent = String(i + 1);
   links.appendChild(a);
 });
@@ -708,20 +764,25 @@ for (const [src, out] of [
 }
 fs.writeFileSync(path.join(OUT_DIR, 'replay.js'), PLAYER_JS, 'utf8');
 
-// 单场分享页：OG 卡按场次生成，便于把某一场直接发到社区
+// 单场分享页：OG 卡按场次生成，中英各一份，便于把某一场直接发到社区
 const pageFiles = [];
-matches.forEach((m, i) => {
-  const name = `match-${String(i + 1).padStart(2, '0')}.html`;
-  const file = path.join(OUT_DIR, name);
-  fs.writeFileSync(file, matchPage(i, m), 'utf8');
-  pageFiles.push({ name, bytes: fs.statSync(file).size });
-});
+for (const lang of ['en', 'zh']) {
+  matches.forEach((m, i) => {
+    const name = matchFile(i, lang);
+    const file = path.join(OUT_DIR, name);
+    fs.writeFileSync(file, matchPage(i, m, lang), 'utf8');
+    pageFiles.push({ name, bytes: fs.statSync(file).size, lang });
+  });
+}
 
 // 生成物自检：分享页必须带 OG 卡、回放数据与外链播放器，否则构建失败
 for (const p of pageFiles) {
   const text = fs.readFileSync(path.join(OUT_DIR, p.name), 'utf8');
   if (!text.includes('property="og:url"') || !text.includes('window.__MATCH__ = {') || !text.includes('src="./replay.js"')) {
     throw new Error(`static demo page invalid: ${p.name}`);
+  }
+  if (p.lang === 'zh' && !text.includes('window.__TW_PLAYER_LANG__ = "zh"')) {
+    throw new Error(`zh match page missing player language: ${p.name}`);
   }
 }
 if (fs.statSync(path.join(OUT_DIR, 'replay.js')).size === 0) throw new Error('replay.js is empty');
@@ -734,7 +795,7 @@ const sitemapUrls = [
   `${PUBLIC_ORIGIN}/sandbox.html`,
   `${PUBLIC_ORIGIN}/benchmark.html`,
   `${PUBLIC_ORIGIN}/benchmark.zh.html`,
-  ...matches.map((_, i) => matchPageUrl(i)),
+  ...matches.flatMap((_, i) => [matchPageUrl(i, 'en'), matchPageUrl(i, 'zh')]),
 ];
 fs.writeFileSync(
   path.join(OUT_DIR, 'sitemap.xml'),

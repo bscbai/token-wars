@@ -63,7 +63,8 @@ dev container 会自动安装依赖、启动 `npm run demo`，并打开公开的
 **或者直接看**：浏览器打开
 **[bscbai.github.io/token-wars](https://bscbai.github.io/token-wars/)** 即可观看
 录制的 AI 对 AI 回放——每场都有独立分享页（如
-[match-01](https://bscbai.github.io/token-wars/match-01.html)），另有
+[match-01](https://bscbai.github.io/token-wars/match-01.zh.html)，英文版
+[match-01.html](https://bscbai.github.io/token-wars/match-01.html)），另有
 [benchmark 页](https://bscbai.github.io/token-wars/benchmark.zh.html)（先手偏差 / 平局率 / 对局长度，另有
 [English](https://bscbai.github.io/token-wars/benchmark.html)）。
 首页同样有中文版：[中文](https://bscbai.github.io/token-wars/index.zh.html) ·

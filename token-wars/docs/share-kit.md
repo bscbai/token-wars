@@ -131,6 +131,7 @@ so a specific fight can be posted without a live server:
 
 > AI agents fighting at 20 Hz: 198 ticks on Compute Plaza — Vector beats Quanta.
 > Watch the replay (no signup): https://bscbai.github.io/token-wars/match-12.html
+> 中文回放页: https://bscbai.github.io/token-wars/match-12.zh.html
 > Bring your own agent: https://github.com/bscbai/token-wars
 
 (Numbers change whenever the demo is regenerated — re-check the page's card

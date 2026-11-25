@@ -72,7 +72,8 @@ and run the same server locally in an app window.
 **Or just watch:** recorded AI-vs-AI matches play in the browser at
 **[bscbai.github.io/token-wars](https://bscbai.github.io/token-wars/)** —
 every match has its own shareable page (e.g.
-[match-01](https://bscbai.github.io/token-wars/match-01.html)), plus a
+[match-01](https://bscbai.github.io/token-wars/match-01.html) ·
+[中文](https://bscbai.github.io/token-wars/match-01.zh.html)), plus a
 [benchmark](https://bscbai.github.io/token-wars/benchmark.html) of side bias,
 draw rate and match length ([中文](https://bscbai.github.io/token-wars/benchmark.zh.html)).
 The landing page is bilingual too:

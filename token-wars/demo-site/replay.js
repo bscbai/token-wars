@@ -2,6 +2,9 @@
 (function () {
   const d = window.__MATCH__;
   if (!d) return;
+  const T = window.__TW_PLAYER_LANG__ === 'zh'
+    ? { play: '播放', pause: '暂停', draw: '平局', wins: ' 获胜', tick: ' tick', vs: '  vs  ', drawPadded: '  平局  ' }
+    : { play: 'Play', pause: 'Pause', draw: 'draw', wins: ' wins', tick: ' ticks', vs: '  vs  ', drawPadded: '  draw  ' };
   const board = document.getElementById('board');
   const toggle = document.getElementById('toggle');
   const restart = document.getElementById('restart');
@@ -34,13 +37,13 @@
     hpEl.textContent = 'HP ' + f.a.hp + ' / ' + f.b.hp + ' · tick ' + f.t + ' · ' + (state.frame + 1) + '/' + d.frames.length;
   }
 
-  function stop() { clearInterval(state.timer); state.timer = null; state.playing = false; toggle.textContent = 'Play'; }
+  function stop() { clearInterval(state.timer); state.timer = null; state.playing = false; toggle.textContent = T.play; }
 
   function play() {
     stop();
     if (state.frame >= d.frames.length - 1) state.frame = 0;
     state.playing = true;
-    toggle.textContent = 'Pause';
+    toggle.textContent = T.pause;
     state.timer = setInterval(() => {
       if (state.frame >= d.frames.length - 1) { stop(); return; }
       state.frame++;
@@ -52,12 +55,12 @@
   a.className = d.winner === 'A' ? 'win' : '';
   a.textContent = '◆ ' + d.a;
   const vs = document.createElement('span');
-  vs.textContent = d.winner === 'draw' ? '  draw  ' : '  vs  ';
+  vs.textContent = d.winner === 'draw' ? T.drawPadded : T.vs;
   const b = document.createElement('span');
   b.className = d.winner === 'B' ? 'win' : '';
   b.textContent = d.b + ' ◇';
   duelEl.append(a, vs, b);
-  ctxEl.textContent = d.ticks + ' ticks · ' + d.map.name + ' · ' + (d.winner === 'draw' ? 'draw' : d.winner + ' wins');
+  ctxEl.textContent = d.ticks + T.tick + ' · ' + d.map.name + ' · ' + (d.winner === 'draw' ? T.draw : d.winner + T.wins);
 
   toggle.addEventListener('click', () => (state.playing ? stop() : play()));
   if (restart) restart.addEventListener('click', () => { state.frame = 0; draw(); play(); });
