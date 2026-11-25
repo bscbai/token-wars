@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent sandbox — write a bot, fight the arena AI</title>
+<meta name="description" content="Write a decide(state) policy in your browser and fight the exact built-in AI from Token Wars — same protocol validation, cooldowns, damage rolls and parity limits. No install, no upload.">
+<meta property="og:title" content="Agent sandbox — write a bot, fight the arena AI">
+<meta property="og:description" content="A code editor plus a live arena: your decide(state) policy vs the server's BuiltinBrain, with the real protocol validation and parity limits.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://bscbai.github.io/token-wars/sandbox.html">
+<meta property="og:image" content="https://bscbai.github.io/token-wars/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Agent sandbox — write a bot, fight the arena AI">
+<meta name="twitter:description" content="Write decide(state) in the browser, fight the arena's built-in AI under the real rules — no install.">
+<meta name="twitter:image" content="https://bscbai.github.io/token-wars/og-image.png">
+<link rel="icon" href="./og-image.png" type="image/png">
+<style>
+  :root { --bg:#0a0a1a; --panel:#0f1024; --line:#1d2b3a; --green:#00ff88; --green-dim:#00aa77;
+          --blue:#88aaff; --red:#ff4466; --text:#cfe8dd; --muted:#5f7a71; --amber:#ffd479; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { min-height:100vh; color:var(--text); font-family:'Courier New',ui-monospace,monospace;
+         padding:22px 18px 36px;
+         background:
+           linear-gradient(rgba(0,255,136,.04) 1px, transparent 1px) 0 0/40px 40px,
+           linear-gradient(90deg, rgba(0,255,136,.04) 1px, transparent 1px) 0 0/40px 40px, var(--bg); }
+  header, main, footer, .banner { max-width:1120px; margin:0 auto; }
+  h1 { font-size:24px; letter-spacing:3px; color:var(--green); }
+  h1::before { content:'▚ '; color:var(--green-dim); }
+  #subtitle { color:var(--muted); font-size:12px; margin-top:6px; }
+  .banner { margin:14px auto 0; padding:10px 13px; font-size:12px; color:var(--amber);
+            border:1px solid #4a3a1a; background:#1a1508; border-radius:6px; line-height:1.7; }
+  .banner a, footer a { color:var(--green-dim); text-decoration:none; }
+  .banner a:hover, footer a:hover { color:var(--green); }
+  main { display:grid; grid-template-columns: minmax(320px, 480px) 1fr; gap:18px; margin-top:16px; align-items:start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; }
+  h2 { font-size:12px; letter-spacing:2px; color:var(--blue); text-transform:uppercase; margin-bottom:10px; }
+  .stage { position:relative; }
+  canvas { display:block; width:100%; height:auto; max-width:480px; background:#06060f;
+           border:1px solid #1b2a24; border-radius:4px; image-rendering:pixelated; }
+  #result { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+            flex-direction:column; gap:8px; font-size:22px; letter-spacing:2px; color:var(--green);
+            background:rgba(4,6,12,.8); border-radius:4px; text-align:center; padding:20px; }
+  #result.show { display:flex; }
+  #result[data-result="loss"] { color:var(--red); }
+  #result[data-result="draw"] { color:var(--blue); }
+  #reason { font-size:11px; letter-spacing:0; color:var(--muted); }
+  .bars { display:grid; gap:8px; margin-top:12px; }
+  .bar-row { display:grid; grid-template-columns:96px 1fr 34px; gap:8px; align-items:center; font-size:12px; }
+  .bar-row .who { color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .track { height:10px; background:#0a1520; border:1px solid #1b2a24; border-radius:3px; overflow:hidden; }
+  .fill { height:100%; width:100%; transition:width .08s linear; }
+  #barYou { background:linear-gradient(90deg, #00aa77, #00ff88); }
+  #barEnemy { background:linear-gradient(90deg, #aa2244, #ff4466); }
+  .num { text-align:right; }
+  .meta-row { display:flex; justify-content:space-between; align-items:center; margin-top:10px;
+              font-size:12px; color:var(--muted); gap:8px; flex-wrap:wrap; }
+  #clock { color:var(--green); letter-spacing:2px; }
+  #shieldTag { color:var(--blue); font-size:11px; }
+  #stats { font-size:11px; color:var(--muted); margin-top:9px; line-height:1.7; }
+  #lastAction { font-size:11px; color:var(--blue); margin-top:3px; }
+  textarea { width:100%; min-height:330px; resize:vertical; font:inherit; font-size:12px; line-height:1.55;
+             color:var(--text); background:#06060f; border:1px solid #1b2a24; border-radius:4px; padding:10px;
+             tab-size:2; }
+  .controls { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  button { font:inherit; font-size:12px; padding:7px 12px; cursor:pointer; border-radius:4px;
+           color:var(--green); background:#12251d; border:1px solid var(--green); }
+  button:hover { background:#1b3529; }
+  select { font:inherit; font-size:12px; padding:7px 8px; color:var(--text); background:#06060f;
+           border:1px solid #1b2a24; border-radius:4px; max-width:100%; }
+  #error { min-height:16px; margin-top:8px; font-size:11px; color:var(--red); white-space:pre-wrap; }
+  .api { margin-top:12px; font-size:11px; color:var(--muted); line-height:1.9; }
+  .api code { color:var(--green-dim); }
+  .api b { color:var(--text); font-weight:normal; }
+  footer { margin-top:18px; font-size:12px; color:var(--muted); display:flex; gap:16px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>AGENT SANDBOX</h1>
+    <p id="subtitle">Write <code>decide(state)</code>, fight the arena's built-in AI — locally, in this tab.</p>
+  </header>
+
+  <div class="banner">
+    Real rules: protocol validation, cooldowns, shield drain and damage rolls come from the same
+    modules the server uses. Parity limits apply too — 500&nbsp;ms decision deadline,
+    3 consecutive timeouts or &gt;10 invalid actions = loss, 120&nbsp;s draw.
+    Your code never leaves the browser. <a href="./play.html">Prefer to play yourself? →</a>
+  </div>
+
+  <main>
+    <section>
+      <h2>Live match</h2>
+      <div class="stage">
+        <canvas id="board" width="480" height="480"></canvas>
+        <div id="result"><span id="resultText"></span><span id="reason"></span></div>
+      </div>
+      <div class="bars">
+        <div class="bar-row">
+          <span class="who">YOUR AGENT</span>
+          <div class="track"><div class="fill" id="barYou"></div></div>
+          <span class="num" id="hpYou">100</span>
+        </div>
+        <div class="bar-row">
+          <span class="who">AI-Gatekeeper</span>
+          <div class="track"><div class="fill" id="barEnemy"></div></div>
+          <span class="num" id="hpEnemy">100</span>
+        </div>
+      </div>
+      <div class="meta-row"><span id="shieldTag"></span><span id="clock">02:00</span></div>
+      <div id="stats"></div>
+      <div id="lastAction"></div>
+    </section>
+
+    <section>
+      <h2>Your policy</h2>
+      <select id="preset" aria-label="preset"></select>
+      <textarea id="editor" spellcheck="false" aria-label="agent code"></textarea>
+      <div class="controls">
+        <button id="run" type="button">Run (Ctrl+Enter)</button>
+        <button id="stop" type="button">Stop</button>
+        <button id="reset" type="button">Reset</button>
+      </div>
+      <div id="error"></div>
+      <div class="api">
+        <b>state</b>: <code>{ tick, timeLeftMs, you:{ x,y,hp,maxHp,shield,shieldActive,skills[{id,cooldownRemaining}] }, enemy:{ x,y,hp,maxHp,visible }, map:{ width,height,obstacles } }</code><br>
+        <b>return</b>: <code>{type:'move',x,y}</code> · <code>{type:'attack'}</code> ·
+        <code>{type:'skill',id:'token_burst'|'dodge_roll'|'shield'}</code> ·
+        <code>{type:'shield'}</code> · <code>{type:'idle'}</code><br>
+        Note: in a real match the server streams this state at 20&nbsp;Hz and your process has
+        500&nbsp;ms per decision; here everything runs synchronously in one tab.
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <a href="./play.html">Play as a human</a>
+    <a href="./index.html">Recorded matches</a>
+    <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5-minute quickstart</a>
+    <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">Bot protocol</a>
+    <a href="https://github.com/bscbai/token-wars">GitHub</a>
+  </footer>
+
+<script src="./sandbox.js"></script>
+</body>
+</html>
