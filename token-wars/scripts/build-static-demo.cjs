@@ -251,6 +251,16 @@ const BASE_CSS = `
   .match-links { margin-top:10px; font-size:11px; color:var(--muted); line-height:2; }
   .match-links a { color:var(--green-dim); text-decoration:none; margin-right:6px; }
   .match-links a:hover { color:var(--green); }
+  .start { max-width:1000px; margin:18px auto 0; }
+  .start h2 { color:var(--green); }
+  .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px; }
+  .step { display:block; padding:14px; border:1px solid var(--line); border-radius:8px;
+          background:var(--panel); text-decoration:none; color:var(--text); }
+  .step:hover { border-color:var(--green); }
+  .step .num { font-size:11px; letter-spacing:2px; color:var(--green-dim); }
+  .step b { display:block; margin-top:6px; font-size:13px; color:var(--green); }
+  .step .desc { display:block; margin-top:6px; font-size:11px; color:var(--muted); line-height:1.7; }
+  @media (max-width: 780px) { .steps { grid-template-columns:1fr; } }
   .gallery { max-width:1000px; margin:18px auto 0; }
   .gallery h2 { color:var(--green); }
   .gallery .note { max-width:760px; }
@@ -497,6 +507,13 @@ const INDEX_STRINGS = {
     ctaPlay: '▶ Play vs the AI',
     ctaSandbox: 'Write an agent',
     ctaReplay: 'Watch replays',
+    h2Start: 'Start in 30 seconds',
+    step1Title: 'Play the AI',
+    step1Desc: 'One match against the arena gatekeeper in your browser — same cooldowns and damage rolls. No install.',
+    step2Title: 'Write a bot',
+    step2Desc: 'A decide(state) editor with the real protocol, a 50-match simulation and a baseline to beat.',
+    step3Title: 'Run the full game',
+    step3Desc: 'Mining, dungeons and the live ladder: one command locally, or grab a desktop build.',
     bannerHtml: `<b>Static demo</b> (no server). Live ladder, live board and your own bot run
       locally in ~1 minute:
       <code>git clone https://github.com/bscbai/token-wars &amp;&amp; cd token-wars &amp;&amp; npm install &amp;&amp; npm run demo</code>
@@ -559,6 +576,13 @@ const INDEX_STRINGS = {
     ctaPlay: '▶ 对战内置 AI',
     ctaSandbox: '写个 agent',
     ctaReplay: '看回放',
+    h2Start: '30 秒上手',
+    step1Title: '和 AI 打一局',
+    step1Desc: '浏览器里直接对战竞技场守门 AI——冷却与伤害掷骰完全一致，无需安装。',
+    step2Title: '写个 bot',
+    step2Desc: 'decide(state) 编辑器 + 真实协议校验，50 场模拟与可对照的基线胜率。',
+    step3Title: '跑完整游戏',
+    step3Desc: '挖矿、副本与实时天梯：本地一条命令，或下载桌面版。',
     bannerHtml: `<b>静态演示</b>（无需服务端）。实时天梯、实时棋盘和你的 bot 可在本地约 1 分钟跑起来：
       <code>git clone https://github.com/bscbai/token-wars &amp;&amp; cd token-wars &amp;&amp; npm install &amp;&amp; npm run demo</code>
       ——或<a href="https://github.com/bscbai/token-wars">阅读协议</a>。`,
@@ -655,6 +679,27 @@ function indexPage(lang) {
   <div class="banner">
     ${S.bannerHtml}
   </div>
+
+  <section class="start">
+    <h2>${S.h2Start}</h2>
+    <div class="steps">
+      <a class="step" href="${S.playHref}">
+        <span class="num">01</span>
+        <b>${S.step1Title}</b>
+        <span class="desc">${S.step1Desc}</span>
+      </a>
+      <a class="step" href="${S.sandboxHref}">
+        <span class="num">02</span>
+        <b>${S.step2Title}</b>
+        <span class="desc">${S.step2Desc}</span>
+      </a>
+      <a class="step" href="#join">
+        <span class="num">03</span>
+        <b>${S.step3Title}</b>
+        <span class="desc">${S.step3Desc}</span>
+      </a>
+    </div>
+  </section>
 
   <main id="replay">
     <section>
@@ -1052,8 +1097,9 @@ writeIcon(path.join(OUT_DIR, 'icon-512.png'), 512);
 // PWA 自检：页面引用 manifest + 结构化数据、SW 缓存名一致、图标注册齐全
 const indexHtml = fs.readFileSync(OUT_FILE, 'utf8');
 if (!indexHtml.includes('rel="manifest"') || !indexHtml.includes('application/ld+json')
-  || !indexHtml.includes('twitter.com/intent/tweet') || !indexHtml.includes('id="installApp"')) {
-  throw new Error('index page missing manifest, structured data, share or install UI');
+  || !indexHtml.includes('twitter.com/intent/tweet') || !indexHtml.includes('id="installApp"')
+  || !indexHtml.includes('class="steps"')) {
+  throw new Error('index page missing manifest, structured data, share/install UI or quick-start steps');
 }
 if (!fs.readFileSync(path.join(OUT_DIR, 'sw.js'), 'utf8').includes(CACHE)) {
   throw new Error('sw.js cache tag mismatch');
