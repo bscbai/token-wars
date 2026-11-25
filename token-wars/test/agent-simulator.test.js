@@ -126,6 +126,22 @@ describe('simulateDuel', () => {
     expect(out.winner).toBe('B');
     expect(out.a.invalid).toBeGreaterThan(10);
   });
+
+  it('recordFrames 记录逐 tick 快照，默认不记录（批量模拟零开销）', () => {
+    const withFrames = simulateDuel(play, idle, { recordFrames: true });
+    expect(Array.isArray(withFrames.frames)).toBe(true);
+    expect(withFrames.frames.length).toBeGreaterThan(0);
+    expect(withFrames.frames.length).toBeLessThanOrEqual(withFrames.ticks);
+    const f = withFrames.frames[0];
+    expect(f.t).toBe(1);
+    expect(typeof f.a.x).toBe('number');
+    expect(typeof f.a.y).toBe('number');
+    expect(typeof f.a.hp).toBe('number');
+    expect(typeof f.b.alive).toBe('boolean');
+
+    const plain = simulateDuel(play, idle);
+    expect(plain.frames).toBeUndefined();
+  });
 });
 
 describe('simulateMatchesBetween', () => {

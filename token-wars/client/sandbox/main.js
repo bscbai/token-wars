@@ -17,7 +17,7 @@ const { AIAgent } = require('../../server/models/AIAgent');
 const BuiltinBrain = require('../../server/game/BuiltinBrain');
 const { executeAgentAction } = require('../../server/game/agentActionRules');
 const { validateActionMessage } = require('../../server/game/BotProtocol');
-const { simulateMatches, simulateMatchesBetween } = require('../../server/game/agentSimulator');
+const { simulateMatches, simulateMatchesBetween, simulateDuel } = require('../../server/game/agentSimulator');
 const { AI_MAPS } = require('../../shared/arenaMaps');
 const { renderAgentSource } = require('../../shared/agentTemplate');
 
@@ -157,6 +157,9 @@ const I18N = {
     duelYou: 'Your policy',
     duelThem: "Friend's policy",
     duelCardTagline: 'decide(state) vs decide(state) — offline, in one tab',
+    watchDuel: 'Watch one duel',
+    replayPlay: 'Play',
+    replayPause: 'Pause',
     dailyRun: 'Daily challenge',
     dailyRunning: "Running today's challenge (50 matches)…",
     cardSaved: 'Card saved — post it anywhere.',
@@ -257,6 +260,9 @@ const I18N = {
     duelYou: '你的策略',
     duelThem: '对方策略',
     duelCardTagline: 'decide(state) vs decide(state) —— 离线单页对战',
+    watchDuel: '看一场对战',
+    replayPlay: '播放',
+    replayPause: '暂停',
     dailyRun: '每日挑战',
     dailyRunning: '正在跑今日挑战（50 场）…',
     cardSaved: '基准图已保存，可直接发帖。',
@@ -347,6 +353,7 @@ const FMT = {
     duelCardRecord: (o) => `you ${o.aWins}W · them ${o.bWins}W · ${o.draws}D`,
     duelCardStats: (o) => `avg ${o.avgTicks} ticks · invalid ${o.aInvalid} vs ${o.bInvalid}`
       + ` · timeouts ${o.aTimeouts} vs ${o.bTimeouts}`,
+    replayTick: (t, n, a, b) => `tick ${t}/${n} · HP ${a} : ${b}`,
     benchSubSingle: (n, map) => `${n} matches vs the Gatekeeper · ${map}`,
     benchSubAll: (n) => `${n} matches vs the Gatekeeper · all 5 maps`,
     benchRecord: (o) => `${o.wins}W–${o.losses}L–${o.draws}D`,
@@ -391,6 +398,7 @@ const FMT = {
     duelCardRecord: (o) => `你 ${o.aWins}胜 · 对方 ${o.bWins}胜 · ${o.draws}平`,
     duelCardStats: (o) => `平均 ${o.avgTicks} tick · 非法 ${o.aInvalid} vs ${o.bInvalid}`
       + ` · 超时 ${o.aTimeouts} vs ${o.bTimeouts}`,
+    replayTick: (t, n, a, b) => `tick ${t}/${n} · 血量 ${a} : ${b}`,
     benchSubSingle: (n, map) => `对守门 AI ${n} 场 · ${map}`,
     benchSubAll: (n) => `对守门 AI ${n} 场 · 五张地图`,
     benchRecord: (o) => `${o.wins}胜 ${o.losses}负 ${o.draws}平`,
@@ -515,6 +523,7 @@ let lastDuel = null;
 let lastDuelMeta = null; // { mapId, mapName }，对战图用
 let lastMulti = null;
 let lastSim = null; // Simulate 50 / 五图结果，用于生成基准图
+let duelReplay = null; // { frames, idx, timer, map, out }，「看一场对战」逐帧回放
 let lastResult = null;
 let lastReasonKey = null;
 let trace = [];
@@ -556,6 +565,7 @@ function compilePolicy(code = ui.editor.value) {
 
 function start() {
   stop();
+  hideDuelReplay();
   lastError = '';
   ui.error.textContent = '';
   if (ui.shareStatus.textContent === t('fencesStripped')) ui.shareStatus.textContent = '';
@@ -1258,6 +1268,7 @@ function loadOpponentFromInput() {
   lastDuel = null;
   lastDuelMeta = null;
   ui.duelCard.hidden = true;
+  hideDuelReplay();
   ui.duelResult.textContent = t('opponentLoaded');
 }
 
@@ -1303,6 +1314,7 @@ function runDuel() {
     return;
   }
   stop();
+  hideDuelReplay();
   ui.error.textContent = '';
   ui.duelRun.disabled = true;
   lastDuel = null;
@@ -1319,14 +1331,123 @@ function runDuel() {
       lastDuel = out;
       lastDuelMeta = { mapId: map.id, mapName };
       ui.duelCard.hidden = false;
+      ui.duelWatch.hidden = false;
       ui.duelResult.textContent = f('duelResult', out, mapName);
     } catch (err) {
       ui.error.textContent = f('duelFailed', err.message);
       ui.duelResult.textContent = '';
+      ui.duelWatch.hidden = true;
     } finally {
       ui.duelRun.disabled = false;
     }
   }, 30);
+}
+
+// 一次真实对局的逐 tick 回放（约 100ms 一帧，可暂停/重播）
+const REPLAY_MS = 100;
+
+function stopReplay() {
+  if (duelReplay && duelReplay.timer) clearInterval(duelReplay.timer);
+  if (duelReplay) duelReplay.timer = null;
+}
+
+function hideDuelReplay() {
+  stopReplay();
+  duelReplay = null;
+  if (ui.duelReplay) ui.duelReplay.hidden = true;
+  if (ui.duelWatch) ui.duelWatch.hidden = true;
+  if (ui.duelTick) ui.duelTick.textContent = '';
+}
+
+function setReplayButton(playing) {
+  if (ui.duelPlay) ui.duelPlay.textContent = t(playing ? 'replayPause' : 'replayPlay');
+}
+
+function drawDuelFrame() {
+  if (!duelReplay || !duelReplay.frames.length) return;
+  const frame = duelReplay.frames[duelReplay.idx];
+  const map = duelReplay.map;
+  const canvas = ui.duelBoard;
+  const ctx = canvas.getContext('2d');
+  const w = map.width * CELL;
+  const h = map.height * CELL;
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  ctx.fillStyle = '#06060f';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(0,255,136,0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 1; i < map.width; i++) { ctx.moveTo(i * CELL + 0.5, 0); ctx.lineTo(i * CELL + 0.5, h); }
+  for (let j = 1; j < map.height; j++) { ctx.moveTo(0, j * CELL + 0.5); ctx.lineTo(w, j * CELL + 0.5); }
+  ctx.stroke();
+  ctx.fillStyle = '#17242e';
+  for (const [x, y] of map.obstacles) ctx.fillRect(x * CELL, y * CELL, CELL - 1, CELL - 1);
+
+  const entity = (a, color) => {
+    if (!a || !a.alive) return;
+    ctx.fillStyle = color;
+    ctx.fillRect(a.x * CELL + 2, a.y * CELL + 2, CELL - 4, CELL - 4);
+  };
+  entity(frame.a, '#00ff88');
+  entity(frame.b, '#ff4466');
+  ui.duelTick.textContent = f('replayTick', frame.t, duelReplay.frames.length, frame.a.hp, frame.b.hp);
+}
+
+function playReplay() {
+  if (!duelReplay) return;
+  if (duelReplay.idx >= duelReplay.frames.length - 1) duelReplay.idx = 0;
+  if (duelReplay.timer) return;
+  drawDuelFrame();
+  setReplayButton(true);
+  duelReplay.timer = setInterval(() => {
+    if (!duelReplay) return;
+    duelReplay.idx++;
+    if (duelReplay.idx >= duelReplay.frames.length) {
+      duelReplay.idx = duelReplay.frames.length - 1;
+      stopReplay();
+      setReplayButton(false);
+    }
+    drawDuelFrame();
+  }, REPLAY_MS);
+}
+
+function pauseReplay() {
+  if (!duelReplay) return;
+  stopReplay();
+  setReplayButton(false);
+}
+
+function toggleDuelReplay() {
+  if (!duelReplay) return;
+  if (duelReplay.timer) pauseReplay();
+  else playReplay();
+}
+
+function watchOneDuel() {
+  let mine;
+  let theirs;
+  try {
+    mine = compilePolicy();
+    theirs = compilePolicy(ui.opponentEditor.value);
+  } catch (err) {
+    ui.error.textContent = f('compileError', err.message);
+    return;
+  }
+  const map = selectedMap;
+  let out;
+  try {
+    out = simulateDuel(mine, theirs, { map, recordFrames: true });
+  } catch (err) {
+    ui.error.textContent = f('duelFailed', err.message);
+    return;
+  }
+  const frames = out.frames || [];
+  if (!frames.length) return;
+  stopReplay();
+  duelReplay = { frames, idx: 0, timer: null, map, out };
+  ui.duelReplay.hidden = false;
+  drawDuelFrame();
+  playReplay();
 }
 
 function renderAllMaps() {
@@ -1360,6 +1481,7 @@ function runDuelAll() {
     return;
   }
   stop();
+  hideDuelReplay();
   ui.error.textContent = '';
   ui.duelRun.disabled = true;
   ui.duelAll.disabled = true;
@@ -1496,6 +1618,10 @@ function applyLang(next) {
   renderAllMaps();
   renderDailyLabel();
   updateHud();
+  if (duelReplay) {
+    drawDuelFrame();
+    setReplayButton(!!duelReplay.timer);
+  }
 }
 
 // --- 启动 -------------------------------------------------------------------
@@ -1529,6 +1655,11 @@ function boot() {
     duelShare: $('duelShare'),
     duelCopy: $('duelCopy'),
     duelCard: $('duelCard'),
+    duelWatch: $('duelWatch'),
+    duelReplay: $('duelReplay'),
+    duelBoard: $('duelBoard'),
+    duelPlay: $('duelPlay'),
+    duelTick: $('duelTick'),
     lang: $('lang'),
     error: $('error'),
     result: $('result'),
@@ -1575,6 +1706,7 @@ function boot() {
     ui.duelResult.textContent = '';
     ui.duelAllResult.textContent = '';
     ui.duelCard.hidden = true;
+    hideDuelReplay();
     ui.simResult.textContent = '';
     ui.shareCard.hidden = true;
   });
@@ -1589,6 +1721,8 @@ function boot() {
   ui.llm.addEventListener('click', copyLlmPrompt);
   ui.duelRun.addEventListener('click', runDuel);
   ui.duelAll.addEventListener('click', runDuelAll);
+  ui.duelWatch.addEventListener('click', watchOneDuel);
+  ui.duelPlay.addEventListener('click', toggleDuelReplay);
   ui.duelLoad.addEventListener('click', loadOpponentFromInput);
   ui.duelShare.addEventListener('click', copyDuelLink);
   ui.duelCopy.addEventListener('click', copyDuelResult);
@@ -1610,6 +1744,7 @@ function boot() {
   });
   ui.reset.addEventListener('click', () => {
     stop();
+    hideDuelReplay();
     ended = false;
     elapsed = 0;
     tick = 0;

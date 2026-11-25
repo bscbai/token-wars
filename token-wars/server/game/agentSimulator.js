@@ -237,6 +237,8 @@ function simulateDuel(policyA, policyB, options = {}) {
   const map = options.map || DEFAULT_MAP;
   const deadlineMs = options.deadlineMs || DEADLINE_MS;
   const maxMs = options.maxMs || MAX_MS;
+  const recordFrames = !!options.recordFrames;
+  const frames = [];
 
   const agentA = new AIAgent('sim-duel-a', [], 'A');
   agentA.x = map.spawnA.x;
@@ -304,15 +306,26 @@ function simulateDuel(policyA, policyB, options = {}) {
       else if (!agentA.alive) finished = { winner: 'B', reason: 'A hp reached 0' };
       else if (!agentB.alive) finished = { winner: 'A', reason: 'B hp reached 0' };
     }
+
+    // 可选：记录逐 tick 快照（沙盒「看一场对战」用；50 场批量模拟默认关闭）
+    if (recordFrames && frames.length < 600) {
+      frames.push({
+        t: tick,
+        a: { x: agentA.x, y: agentA.y, hp: Math.max(0, agentA.hp), alive: agentA.alive },
+        b: { x: agentB.x, y: agentB.y, hp: Math.max(0, agentB.hp), alive: agentB.alive },
+      });
+    }
   }
 
-  return {
+  const out = {
     winner: finished ? finished.winner : 'draw',
     reason: finished ? finished.reason : '120 s match limit',
     ticks: tick,
     a: sideSummary(sa),
     b: sideSummary(sb),
   };
+  if (recordFrames) out.frames = frames;
+  return out;
 }
 
 /**

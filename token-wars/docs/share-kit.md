@@ -186,7 +186,8 @@ URL), **simulate 50 matches** to get a win rate, **duel a friend** by pasting
 their share link (50 offline matches, both sides' invalid/timeout counts), or
 export it as a runnable Node bot for a real arena. After a duel, **Copy result**
 gives a ready-to-post line ("you 34W / them 12W / 4D …") plus the duel link, and
-**Share duel card** exports both win rates as a 1200×630 PNG.
+**Share duel card** exports both win rates as a 1200×630 PNG. **Watch one duel**
+replays a single match tick by tick on the board (pause / resume / replay).
 The page is bilingual — header toggle or `?lang=zh` — and Chinese browsers
 default to 中文. **Simulate 50 / Duel 50** can run on any of the five arena
 maps, and duel links encode the map so a challenge replays the same terrain.

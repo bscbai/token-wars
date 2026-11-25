@@ -98,6 +98,11 @@
   #duelAllResult .mapline { display:flex; justify-content:space-between; gap:10px; border-bottom:1px dashed #16222c; padding:2px 0; }
   #duelAllResult .mapline span:first-child { color:var(--muted); }
   #duelAllResult .mapline.total { color:var(--green); border-bottom:0; margin-top:2px; }
+  #duelReplay[hidden] { display:none; }
+  #duelReplay { margin-top:10px; }
+  #duelBoard { display:block; width:100%; max-width:320px; background:#06060f;
+               border:1px solid #1b2a24; border-radius:4px; image-rendering:pixelated; }
+  #duelTick { font-size:11px; color:var(--muted); }
   .api { margin-top:12px; font-size:11px; color:var(--muted); line-height:1.9; }
   .api code { color:var(--green-dim); overflow-wrap:anywhere; }
   .api b { color:var(--text); font-weight:normal; }
@@ -202,9 +207,17 @@
           <button id="duelRun" type="button" data-i18n="duelRun">Duel 50</button>
           <button id="duelAll" type="button" data-i18n="duelAll">Duel all 5 maps</button>
           <button id="duelCopy" type="button" data-i18n="copyResult">Copy result</button>
+          <button id="duelWatch" type="button" data-i18n="watchDuel" hidden>Watch one duel</button>
           <button id="duelCard" type="button" data-i18n="shareDuelImage" hidden>Share duel card</button>
         </div>
         <div id="duelResult"></div>
+        <div id="duelReplay" hidden>
+          <canvas id="duelBoard" width="320" height="320"></canvas>
+          <div class="controls">
+            <button id="duelPlay" type="button" data-i18n="replayPause">Pause</button>
+            <span id="duelTick"></span>
+          </div>
+        </div>
         <div id="duelAllResult"></div>
       </details>
     </section>
