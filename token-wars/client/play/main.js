@@ -42,6 +42,7 @@ const I18N = {
     skillShield: 'L Shield',
     skillDash: '␣ Dash',
     restart: 'Restart (R)',
+    shareResult: 'Share result',
     controlsNote: `<b>WASD / arrows</b> move · <b>J</b> attack (range ≤ 2) · <b>K</b> burst
       (1.5×, 10 s) · <b>L</b> shield (absorbs 20) · <b>Space</b> dash toward the
       enemy · <b>R</b> restart. Touch: use the pad and buttons above.`,
@@ -62,6 +63,8 @@ const I18N = {
     resultDraw: 'DRAW',
     hintAttack: 'Attack needs range ≤ 2',
     hintBurst: 'Burst needs range ≤ 2',
+    shareCopied: 'Result copied — paste it in Discord, X or a PR.',
+    sharePrompt: 'Copy this result',
   },
   zh: {
     subtitle: '人类 vs 竞技场内置 AI——同一套规则，全部在浏览器里。',
@@ -77,6 +80,7 @@ const I18N = {
     skillShield: 'L 护盾',
     skillDash: '␣ 冲刺',
     restart: '重开 (R)',
+    shareResult: '分享战绩',
     controlsNote: `<b>WASD / 方向键</b> 移动 · <b>J</b> 普攻（距离 ≤ 2）· <b>K</b> 爆发
       （1.5×，10 s）· <b>L</b> 护盾（吸收 20）· <b>空格</b> 向敌方冲刺 · <b>R</b> 重开。
       触屏：用上方方向键和技能按钮。`,
@@ -97,6 +101,8 @@ const I18N = {
     resultDraw: '平局',
     hintAttack: '普攻需要距离 ≤ 2',
     hintBurst: '爆发需要距离 ≤ 2',
+    shareCopied: '战绩已复制——可以直接发到 Discord、X 或 PR。',
+    sharePrompt: '复制此战绩',
   },
 };
 
@@ -120,6 +126,15 @@ const FMT = {
       + (r.best ? ` · fastest ${r.best}s` : ''),
     resultStats: (o) => `${o.time}s · ${o.wins}W–${o.losses}L${o.draws ? `–${o.draws}D` : ''}`
       + (o.newBest ? ' · NEW BEST' : ''),
+    shareText: (o) => {
+      const score = `${o.wins}W–${o.losses}L${o.draws ? `–${o.draws}D` : ''}`;
+      const line = o.result === 'win'
+        ? `I beat the Token Wars gatekeeper in ${o.time}s — ${score}, streak ${o.streak}.`
+        : o.result === 'loss'
+          ? `The Token Wars gatekeeper got me in ${o.time}s — ${score}.`
+          : `Draw with the Token Wars gatekeeper at ${o.time}s — ${score}.`;
+      return `${line}\nPlay free in your browser: ${PLAY_URL}\nWrite your own bot: ${SANDBOX_URL}`;
+    },
   },
   zh: {
     recordLine: (r) => `战绩 ${r.wins}胜–${r.losses}负${r.draws ? `–${r.draws}平` : ''}`
@@ -127,9 +142,21 @@ const FMT = {
       + (r.best ? ` · 最快 ${r.best}秒` : ''),
     resultStats: (o) => `${o.time}秒 · ${o.wins}胜–${o.losses}负${o.draws ? `–${o.draws}平` : ''}`
       + (o.newBest ? ' · 新纪录' : ''),
+    shareText: (o) => {
+      const score = `${o.wins}胜–${o.losses}负${o.draws ? `–${o.draws}平` : ''}`;
+      const line = o.result === 'win'
+        ? `我在 Token Wars 里 ${o.time} 秒击败了守门 AI——${score}，连胜 ${o.streak}。`
+        : o.result === 'loss'
+          ? `Token Wars 守门 AI 在 ${o.time} 秒内放倒了我——${score}。`
+          : `和 Token Wars 守门 AI 打成平局（${o.time} 秒）——${score}。`;
+      return `${line}\n浏览器免费试玩：${PLAY_URL}\n自己写 bot：${SANDBOX_URL}`;
+    },
   },
 };
 const f = (key, ...args) => (FMT[lang][key] || FMT.en[key])(...args);
+
+const PLAY_URL = 'https://bscbai.github.io/token-wars/play.html';
+const SANDBOX_URL = 'https://bscbai.github.io/token-wars/sandbox.html';
 
 const RECORD_KEY = 'tw-play-record-v1';
 const defaultRecord = () => ({ wins: 0, losses: 0, draws: 0, streak: 0, bestStreak: 0, bestWinMs: null });
@@ -196,6 +223,7 @@ function reset() {
   running = true;
   lastResult = null;
   lastOutcome = null;
+  ui.share.hidden = true;
   ui.resultText.textContent = '';
   ui.resultStats.textContent = '';
   ui.result.classList.remove('show');
@@ -301,6 +329,20 @@ function flashHint(key) {
   hintTimer = setTimeout(() => { ui.hint.textContent = ''; }, 1200);
 }
 
+async function shareMatch() {
+  const text = f('shareText', {
+    result: lastResult,
+    time: secs(lastOutcome.ms),
+    ...lastOutcome.record,
+  });
+  try {
+    await navigator.clipboard.writeText(text);
+    flashHint('shareCopied');
+  } catch {
+    window.prompt(t('sharePrompt'), text);
+  }
+}
+
 // --- 主循环 -----------------------------------------------------------------
 
 function tick() {
@@ -358,6 +400,7 @@ function finish(result) {
   renderResult();
   updateRecordLine();
   updateHud();
+  ui.share.hidden = false;
 }
 
 function renderResult() {
@@ -494,6 +537,7 @@ function bindInput() {
   ui.skillShield.addEventListener('click', () => tryShield(performance.now()));
   ui.skillDash.addEventListener('click', () => tryDash(performance.now()));
   ui.restart.addEventListener('click', reset);
+  ui.share.addEventListener('click', shareMatch);
 }
 
 // --- 启动 -------------------------------------------------------------------
@@ -514,6 +558,7 @@ function boot() {
     hint: $('hint'),
     shieldTag: $('shieldTag'),
     restart: $('restart'),
+    share: $('share'),
     skillAttack: $('skillAttack'),
     skillBurst: $('skillBurst'),
     skillShield: $('skillShield'),

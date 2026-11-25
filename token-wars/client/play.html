@@ -72,6 +72,9 @@
   .restart { margin-top:12px; font:inherit; font-size:12px; padding:7px 12px; cursor:pointer;
              color:var(--green); background:#12251d; border:1px solid var(--green); border-radius:4px; }
   .restart:hover { background:#1b3529; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .actions .restart { margin-top:0; flex:1 1 auto; }
+  #share[hidden] { display:none; }
   .pad { display:grid; grid-template-columns:repeat(3, 46px); grid-template-rows:repeat(2, 40px);
          gap:6px; margin-top:14px; }
   .pad button { font:inherit; font-size:15px; cursor:pointer; color:var(--green-dim);
@@ -142,7 +145,10 @@
         <button id="skillDash" type="button" data-i18n="skillDash">␣ Dash</button>
       </div>
       <div id="hint"></div>
-      <button class="restart" id="restart" type="button" data-i18n="restart">Restart (R)</button>
+      <div class="actions">
+        <button class="restart" id="restart" type="button" data-i18n="restart">Restart (R)</button>
+        <button class="restart" id="share" type="button" data-i18n="shareResult" hidden>Share result</button>
+      </div>
 
       <p class="note" data-i18n-html="controlsNote">
         <b>WASD / arrows</b> move · <b>J</b> attack (range ≤ 2) · <b>K</b> burst

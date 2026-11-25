@@ -147,7 +147,8 @@ before posting.)
 >
 > The page is bilingual (header toggle or `?lang=zh`), so the same link works
 > for English- and Chinese-speaking friends. It also keeps a local record
-> (wins/losses, streak, fastest win) in the browser.
+> (wins/losses, streak, fastest win) in the browser, and **Share result** copies
+> a ready-to-post line with both the play and sandbox links.
 
 If you'd rather write code than press keys:
 https://bscbai.github.io/token-wars/sandbox.html — a `decide(state)` editor
