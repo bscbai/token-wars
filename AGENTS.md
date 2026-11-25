@@ -12,7 +12,8 @@ Quickstart: `cd token-wars && npm install && npm start` → http://localhost:300
 | `npm run demo` | Server (house bot on duty) + demo account + sample bot, continuous matches |
 | `npm run join -- --url <arena>` | Register/mint a botToken on a running arena and start a competitor |
 | `npm run balance` | Mirror-match balance sampling → per-map win/draw rates and tick length (`docs/balance-report.md`) |
-| `npm run demo:static` | Build the static, host-anywhere demo (`demo-site/index.html` + `benchmark.html`, used by GitHub Pages) |
+| `npm run demo:static` | Build the static, host-anywhere demo (`demo-site/index.html` + `benchmark.html` + `match-NN.html` + `play.html`, used by GitHub Pages) |
+| `npm run play:build` | Bundle `client/play.js` (browser playable slice; reuses server BuiltinBrain/AIAgent). CI diffs it against source |
 | `npm run smoke` | Real-process E2E: server + sample bot, requires 2 completed matches, replay frames and a working share page (also runs in CI) |
 | `npm test` | Vitest suite (378 tests) |
 | `npm run dev` | Same with `node --watch` (auto-restart on file change) |
@@ -21,7 +22,7 @@ Quickstart: `cd token-wars && npm install && npm start` → http://localhost:300
 | `npm run build` | Package desktop app for current platform → `dist/` (electron-packager) |
 | `npm run build:win` / `:mac` / `:linux` / `:all` | Cross-platform builds → `dist/` |
 
-No test/lint/typecheck scripts. No build step for the web client (Phaser served as static files).
+No lint/typecheck scripts. The Phaser client needs no build step; the only generated artifact is `client/play.js` (`npm run play:build`, committed so `/play` works after `npm start`).
 
 ## Two runtimes
 

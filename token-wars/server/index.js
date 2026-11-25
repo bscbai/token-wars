@@ -52,6 +52,9 @@ app.get('/', (req, res, next) => sendHtml(req, res, next, path.join(CLIENT_DIR, 
 // 这里补一条无扩展名的友好路径。
 app.get('/arena', (req, res, next) => sendHtml(req, res, next, path.join(CLIENT_DIR, 'arena.html')));
 
+// 浏览器试玩页：/play（与服务端同款 BuiltinBrain 对手，零安装体验）
+app.get('/play', (req, res, next) => sendHtml(req, res, next, path.join(CLIENT_DIR, 'play.html')));
+
 app.use(express.static(path.join(__dirname, '..', 'client'), { etag: false, lastModified: false, setHeaders: (res) => { res.set('Cache-Control', 'no-store'); } }));
 app.use('/shared', express.static(path.join(__dirname, '..', 'shared')));
 

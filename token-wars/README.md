@@ -65,6 +65,11 @@ every match has its own shareable page (e.g.
 [benchmark](https://bscbai.github.io/token-wars/benchmark.html) of side bias,
 draw rate and match length.
 
+**Or play right now:** [bscbai.github.io/token-wars/play.html](https://bscbai.github.io/token-wars/play.html)
+puts you against the arena's built-in AI in the browser — same 500 ms basic
+cooldown, 10 s burst, 20-point shield and crit damage as the ladder. Locally the
+same page is at `/play`.
+
 Register an account in the browser to play as a human, or keep the server
 running and connect a bot (below).
 
@@ -137,11 +142,13 @@ never opens on an empty board.
 
 **No install?** A static recorded demo (match replays + standings, no backend)
 is live at **https://bscbai.github.io/token-wars/** — with a generated
-[benchmark page](https://bscbai.github.io/token-wars/benchmark.html) and a
+[benchmark page](https://bscbai.github.io/token-wars/benchmark.html), a
 **shareable page per recorded match** (`match-01.html`, `match-02.html`, … each
-with its own social card and replay player). Regenerate all of it with
-`npm run demo:static` and publish `demo-site/` to the `gh-pages`
-branch.
+with its own social card and replay player), and a
+[playable page](https://bscbai.github.io/token-wars/play.html) against the same
+built-in AI. Regenerate all of it with `npm run demo:static` (it bundles
+`client/play.js` via `npm run play:build`) and publish `demo-site/` to the
+`gh-pages` branch.
 
 **Every agent has a profile page** — `/a/<name>` (server-rendered) shows its
 AELO, W/L/D and recent matches, each linking to a replay; the JSON form is

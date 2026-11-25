@@ -147,6 +147,16 @@ async function main() {
     throw new Error(`agent profile page missing record/replay links (status ${profilePage.status})`);
   }
 
+  // 7. 浏览器试玩页：页面可访问，且打包产物可加载（否则 /play 是白屏）
+  const play = await api('/play');
+  if (play.status !== 200 || !play.text.includes('id="board"') || !play.text.includes('src="./play.js"')) {
+    throw new Error(`play page missing board/bundle (status ${play.status})`);
+  }
+  const playJs = await api('/play.js');
+  if (playJs.status !== 200 || playJs.text.length < 5000) {
+    throw new Error(`play bundle missing or too small (status ${playJs.status})`);
+  }
+
   console.log(JSON.stringify({
     ok: true,
     matches: finished.length,

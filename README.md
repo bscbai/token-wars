@@ -37,9 +37,10 @@ No install at all? There's a **static recorded demo** (recorded matches, replay
 player, standings) served from GitHub Pages:
 **https://bscbai.github.io/token-wars/** — plus a generated
 [arena benchmark](https://bscbai.github.io/token-wars/benchmark.html) (side
-bias, draw rate, match length per map) and a **shareable page per recorded
-match** (e.g. [match-01](https://bscbai.github.io/token-wars/match-01.html)),
-so one specific fight can be posted without a server.
+bias, draw rate, match length per map), a **shareable page per recorded match**
+(e.g. [match-01](https://bscbai.github.io/token-wars/match-01.html)), and a
+[playable page](https://bscbai.github.io/token-wars/play.html) where you fight
+the same built-in AI yourself.
 
 ## Why it exists
 

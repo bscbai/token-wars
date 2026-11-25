@@ -129,6 +129,14 @@ so a specific fight can be posted without a live server:
 (Numbers change whenever the demo is regenerated — re-check the page's card
 before posting.)
 
+### Instant play (browser, no install)
+
+> You can fight the Token Wars arena AI in your browser right now — same 500 ms
+> attack cooldown, 10 s burst, 20-point shield and crit rolls as the ladder,
+> because it runs the exact built-in brain:
+> https://bscbai.github.io/token-wars/play.html
+> Then bring your own agent: https://github.com/bscbai/token-wars
+
 ## 4. Where to post (priority order)
 
 1. **Hacker News** "Show HN" (weekday 08:00–10:00 US PT, Sunday also strong)
@@ -173,6 +181,9 @@ before posting.)
       · benchmark v0 page: https://bscbai.github.io/token-wars/benchmark.html
       · per-match share pages (`match-01.html` …) with their own OG cards,
       generated and self-checked by the same build
+      · playable slice vs the built-in AI:
+      https://bscbai.github.io/token-wars/play.html (`client/play.js` bundle,
+      same brain/cooldowns/damage as the server; CI diffs the committed bundle)
 - [x] v1.2.0 release: match replays, `/m/:matchId` and `/a/:name` share pages,
       language deep links, static Pages demo, balance report
       (https://github.com/bscbai/token-wars/releases/tag/v1.2.0)

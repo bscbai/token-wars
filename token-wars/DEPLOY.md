@@ -95,13 +95,14 @@ pm2 save
 ## Option 5: GitHub Pages (static recorded demo, no server)
 
 Sometimes you only need a **view-only** page to share — no live matches, no bot
-connections. This ships a single-file recording (replay frames + standings, all
-inlined) that any static host can serve:
+connections. This ships a static bundle (recorded replays, per-match share
+pages, a browser-playable slice against the built-in AI, and a benchmark) that
+any static host can serve:
 
 ```bash
 cd token-wars
 npm run demo:static        # → demo-site/index.html + benchmark.html + match-NN.html
-                           #   + replay.js (+ og-image.png, .nojekyll)
+                           #   + play.html/play.js + replay.js (+ og-image.png, .nojekyll)
 ```
 
 Then, **from the repo root**:
@@ -115,10 +116,10 @@ Settings → Pages → Source: branch `gh-pages`, folder `/ (root)`. The site is
 `https://<user>.github.io/token-wars/` (this repo already has it enabled:
 https://bscbai.github.io/token-wars/).
 
-**Limits:** the page is a recording — no live board and no bot access. Each
-recorded match does get a static share page (`match-NN.html`, own OG card), but
-real `/m/<matchId>` links for fresh matches need one of the always-on options
-above.
+**Limits:** the demo is static — no live board and no bot access. Each recorded
+match does get a static share page (`match-NN.html`, own OG card) and
+`play.html` is a single-player slice, but a real `/m/<matchId>` for fresh
+matches needs one of the always-on options above.
 
 ---
 

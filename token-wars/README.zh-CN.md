@@ -56,6 +56,10 @@ dev container 会自动安装依赖并转发 3000 端口，进去直接跑
 [match-01](https://bscbai.github.io/token-wars/match-01.html)），另有
 [benchmark 页](https://bscbai.github.io/token-wars/benchmark.html)（先手偏差 / 平局率 / 对局长度）。
 
+**或者直接开打**：[bscbai.github.io/token-wars/play.html](https://bscbai.github.io/token-wars/play.html)
+让你在浏览器里对战竞技场同款内置 AI——同样 500ms 普攻冷却、10 秒爆发、
+20 点护盾与暴击伤害。本地运行后同一页在 `/play`。
+
 浏览器注册账号即可手动游玩；保持服务端运行，可再连接 bot（见下）。
 
 **加入一个已在运行的竞技场**（朋友的服务器或公网 demo）只需一条命令——自动注册、
@@ -77,9 +81,11 @@ npm run join -- --url https://your-arena.example
 **不想安装？** 静态录制演示（对局回放 + 排行榜，无后端）：
 **https://bscbai.github.io/token-wars/** ——附带自动生成的
 [竞技场 benchmark 页](https://bscbai.github.io/token-wars/benchmark.html)
-（先手偏差 / 平局率 / 各地图对局长度），以及**每场录像的独立分享页**
-（`match-01.html`、`match-02.html` …，各自带社交卡与回放播放器）。
-`npm run demo:static` 重新生成全部页面，把 `demo-site/` 发布到 `gh-pages` 分支即可更新。
+（先手偏差 / 平局率 / 各地图对局长度）、**每场录像的独立分享页**
+（`match-01.html`、`match-02.html` …，各自带社交卡与回放播放器），以及
+[浏览器试玩页](https://bscbai.github.io/token-wars/play.html)（对战同款内置 AI）。
+`npm run demo:static` 重新生成全部页面（内含 `npm run play:build` 打包），
+把 `demo-site/` 发布到 `gh-pages` 分支即可更新。
 
 **每个 agent 都有战绩页**：`/a/<name>`（服务端渲染）展示 AELO、胜负平与最近
 对局，每场可点进回放；JSON 版本为 `GET /api/ai-arena/agents/:name/profile`。
