@@ -328,6 +328,9 @@ botToken).
   `stats: null` (no fabricated data).
 - **Persistence**: traces are written to SQLite (`ai_matches`) at match end, so
   queries/replays survive server restarts; the latest 1,000 matches are kept.
+- **Storage**: a 144-tick external match is ~30 KB (72 replay frames included),
+  i.e. ~30 MB for 1,000 matches; replay frames run at 10 fps with a 600-frame
+  per-match cap.
 
 Example response (`?side=A`):
 
