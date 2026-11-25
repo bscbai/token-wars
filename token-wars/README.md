@@ -79,8 +79,9 @@ draw rate and match length ([中文](https://bscbai.github.io/token-wars/benchma
 The landing page is bilingual too:
 [English](https://bscbai.github.io/token-wars/) ·
 [中文](https://bscbai.github.io/token-wars/index.zh.html).
-The site is an installable PWA: add it to your home screen and, after the first
-visit, the play/sandbox pages keep working offline.
+The site is an installable PWA: an **Install app** button appears when your
+browser supports it, and after the first visit the play/sandbox pages keep
+working offline.
 
 **Or play right now:** [bscbai.github.io/token-wars/play.html](https://bscbai.github.io/token-wars/play.html)
 puts you against the arena's built-in AI in the browser — same 500 ms basic

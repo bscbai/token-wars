@@ -112,6 +112,11 @@
 .share-row a { color:var(--green-dim); text-decoration:none; border:1px solid #1b3a30;
                border-radius:4px; padding:3px 9px; }
 .share-row a:hover { color:var(--green); border-color:var(--green); }
+</style><style>
+#installApp { position:fixed; right:14px; bottom:14px; z-index:30; font:inherit; font-size:12px;
+              padding:7px 11px; cursor:pointer; color:#04110b; background:#00ff88;
+              border:1px solid #00ff88; border-radius:4px; box-shadow:0 2px 10px rgba(0,0,0,.45); }
+#installApp[hidden] { display:none; }
 </style>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Token Wars Bot Sandbox","url":"https://bscbai.github.io/token-wars/sandbox.html","applicationCategory":"DeveloperApplication","operatingSystem":"Web browser","description":"Write a decide(state) policy and fight the arena AI offline under the real protocol rules, then export a runnable Node bot.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"isPartOf":{"@type":"VideoGame","name":"Token Wars","url":"https://bscbai.github.io/token-wars/"}}</script>
 </head>
@@ -226,7 +231,32 @@
   </footer>
 
 <script src="./sandbox.js"></script>
+<button id="installApp" type="button" hidden>Install app</button>
 <script>
+(function () {
+  var btn = document.getElementById('installApp');
+  if (!btn || !('serviceWorker' in navigator)) return;
+  var deferred = null;
+  function label() {
+    btn.textContent = (document.documentElement.lang || '').indexOf('zh') === 0 ? '安装应用' : 'Install app';
+  }
+  window.addEventListener('beforeinstallprompt', function (event) {
+    event.preventDefault();
+    deferred = event;
+    label();
+    btn.hidden = false;
+  });
+  btn.addEventListener('click', function () {
+    if (!deferred) return;
+    deferred.prompt();
+    var choice = deferred.userChoice;
+    deferred = null;
+    btn.hidden = true;
+    if (choice && choice.then) choice.then(function () {}, function () {});
+  });
+  window.addEventListener('appinstalled', function () { btn.hidden = true; });
+})();
+</script><script>
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   }

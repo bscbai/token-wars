@@ -59,6 +59,41 @@ const SW_REGISTER = `<script>
   }
 </script>`;
 
+// 可安装时在右下角浮出「安装应用」，让主屏图标这一步可见
+const INSTALL_CSS = `<style>
+#installApp { position:fixed; right:14px; bottom:14px; z-index:30; font:inherit; font-size:12px;
+              padding:7px 11px; cursor:pointer; color:#04110b; background:#00ff88;
+              border:1px solid #00ff88; border-radius:4px; box-shadow:0 2px 10px rgba(0,0,0,.45); }
+#installApp[hidden] { display:none; }
+</style>`;
+
+const INSTALL_UI = `<button id="installApp" type="button" hidden>Install app</button>
+<script>
+(function () {
+  var btn = document.getElementById('installApp');
+  if (!btn || !('serviceWorker' in navigator)) return;
+  var deferred = null;
+  function label() {
+    btn.textContent = (document.documentElement.lang || '').indexOf('zh') === 0 ? '安装应用' : 'Install app';
+  }
+  window.addEventListener('beforeinstallprompt', function (event) {
+    event.preventDefault();
+    deferred = event;
+    label();
+    btn.hidden = false;
+  });
+  btn.addEventListener('click', function () {
+    if (!deferred) return;
+    deferred.prompt();
+    var choice = deferred.userChoice;
+    deferred = null;
+    btn.hidden = true;
+    if (choice && choice.then) choice.then(function () {}, function () {});
+  });
+  window.addEventListener('appinstalled', function () { btn.hidden = true; });
+})();
+</script>`;
+
 /**
  * 给生成的页面加上 PWA 头与 SW 注册；jsonLd 存在时同时输出结构化数据，
  * 让搜索引擎和社交平台能识别这是可玩的游戏页。
@@ -67,7 +102,8 @@ function withPwa(html, jsonLd) {
   const ld = jsonLd
     ? `\n<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`
     : '';
-  return html.replace('</head>', `${PWA_TAGS}${SHARE_CSS}${ld}\n</head>`).replace('</body>', `${SW_REGISTER}\n</body>`);
+  return html.replace('</head>', `${PWA_TAGS}${SHARE_CSS}${INSTALL_CSS}${ld}\n</head>`)
+    .replace('</body>', `${INSTALL_UI}${SW_REGISTER}\n</body>`);
 }
 
 const gameJsonLd = (lang, pageUrl, description) => ({
@@ -1006,8 +1042,8 @@ writeIcon(path.join(OUT_DIR, 'icon-512.png'), 512);
 // PWA 自检：页面引用 manifest + 结构化数据、SW 缓存名一致、图标注册齐全
 const indexHtml = fs.readFileSync(OUT_FILE, 'utf8');
 if (!indexHtml.includes('rel="manifest"') || !indexHtml.includes('application/ld+json')
-  || !indexHtml.includes('twitter.com/intent/tweet')) {
-  throw new Error('index page missing manifest, structured data or share links');
+  || !indexHtml.includes('twitter.com/intent/tweet') || !indexHtml.includes('id="installApp"')) {
+  throw new Error('index page missing manifest, structured data, share or install UI');
 }
 if (!fs.readFileSync(path.join(OUT_DIR, 'sw.js'), 'utf8').includes(CACHE)) {
   throw new Error('sw.js cache tag mismatch');
