@@ -35,6 +35,33 @@ const MAP_KEY = 'tw-play-map';
 let MAP = AI_MAPS.DATA_MINE;
 const brain = new BuiltinBrain();
 
+// 每日挑战：本地日期决定「地图 + 规则变体」，每天轮换，无需服务端。
+// 地图每天变；规则变体每 5 天换一档（5 张图 × 5 变体 = 25 天不重复组合）。
+const DAILY_EPOCH = Date.UTC(2026, 0, 1);
+const DAILY_MUTATORS = [
+  { id: 'blitz', maxMs: 60000 },
+  { id: 'glass', hp: 60 },
+  { id: 'guarded', enemyShield: true },
+  { id: 'fierce', enemyAtkMult: 1.25 },
+  { id: 'fragile', youHp: 60 },
+];
+
+function dailyInfo(date = new Date()) {
+  const localMidnight = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = Math.floor((localMidnight - DAILY_EPOCH) / 86400000);
+  const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    + `-${String(date.getDate()).padStart(2, '0')}`;
+  const mapIndex = ((day % MAP_LIST.length) + MAP_LIST.length) % MAP_LIST.length;
+  const mutIndex = ((Math.floor(day / MAP_LIST.length) % DAILY_MUTATORS.length)
+    + DAILY_MUTATORS.length) % DAILY_MUTATORS.length;
+  return {
+    key,
+    number: day + 1,
+    map: MAP_LIST[mapIndex],
+    mutator: DAILY_MUTATORS[mutIndex],
+  };
+}
+
 const I18N = {
   en: {
     subtitle: "Human vs the arena's built-in AI — same rules, in your browser.",
@@ -48,6 +75,8 @@ const I18N = {
     mapLabel: 'Arena',
     mapAria: 'arena map',
     you: 'YOU',
+    hpAriaYou: 'Your HP',
+    hpAriaEnemy: 'Gatekeeper HP',
     skillAttack: 'J Attack',
     skillBurst: 'K Burst',
     skillShield: 'L Shield',
@@ -86,6 +115,15 @@ const I18N = {
     hintBurst: 'Burst needs range ≤ 2',
     shareCopied: 'Result copied — paste it in Discord, X or a PR.',
     sharePrompt: 'Copy this result',
+    dailyTitle: 'Daily challenge',
+    dailyNone: 'Not played today',
+    dailyLoss: '✗ today',
+    dailyDraw: '= today',
+    mut_blitz: 'Blitz 60s',
+    mut_glass: 'Glass 60 HP',
+    mut_guarded: 'Shielded foe',
+    mut_fierce: 'Fierce AI',
+    mut_fragile: 'Fragile: you 60 HP',
   },
   zh: {
     subtitle: '人类 vs 竞技场内置 AI——同一套规则，全部在浏览器里。',
@@ -98,6 +136,8 @@ const I18N = {
     mapLabel: '竞技场',
     mapAria: '竞技场地图',
     you: '你',
+    hpAriaYou: '你的生命值',
+    hpAriaEnemy: '守门 AI 生命值',
     skillAttack: 'J 普攻',
     skillBurst: 'K 爆发',
     skillShield: 'L 护盾',
@@ -136,6 +176,15 @@ const I18N = {
     hintBurst: '爆发需要距离 ≤ 2',
     shareCopied: '战绩已复制——可以直接发到 Discord、X 或 PR。',
     sharePrompt: '复制此战绩',
+    dailyTitle: '每日挑战',
+    dailyNone: '今日未挑战',
+    dailyLoss: '✗ 今日未通过',
+    dailyDraw: '＝ 今日平局',
+    mut_blitz: '极速 60 秒',
+    mut_glass: '玻璃 60 血',
+    mut_guarded: '对手带盾',
+    mut_fierce: '狂暴 AI',
+    mut_fragile: '脆弱：你只有 60 血',
   },
 };
 
@@ -160,6 +209,8 @@ const FMT = {
     resultStats: (o) => `${o.time}s · ${o.wins}W–${o.losses}L${o.draws ? `–${o.draws}D` : ''}`
       + (o.newBest ? ' · NEW BEST' : ''),
     mapRecord: (r) => `${r.wins}W–${r.losses}L${r.draws ? `–${r.draws}D` : ''}`,
+    dailyWin: (s) => `✓ ${s}s today`,
+    dailyTries: (n) => ` · ${n} ${n === 1 ? 'try' : 'tries'}`,
     shareText: (o) => {
       const score = `${o.wins}W–${o.losses}L${o.draws ? `–${o.draws}D` : ''}`;
       const line = o.result === 'win'
@@ -167,7 +218,10 @@ const FMT = {
         : o.result === 'loss'
           ? `The Token Wars gatekeeper got me in ${o.time}s — ${score}.`
           : `Draw with the Token Wars gatekeeper at ${o.time}s — ${score}.`;
-      return `${line}\nPlay free in your browser: ${PLAY_URL}\nWrite your own bot: ${SANDBOX_URL}`;
+      const daily = o.daily
+        ? `Token Wars Daily #${o.daily.number} (${o.daily.map} · ${o.daily.mut}).\n`
+        : '';
+      return `${daily}${line}\nPlay free in your browser: ${PLAY_URL}\nWrite your own bot: ${SANDBOX_URL}`;
     },
   },
   zh: {
@@ -177,6 +231,8 @@ const FMT = {
     resultStats: (o) => `${o.time}秒 · ${o.wins}胜–${o.losses}负${o.draws ? `–${o.draws}平` : ''}`
       + (o.newBest ? ' · 新纪录' : ''),
     mapRecord: (r) => `${r.wins}胜${r.losses}负${r.draws ? `${r.draws}平` : ''}`,
+    dailyWin: (s) => `✓ 今日 ${s} 秒`,
+    dailyTries: (n) => ` · ${n} 次`,
     shareText: (o) => {
       const score = `${o.wins}胜–${o.losses}负${o.draws ? `–${o.draws}平` : ''}`;
       const line = o.result === 'win'
@@ -184,7 +240,10 @@ const FMT = {
         : o.result === 'loss'
           ? `Token Wars 守门 AI 在 ${o.time} 秒内放倒了我——${score}。`
           : `和 Token Wars 守门 AI 打成平局（${o.time} 秒）——${score}。`;
-      return `${line}\n浏览器免费试玩：${PLAY_URL}\n自己写 bot：${SANDBOX_URL}`;
+      const daily = o.daily
+        ? `Token Wars 每日挑战 #${o.daily.number}（${o.daily.map} · ${o.daily.mut}）。\n`
+        : '';
+      return `${daily}${line}\n浏览器免费试玩：${PLAY_URL}\n自己写 bot：${SANDBOX_URL}`;
     },
   },
 };
@@ -195,7 +254,7 @@ const SANDBOX_URL = 'https://bscbai.github.io/token-wars/sandbox.html';
 
 const RECORD_KEY = 'tw-play-record-v1';
 const defaultRecord = () => ({
-  wins: 0, losses: 0, draws: 0, streak: 0, bestStreak: 0, bestWinMs: null, byMap: {},
+  wins: 0, losses: 0, draws: 0, streak: 0, bestStreak: 0, bestWinMs: null, byMap: {}, daily: {},
 });
 
 function loadRecord() {
@@ -204,6 +263,7 @@ function loadRecord() {
     if (parsed && typeof parsed.wins === 'number') {
       const merged = { ...defaultRecord(), ...parsed };
       if (!merged.byMap || typeof merged.byMap !== 'object') merged.byMap = {};
+      if (!merged.daily || typeof merged.daily !== 'object') merged.daily = {};
       return merged;
     }
   } catch { /* 隐私模式/损坏数据 */ }
@@ -229,6 +289,49 @@ function updateRecordLine() {
 function updateMapRecord() {
   if (!ui.mapRecord) return;
   ui.mapRecord.textContent = f('mapRecord', record.byMap[MAP.id] || { wins: 0, losses: 0, draws: 0 });
+}
+
+function renderDaily() {
+  if (!ui.daily) return;
+  const info = dailyInfo();
+  const rec = record.daily[info.key];
+  ui.daily.textContent = `${t('dailyTitle')} #${info.number} · ${mapNameOf(info.map)}`
+    + ` · ${t(`mut_${info.mutator.id}`)}`;
+  ui.daily.classList.toggle('active', !!dailyMode && dailyMode.key === info.key);
+  if (!rec) {
+    ui.dailyStatus.textContent = t('dailyNone');
+    return;
+  }
+  const tries = f('dailyTries', rec.played);
+  if (rec.won > 0) ui.dailyStatus.textContent = f('dailyWin', secs(rec.bestMs)) + tries;
+  else if (rec.drawn > 0) ui.dailyStatus.textContent = t('dailyDraw') + tries;
+  else ui.dailyStatus.textContent = t('dailyLoss') + tries;
+}
+
+function startDaily() {
+  dailyMode = dailyInfo();
+  MAP = dailyMode.map;
+  populateMaps();
+  reset();
+}
+
+function pruneDaily() {
+  const keys = Object.keys(record.daily).sort();
+  while (keys.length > 14) delete record.daily[keys.shift()];
+}
+
+function applyDailyRules() {
+  matchMaxMs = MATCH_MAX_MS;
+  if (!dailyMode) return;
+  const m = dailyMode.mutator;
+  if (m.maxMs) matchMaxMs = m.maxMs;
+  if (m.hp) {
+    you.maxHp = m.hp; you.hp = m.hp;
+    enemy.maxHp = m.hp; enemy.hp = m.hp;
+  }
+  if (m.youHp) { you.maxHp = m.youHp; you.hp = m.youHp; }
+  if (m.enemyShield) enemy.enableShield(enemy.shieldMax);
+  if (m.enemyAtkMult) enemy.baseAtk = Math.round(enemy.baseAtk * m.enemyAtkMult);
 }
 
 // 首访操作说明：暂停比赛，关掉后继续；之后可从页脚「操作说明」再打开
@@ -261,6 +364,8 @@ let timer = null;
 let elapsed = 0;
 let held = new Set();
 let lastResult = null;
+let dailyMode = null;
+let matchMaxMs = MATCH_MAX_MS;
 
 function isWalkable(x, y) {
   if (x < 0 || y < 0 || x >= MAP.width || y >= MAP.height) return false;
@@ -300,6 +405,7 @@ function selectMap(id) {
   const next = MAP_LIST.find((m) => m.id === id);
   if (!next || next.id === MAP.id) return;
   MAP = next;
+  dailyMode = null;
   try { localStorage.setItem(MAP_KEY, MAP.id); } catch { /* 隐私模式忽略 */ }
   reset();
 }
@@ -307,6 +413,7 @@ function selectMap(id) {
 function reset() {
   stop();
   freshAgents();
+  applyDailyRules();
   elapsed = 0;
   ended = false;
   running = true;
@@ -322,6 +429,7 @@ function reset() {
   updateHud();
   updateRecordLine();
   updateMapRecord();
+  renderDaily();
 }
 
 function start() {
@@ -421,10 +529,18 @@ function flashHint(key) {
 }
 
 async function shareMatch() {
+  const daily = lastOutcome.daily
+    ? {
+      number: lastOutcome.daily.number,
+      map: mapNameOf(MAP_LIST.find((m) => m.id === lastOutcome.daily.mapId) || MAP),
+      mut: t(`mut_${lastOutcome.daily.mutId}`),
+    }
+    : null;
   const text = f('shareText', {
     result: lastResult,
     time: secs(lastOutcome.ms),
     ...lastOutcome.record,
+    daily,
   });
   try {
     await navigator.clipboard.writeText(text);
@@ -461,7 +577,7 @@ function tick() {
     finish(youDead && enemyDead ? 'draw' : (enemyDead ? 'win' : 'loss'));
     return;
   }
-  if (elapsed >= MATCH_MAX_MS) finish('draw');
+  if (elapsed >= matchMaxMs) finish('draw');
 }
 
 function finish(result) {
@@ -491,16 +607,32 @@ function finish(result) {
     bucket.draws++;
   }
   record.byMap[MAP.id] = bucket;
+  if (dailyMode) {
+    const d = record.daily[dailyMode.key]
+      || { played: 0, won: 0, lost: 0, drawn: 0, bestMs: null };
+    d.played++;
+    if (result === 'win') {
+      d.won++;
+      if (!d.bestMs || ms < d.bestMs) d.bestMs = ms;
+    } else if (result === 'loss') d.lost++;
+    else d.drawn++;
+    record.daily[dailyMode.key] = d;
+    pruneDaily();
+  }
   saveRecord();
   lastResult = result;
   lastOutcome = {
     ms,
     newBest: result === 'win' && (!prevBest || ms < prevBest),
     record: { ...record },
+    daily: dailyMode
+      ? { number: dailyMode.number, mapId: dailyMode.map.id, mutId: dailyMode.mutator.id }
+      : null,
   };
   renderResult();
   updateRecordLine();
   updateMapRecord();
+  renderDaily();
   updateHud();
   ui.share.hidden = false;
 }
@@ -573,7 +705,14 @@ function updateHud() {
   ui.hpEnemy.textContent = `${pct(enemy)}`;
   ui.barYou.style.width = `${pct(you)}%`;
   ui.barEnemy.style.width = `${pct(enemy)}%`;
-  ui.clock.textContent = formatClock(Math.max(0, MATCH_MAX_MS - elapsed));
+  // 血条同时作为无障碍 progressbar：最大值会随每日挑战（如 60 血）变化
+  ui.trackYou.setAttribute('aria-valuemax', you.maxHp);
+  ui.trackYou.setAttribute('aria-valuenow', you.hp);
+  ui.trackYou.setAttribute('aria-label', t('hpAriaYou'));
+  ui.trackEnemy.setAttribute('aria-valuemax', enemy.maxHp);
+  ui.trackEnemy.setAttribute('aria-valuenow', enemy.hp);
+  ui.trackEnemy.setAttribute('aria-label', t('hpAriaEnemy'));
+  ui.clock.textContent = formatClock(Math.max(0, matchMaxMs - elapsed));
   const now = performance.now();
   const pill = (el, id, label) => {
     const ready = !you.skillOnCooldown(id, now);
@@ -607,6 +746,7 @@ function applyLang(next) {
   renderResult();
   updateRecordLine();
   updateMapRecord();
+  renderDaily();
   updateHud();
 }
 
@@ -648,6 +788,7 @@ function bindInput() {
   ui.skillDash.addEventListener('click', () => tryDash(performance.now()));
   ui.restart.addEventListener('click', reset);
   ui.share.addEventListener('click', shareMatch);
+  ui.daily.addEventListener('click', startDaily);
   ui.howto.addEventListener('click', openIntro);
   ui.introStart.addEventListener('click', closeIntro);
 }
@@ -662,6 +803,8 @@ function boot() {
     hpEnemy: $('hpEnemy'),
     barYou: $('barYou'),
     barEnemy: $('barEnemy'),
+    trackYou: $('trackYou'),
+    trackEnemy: $('trackEnemy'),
     clock: $('clock'),
     result: $('result'),
     resultText: $('resultText'),
@@ -682,6 +825,8 @@ function boot() {
     lang: $('lang'),
     mapSelect: $('mapSelect'),
     mapRecord: $('mapRecord'),
+    daily: $('daily'),
+    dailyStatus: $('dailyStatus'),
     padUp: $('padUp'),
     padDown: $('padDown'),
     padLeft: $('padLeft'),

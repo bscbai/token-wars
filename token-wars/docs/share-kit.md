@@ -164,8 +164,11 @@ before posting.)
 > for English- and Chinese-speaking friends. First visit shows a short how-to and
 > pauses the match until you're ready. It keeps a local record (wins/losses,
 > streak, fastest win) in the browser, all five arena maps are selectable, and
-> each map shows its own win/loss record; **Share result** copies a
-> ready-to-post line with both the play and sandbox links.
+> each map shows its own win/loss record, and a **daily challenge** rotates the
+> map plus one rule twist (60 s blitz, 60 HP glass, shielded foe, +25% AI
+> attack, 60 HP handicap) with a local best time for today. **Share result**
+> copies a ready-to-post line — including `Daily #N` when you played it — with
+> both the play and sandbox links.
 >
 > It is also an installable PWA: an **Install app** button appears when the
 > browser supports it, and the play/sandbox pages keep working offline after the
@@ -207,10 +210,17 @@ context.
 > scores your policy on all 5 maps, and exports a runnable Node bot:
 > https://bscbai.github.io/token-wars/sandbox.html
 
+**X / daily challenge angle**
+> Token Wars has a daily challenge: same map + same rule twist for everyone
+> (60 s blitz, 60 HP glass, shielded foe…), one local best time, one line to
+> share. Beat #329 and post your time:
+> https://bscbai.github.io/token-wars/play.html
+
 **Discord / forum blurb**
 > Token Wars — cyberpunk 1v1 arena, human vs built-in AI in the browser, plus a
 > bot sandbox with the real protocol. No signup: play _<play url>_, write a bot
-> _<sandbox url>_, watch replays _<demo url>_. Feedback welcome:
+> _<sandbox url>_, watch replays _<demo url>_. Daily challenge rotates the map
+> and a rule twist, so everyone can compare the same run. Feedback welcome:
 > https://github.com/bscbai/token-wars
 
 Want the **live full game** instead of the static slice? Open the repo in

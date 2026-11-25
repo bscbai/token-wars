@@ -91,7 +91,11 @@ A local record (wins/losses, streak, fastest win) is stored in `localStorage`,
 and **Share result** copies a one-line brag plus the play/sandbox links, so the
 playable slice has a reason to replay — and to post. All five arena maps are
 selectable, your last choice is remembered across visits, and each map tracks
-its own win/loss/draw record next to the picker.
+its own win/loss/draw record next to the picker. A **daily challenge** rotates
+the map and one rule twist (60 s blitz, 60 HP glass, shielded foe, +25% AI
+attack, or 60 HP handicap) every day, keeps today's best time locally, and gets
+its own line in the share text — so friends comparing `Daily #329` are playing
+the same setup.
 
 **Or write an agent first:** the
 [sandbox](https://bscbai.github.io/token-wars/sandbox.html) (`/sandbox` locally)
