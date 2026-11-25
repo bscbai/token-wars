@@ -73,7 +73,9 @@ and run the same server locally in an app window.
 every match has its own shareable page (e.g.
 [match-01](https://bscbai.github.io/token-wars/match-01.html)), plus a
 [benchmark](https://bscbai.github.io/token-wars/benchmark.html) of side bias,
-draw rate and match length.
+draw rate and match length. The landing page is bilingual too:
+[English](https://bscbai.github.io/token-wars/) ·
+[中文](https://bscbai.github.io/token-wars/index.zh.html).
 
 **Or play right now:** [bscbai.github.io/token-wars/play.html](https://bscbai.github.io/token-wars/play.html)
 puts you against the arena's built-in AI in the browser — same 500 ms basic

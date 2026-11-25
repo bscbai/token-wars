@@ -125,7 +125,10 @@ const BASE_CSS = `
               border-radius:4px; color:var(--text); font:inherit; font-size:12px; overflow-x:auto; }
   .stats { font-size:11px; color:var(--muted); margin-top:10px; }
   /* Landing hero（index 专用；单场分享页带了样式也不影响） */
-  .hero { margin-top:8px; }
+  .hero { margin-top:8px; position:relative; }
+  .lang-switch { position:absolute; right:0; top:0; font-size:12px; padding:4px 10px;
+                 color:var(--green-dim); border:1px solid #1b3a30; border-radius:4px; text-decoration:none; }
+  .lang-switch:hover { color:var(--green); border-color:var(--green); }
   .kicker { font-size:11px; letter-spacing:3px; color:var(--green-dim); }
   .hero h1 { font-size:clamp(30px, 6vw, 46px); letter-spacing:4px; margin-top:8px; }
   .hero h1 .caret { color:var(--muted); }
@@ -309,56 +312,154 @@ function matchPage(i, m) {
 `;
 }
 
-const html = `<!DOCTYPE html>
-<html lang="en">
+const INDEX_STRINGS = {
+  en: {
+    htmlLang: 'en',
+    title: 'Token Wars — AI Arena (recorded demo)',
+    description: 'Recorded AI-agent matches from Token Wars: a real-time, server-authoritative arena where you bring your own agent. Static demo — run the game locally for live fights.',
+    kicker: 'AI AGENT ARENA · RECORDED DEMO',
+    taglineHtml: `Bring your own AI agent to a real-time 1v1 arena.<br>
+        <b>Watch</b> recorded fights, <b>play</b> the built-in AI, or
+        <b>write</b> a bot — no install.`,
+    ctaPlay: '▶ Play vs the AI',
+    ctaSandbox: 'Write an agent',
+    ctaReplay: 'Watch replays',
+    bannerHtml: `<b>Static demo</b> (no server). Live ladder, live board and your own bot run
+      locally in ~1 minute:
+      <code>git clone https://github.com/bscbai/token-wars &amp;&amp; cd token-wars &amp;&amp; npm install &amp;&amp; npm run demo</code>
+      — or <a href="https://github.com/bscbai/token-wars">read the protocol</a>.`,
+    h2Replay: 'Match replay',
+    h2Standings: 'Standings (after these matches)',
+    h2Join: 'Bring your own agent',
+    joinIntro: 'Any language. One command registers an account, mints a bot token and joins the queue:',
+    joinLinksHtml: `<a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5-minute agent quickstart</a>
+      · <a href="./sandbox.html">try a policy in the browser sandbox</a>
+      · <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">full protocol</a>
+      · <a href="https://github.com/bscbai/token-wars/tree/main/token-wars/examples">sample bots (Node / Python / LLM)</a>`,
+    footerPlay: 'Play vs the AI',
+    footerSandbox: 'Write an agent',
+    footerProtocol: 'Bot protocol',
+    footerBenchmark: 'Benchmark v0',
+    otherLang: '中文',
+    otherHref: './index.zh.html',
+    playHref: './play.html',
+    sandboxHref: './sandbox.html',
+    play: 'Play',
+    pause: 'Pause',
+    drawWord: 'draw',
+    winsSuffix: ' wins',
+    drawPadded: '  draw  ',
+    vsPadded: '  vs  ',
+    ctxTicks: ' ticks · ',
+    statMatches: ' recorded matches · ',
+    statMaps: ' maps · avg ',
+    statTicks: ' ticks · ',
+    statDraws: ' draws',
+    heroMatches: ' RECORDED MATCHES · ',
+    heroMaps: ' MAPS · AVG ',
+    heroTicks: ' TICKS · RECORDED ',
+    shareLead: 'Share a single match: ',
+    recorded: 'recorded ',
+    colAgent: 'Agent',
+  },
+  zh: {
+    htmlLang: 'zh-CN',
+    title: 'Token Wars — AI 竞技场（录制演示）',
+    description: 'Token Wars 的 AI agent 录制对局：实时、服务端权威的 1v1 竞技场，带你的 agent 来参赛。静态演示——本地运行即可实时对战。',
+    kicker: 'AI AGENT 竞技场 · 录制演示',
+    taglineHtml: `带你的 AI agent 上实时 1v1 擂台。<br>
+        <b>看</b>录制对局、<b>打</b>内置 AI，或者
+        <b>写</b>一个 bot——无需安装。`,
+    ctaPlay: '▶ 对战内置 AI',
+    ctaSandbox: '写个 agent',
+    ctaReplay: '看回放',
+    bannerHtml: `<b>静态演示</b>（无需服务端）。实时天梯、实时棋盘和你的 bot 可在本地约 1 分钟跑起来：
+      <code>git clone https://github.com/bscbai/token-wars &amp;&amp; cd token-wars &amp;&amp; npm install &amp;&amp; npm run demo</code>
+      ——或<a href="https://github.com/bscbai/token-wars">阅读协议</a>。`,
+    h2Replay: '对局回放',
+    h2Standings: '积分榜（这些对局之后）',
+    h2Join: '带你的 agent 来参赛',
+    joinIntro: '任何语言。一条命令即可注册账号、签发 bot token 并加入队列：',
+    joinLinksHtml: `<a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5 分钟 agent 上手</a>
+      · <a href="./sandbox.html?lang=zh">在浏览器沙盒里试策略</a>
+      · <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.md">完整协议（中文）</a>
+      · <a href="https://github.com/bscbai/token-wars/tree/main/token-wars/examples">示例 bot（Node / Python / LLM）</a>`,
+    footerPlay: '对战内置 AI',
+    footerSandbox: '写个 agent',
+    footerProtocol: 'Bot 协议',
+    footerBenchmark: '基准测试 v0',
+    otherLang: 'EN',
+    otherHref: './index.html',
+    playHref: './play.html?lang=zh',
+    sandboxHref: './sandbox.html?lang=zh',
+    play: '播放',
+    pause: '暂停',
+    drawWord: '平局',
+    winsSuffix: ' 获胜',
+    drawPadded: '  平局  ',
+    vsPadded: '  vs  ',
+    ctxTicks: ' tick · ',
+    statMatches: ' 场录制对局 · ',
+    statMaps: ' 张地图 · 平均 ',
+    statTicks: ' tick · ',
+    statDraws: ' 场平局',
+    heroMatches: ' 场录制对局 · ',
+    heroMaps: ' 张地图 · 平均 ',
+    heroTicks: ' tick · 录制于 ',
+    shareLead: '单场分享：',
+    recorded: '录制于 ',
+    colAgent: 'Agent',
+  },
+};
+
+function indexPage(lang) {
+  const S = INDEX_STRINGS[lang];
+  return `<!DOCTYPE html>
+<html lang="${S.htmlLang}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Token Wars — AI Arena (recorded demo)</title>
-<meta name="description" content="Recorded AI-agent matches from Token Wars: a real-time, server-authoritative arena where you bring your own agent. Static demo — run the game locally for live fights.">
-<meta property="og:title" content="Token Wars — AI Agent Arena">
-<meta property="og:description" content="Watch recorded AI-agent matches frame by frame, then bring your own agent.">
+<title>${S.title}</title>
+<meta name="description" content="${S.description}">
+<meta property="og:title" content="${S.title}">
+<meta property="og:description" content="${S.description}">
 <meta property="og:type" content="website">
-<meta property="og:url" content="__PUBLIC_ORIGIN__/">
+<meta property="og:url" content="__PUBLIC_ORIGIN__/${lang === 'en' ? '' : 'index.zh.html'}">
+<link rel="alternate" hreflang="en" href="__PUBLIC_ORIGIN__/">
+<link rel="alternate" hreflang="zh" href="__PUBLIC_ORIGIN__/index.zh.html">
 <meta property="og:image" content="__PUBLIC_ORIGIN__/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Token Wars — AI Agent Arena">
-<meta name="twitter:description" content="Watch recorded AI-agent matches frame by frame, then bring your own agent.">
+<meta name="twitter:title" content="${S.title}">
+<meta name="twitter:description" content="${S.description}">
 <meta name="twitter:image" content="__PUBLIC_ORIGIN__/og-image.png">
 <link rel="icon" href="./og-image.png" type="image/png">
 <style>${BASE_CSS}</style>
 </head>
 <body>
   <header class="hero">
+    <a class="lang-switch" href="${S.otherHref}" hreflang="${lang === 'en' ? 'zh' : 'en'}">${S.otherLang}</a>
     <div class="hero-copy">
-      <div class="kicker">AI AGENT ARENA · RECORDED DEMO</div>
+      <div class="kicker">${S.kicker}</div>
       <h1>TOKEN WARS<span class="caret">_</span></h1>
-      <p class="tagline">
-        Bring your own AI agent to a real-time 1v1 arena.<br>
-        <b>Watch</b> recorded fights, <b>play</b> the built-in AI, or
-        <b>write</b> a bot — no install.
-      </p>
+      <p class="tagline">${S.taglineHtml}</p>
       <div class="cta">
-        <a class="btn primary" href="./play.html">▶ Play vs the AI</a>
-        <a class="btn" href="./sandbox.html">Write an agent</a>
-        <a class="btn ghost" href="#replay">Watch replays</a>
+        <a class="btn primary" href="${S.playHref}">${S.ctaPlay}</a>
+        <a class="btn" href="${S.sandboxHref}">${S.ctaSandbox}</a>
+        <a class="btn ghost" href="#replay">${S.ctaReplay}</a>
       </div>
       <div class="hero-stats" id="heroStats"></div>
     </div>
   </header>
 
   <div class="banner">
-    <b>Static demo</b> (no server). Live ladder, live board and your own bot run
-    locally in ~1 minute:
-    <code>git clone https://github.com/bscbai/token-wars &amp;&amp; cd token-wars &amp;&amp; npm install &amp;&amp; npm run demo</code>
-    — or <a href="https://github.com/bscbai/token-wars">read the protocol</a>.
+    ${S.bannerHtml}
   </div>
 
   <main id="replay">
     <section>
-      <h2>Match replay</h2>
+      <h2>${S.h2Replay}</h2>
       <div class="stage">
         <canvas id="board" width="320" height="320"></canvas>
         <div class="meta">
@@ -367,45 +468,41 @@ const html = `<!DOCTYPE html>
           <div id="context"></div>
           <div class="controls">
             <select id="picker"></select>
-            <button id="toggle" type="button">Play</button>
+            <button id="toggle" type="button">${S.play}</button>
           </div>
         </div>
       </div>
     </section>
     <section>
-      <h2>Standings (after these matches)</h2>
+      <h2>${S.h2Standings}</h2>
       <div id="standings"></div>
       <div class="stats" id="stats"></div>
     </section>
   </main>
 
   <section class="join">
-    <h2>Bring your own agent</h2>
-    <p>Any language. One command registers an account, mints a bot token and joins the queue:</p>
+    <h2>${S.h2Join}</h2>
+    <p>${S.joinIntro}</p>
     <pre>git clone https://github.com/bscbai/token-wars.git
 cd token-wars
 npm install
 npm run join -- --url &lt;arena-url&gt;</pre>
-    <p>
-      <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/agent-quickstart.md">5-minute agent quickstart</a>
-      · <a href="./sandbox.html">try a policy in the browser sandbox</a>
-      · <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">full protocol</a>
-      · <a href="https://github.com/bscbai/token-wars/tree/main/token-wars/examples">sample bots (Node / Python / LLM)</a>
-    </p>
+    <p>${S.joinLinksHtml}</p>
   </section>
 
   <footer>
-    <a href="./play.html">Play vs the AI</a>
-    <a href="./sandbox.html">Write an agent</a>
+    <a href="${S.playHref}">${S.footerPlay}</a>
+    <a href="${S.sandboxHref}">${S.footerSandbox}</a>
     <a href="https://github.com/bscbai/token-wars">GitHub</a>
-    <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">Bot protocol</a>
-    <a href="./benchmark.html">Benchmark v0</a>
+    <a href="https://github.com/bscbai/token-wars/blob/main/token-wars/docs/bot-protocol.en.md">${S.footerProtocol}</a>
+    <a href="./benchmark.html">${S.footerBenchmark}</a>
     <span id="generated"></span>
   </footer>
   <div class="match-links" id="matchLinks"></div>
 
 <script>
 const DATA = __DATA__;
+const S = ${JSON.stringify(S)};
 const board = document.getElementById('board');
 const picker = document.getElementById('picker');
 const toggle = document.getElementById('toggle');
@@ -451,21 +548,21 @@ function renderMeta() {
   a.className = d.winner === 'A' ? 'win' : '';
   a.textContent = '◆ ' + d.a;
   const vs = document.createElement('span');
-  vs.textContent = d.winner === 'draw' ? '  draw  ' : '  vs  ';
+  vs.textContent = d.winner === 'draw' ? S.drawPadded : S.vsPadded;
   const b = document.createElement('span');
   b.className = d.winner === 'B' ? 'win' : '';
   b.textContent = d.b + ' ◇';
   duelEl.append(a, vs, b);
-  ctxEl.textContent = d.ticks + ' ticks · ' + d.map.name + ' · ' + (d.winner === 'draw' ? 'draw' : d.winner + ' wins');
+  ctxEl.textContent = d.ticks + S.ctxTicks + d.map.name + ' · ' + (d.winner === 'draw' ? S.drawWord : d.winner + S.winsSuffix);
 }
 
-function stop() { clearInterval(state.timer); state.timer = null; state.playing = false; toggle.textContent = 'Play'; }
+function stop() { clearInterval(state.timer); state.timer = null; state.playing = false; toggle.textContent = S.play; }
 
 function play() {
   stop();
   if (state.frame >= state.data.frames.length - 1) state.frame = 0;
   state.playing = true;
-  toggle.textContent = 'Pause';
+  toggle.textContent = S.pause;
   state.timer = setInterval(() => {
     if (state.frame >= state.data.frames.length - 1) { stop(); return; }
     state.frame++;
@@ -490,7 +587,7 @@ toggle.addEventListener('click', () => (state.playing ? stop() : play()));
 const host = document.getElementById('standings');
 const head = document.createElement('div');
 head.className = 'row head';
-['#', 'Agent', 'AELO', 'W/L'].forEach((label, i) => {
+['#', S.colAgent, 'AELO', 'W/L'].forEach((label, i) => {
   const s = document.createElement('span');
   s.className = i === 0 ? 'rank' : (i === 1 ? 'name' : 'num');
   s.textContent = label;
@@ -508,19 +605,19 @@ DATA.standings.forEach((e, i) => {
   host.appendChild(row);
 });
 
-document.getElementById('generated').textContent = 'recorded ' + DATA.generatedAt.slice(0, 10);
+document.getElementById('generated').textContent = S.recorded + DATA.generatedAt.slice(0, 10);
 document.getElementById('stats').textContent =
-  DATA.stats.matches + ' recorded matches · ' + DATA.stats.maps + ' maps · avg ' +
-  DATA.stats.avgTicks + ' ticks · ' + DATA.stats.draws + ' draws';
+  DATA.stats.matches + S.statMatches + DATA.stats.maps + S.statMaps +
+  DATA.stats.avgTicks + S.statTicks + DATA.stats.draws + S.statDraws;
 
 document.getElementById('heroStats').textContent =
-  DATA.stats.matches + ' RECORDED MATCHES · ' + DATA.stats.maps + ' MAPS · AVG ' +
-  DATA.stats.avgTicks + ' TICKS · RECORDED ' + DATA.generatedAt.slice(0, 10);
+  DATA.stats.matches + S.heroMatches + DATA.stats.maps + S.heroMaps +
+  DATA.stats.avgTicks + S.heroTicks + DATA.generatedAt.slice(0, 10);
 
 // 每场都有独立分享页（match-NN.html），这里给出可点链接方便逐场传播
 const links = document.getElementById('matchLinks');
 const lead = document.createElement('span');
-lead.textContent = 'Share a single match: ';
+lead.textContent = S.shareLead;
 links.appendChild(lead);
 DATA.matches.forEach((m, i) => {
   const a = document.createElement('a');
@@ -533,9 +630,16 @@ select(0);
 </body>
 </html>
 `;
+}
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
-fs.writeFileSync(OUT_FILE, html.replace('__DATA__', JSON.stringify(data)).replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN), 'utf8');
+const fill = (page) => page.replace('__DATA__', JSON.stringify(data)).replace(/__PUBLIC_ORIGIN__/g, PUBLIC_ORIGIN);
+fs.writeFileSync(OUT_FILE, fill(indexPage('en')), 'utf8');
+const zhIndexFile = path.join(OUT_DIR, 'index.zh.html');
+fs.writeFileSync(zhIndexFile, fill(indexPage('zh')), 'utf8');
+if (fs.statSync(OUT_FILE).size === 0 || fs.statSync(zhIndexFile).size === 0) {
+  throw new Error('index page empty');
+}
 fs.writeFileSync(path.join(OUT_DIR, '.nojekyll'), '', 'utf8');
 fs.copyFileSync(OG_IMAGE_SRC, path.join(OUT_DIR, 'og-image.png')); // 分享卡图片（GitHub Pages 同目录）
 fs.writeFileSync(path.join(OUT_DIR, 'replay.js'), PLAYER_JS, 'utf8');
@@ -561,6 +665,7 @@ if (fs.statSync(path.join(OUT_DIR, 'replay.js')).size === 0) throw new Error('re
 // 检索入口：每一页都列进 sitemap，robots 指向它（静态站也能被搜索引擎收录）
 const sitemapUrls = [
   `${PUBLIC_ORIGIN}/`,
+  `${PUBLIC_ORIGIN}/index.zh.html`,
   `${PUBLIC_ORIGIN}/play.html`,
   `${PUBLIC_ORIGIN}/sandbox.html`,
   `${PUBLIC_ORIGIN}/benchmark.html`,
@@ -606,6 +711,7 @@ console.log(JSON.stringify({
   framesTotal: matches.reduce((s, m) => s + m.frames.length, 0),
   standings,
   bytes: fs.statSync(OUT_FILE).size,
+  zhBytes: fs.statSync(zhIndexFile).size,
   matchPages: pageFiles.length,
   matchPageBytes: pageFiles.map((p) => p.bytes),
 }, null, 2));
