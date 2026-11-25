@@ -995,6 +995,13 @@ function boot() {
   populateMaps();
   ui.mapSelect.addEventListener('change', () => selectMap(ui.mapSelect.value));
 
+  // 深链 ?daily=1：直接进入今天的挑战（首页 CTA / 分享链接用）
+  if (new URLSearchParams(location.search).get('daily') === '1') {
+    dailyMode = dailyInfo();
+    MAP = dailyMode.map;
+    populateMaps();
+  }
+
   const firstVisit = !introSeen();
   reset();
   applyLang();

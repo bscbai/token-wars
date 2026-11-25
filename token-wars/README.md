@@ -97,7 +97,8 @@ attack, or 60 HP handicap) every day, keeps today's best time locally, and gets
 its own line in the share text — so friends comparing `Daily #329` are playing
 the same setup. **Share image** turns the result into a 1200×630 PNG with the
 final board, time and record: it opens the native share sheet on mobile and
-downloads the card everywhere else.
+downloads the card everywhere else. The landing page links straight to
+`play.html?daily=1`, and the same deep link works for sharing "today's run".
 
 **Or write an agent first:** the
 [sandbox](https://bscbai.github.io/token-wars/sandbox.html) (`/sandbox` locally)

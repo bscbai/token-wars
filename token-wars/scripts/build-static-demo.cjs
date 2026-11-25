@@ -244,6 +244,13 @@ const BASE_CSS = `
   .btn.primary:hover { background:#5cffb0; }
   .btn.ghost { background:transparent; color:var(--green-dim); border-color:#1b3a30; }
   .hero-stats { margin-top:12px; font-size:11px; color:var(--muted); letter-spacing:1px; }
+  .daily-strip { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:14px;
+                 padding:10px 14px; border:1px dashed #4a3a1a; border-radius:6px;
+                 background:#1a1508; text-decoration:none; font-size:12px; color:#ffd479; }
+  .daily-strip:hover { border-color:#ffd479; }
+  .daily-strip .tag { font-weight:bold; letter-spacing:1px; }
+  .daily-strip .copy { color:var(--muted); }
+  .daily-strip .go { margin-left:auto; }
   main#replay { scroll-margin-top:16px; }
   .note { font-size:12px; color:var(--muted); line-height:1.8; }
   .note a { color:var(--green-dim); text-decoration:none; }
@@ -507,6 +514,10 @@ const INDEX_STRINGS = {
     ctaPlay: '▶ Play vs the AI',
     ctaSandbox: 'Write an agent',
     ctaReplay: 'Watch replays',
+    dailyTag: 'Daily challenge',
+    dailyCopy: 'A new map and rule twist every day — beat the gatekeeper, then share the card.',
+    dailyGo: "Play today's →",
+    dailyHref: './play.html?daily=1&lang=en',
     h2Start: 'Start in 30 seconds',
     step1Title: 'Play the AI',
     step1Desc: 'One match against the arena gatekeeper in your browser — same cooldowns and damage rolls. No install.',
@@ -576,6 +587,10 @@ const INDEX_STRINGS = {
     ctaPlay: '▶ 对战内置 AI',
     ctaSandbox: '写个 agent',
     ctaReplay: '看回放',
+    dailyTag: '每日挑战',
+    dailyCopy: '每天换一张地图与一条规则变体——打赢守门 AI，再分享战绩图。',
+    dailyGo: '挑战今天 →',
+    dailyHref: './play.html?daily=1&lang=zh',
     h2Start: '30 秒上手',
     step1Title: '和 AI 打一局',
     step1Desc: '浏览器里直接对战竞技场守门 AI——冷却与伤害掷骰完全一致，无需安装。',
@@ -672,6 +687,11 @@ function indexPage(lang) {
         <a class="btn" href="${S.sandboxHref}">${S.ctaSandbox}</a>
         <a class="btn ghost" href="#replay">${S.ctaReplay}</a>
       </div>
+      <a class="daily-strip" href="${S.dailyHref}" id="dailyStrip">
+        <span class="tag" id="dailyTag">${S.dailyTag}</span>
+        <span class="copy">${S.dailyCopy}</span>
+        <span class="go">${S.dailyGo}</span>
+      </a>
       <div class="hero-stats" id="heroStats"></div>
     </div>
   </header>
@@ -872,6 +892,12 @@ DATA.standings.forEach((e, i) => {
   row.append(rank, name, aelo, rec);
   host.appendChild(row);
 });
+
+// 每日挑战编号与 play 页同一公式（本地日期；epoch 2026-01-01），页面打开时刷新
+const today = new Date();
+const dayIndex = Math.floor((Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+  - Date.UTC(2026, 0, 1)) / 86400000);
+document.getElementById('dailyTag').textContent = S.dailyTag + ' #' + (dayIndex + 1);
 
 document.getElementById('generated').textContent = S.recorded + DATA.generatedAt.slice(0, 10);
 document.getElementById('stats').textContent =
@@ -1098,8 +1124,8 @@ writeIcon(path.join(OUT_DIR, 'icon-512.png'), 512);
 const indexHtml = fs.readFileSync(OUT_FILE, 'utf8');
 if (!indexHtml.includes('rel="manifest"') || !indexHtml.includes('application/ld+json')
   || !indexHtml.includes('twitter.com/intent/tweet') || !indexHtml.includes('id="installApp"')
-  || !indexHtml.includes('class="steps"')) {
-  throw new Error('index page missing manifest, structured data, share/install UI or quick-start steps');
+  || !indexHtml.includes('class="steps"') || !indexHtml.includes('play.html?daily=1')) {
+  throw new Error('index page missing manifest, structured data, share/install UI, quick-start steps or daily link');
 }
 if (!fs.readFileSync(path.join(OUT_DIR, 'sw.js'), 'utf8').includes(CACHE)) {
   throw new Error('sw.js cache tag mismatch');
