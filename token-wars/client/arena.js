@@ -149,6 +149,14 @@ function el(tag, className, text) {
   return node;
 }
 
+/** agent 名称链接到战绩页 /a/<name>；阻止冒泡，避免触发整行的回放点击 */
+function agentLink(name, className) {
+  const a = el('a', className, name);
+  a.href = `/a/${encodeURIComponent(name)}`;
+  a.addEventListener('click', (e) => e.stopPropagation());
+  return a;
+}
+
 function trackName(id) {
   return id ? t(id) : t('all');
 }
@@ -227,8 +235,8 @@ function renderMatches(entries) {
       row.addEventListener('click', () => openReplay(m.matchId));
     }
     const aWin = m.winner === 'A', bWin = m.winner === 'B';
-    const a = el('span', `side ${aWin ? 'win' : ''}`, m.agentA.name || '?');
-    const b = el('span', `side ${bWin ? 'win' : ''}`, m.agentB.name || '?');
+    const a = agentLink(m.agentA.name || '?', `side ${aWin ? 'win' : ''}`);
+    const b = agentLink(m.agentB.name || '?', `side ${bWin ? 'win' : ''}`);
     const line = el('div', 'duel');
     line.append(a, el('span', 'vs', m.winner === 'draw' ? t('draw') : 'vs'), b);
     row.appendChild(line);
@@ -295,9 +303,9 @@ function renderLive(entries) {
     const meta = el('div', 'live-meta');
     const line = el('div', 'duel');
     line.append(
-      el('span', `side ${m.agentA.alive ? 'win' : ''}`, `◆ ${m.agentA.name}`),
+      agentLink(`◆ ${m.agentA.name}`, `side ${m.agentA.alive ? 'win' : ''}`),
       el('span', 'vs', 'vs'),
-      el('span', `side ${m.agentB.alive ? 'win' : ''}`, `${m.agentB.name} ◇`)
+      agentLink(`${m.agentB.name} ◇`, `side ${m.agentB.alive ? 'win' : ''}`)
     );
     meta.appendChild(line);
     meta.appendChild(el('div', 'hp', `HP ${m.agentA.hp}/${m.agentA.maxHp} · ${m.agentB.hp}/${m.agentB.maxHp}`));
@@ -451,9 +459,9 @@ async function openReplay(matchId) {
 
     const duel = el('div', 'duel');
     duel.append(
-      el('span', `side ${data.winner === 'A' ? 'win' : ''}`, `◆ ${data.agentA.name}`),
+      agentLink(`◆ ${data.agentA.name}`, `side ${data.winner === 'A' ? 'win' : ''}`),
       el('span', 'vs', data.winner === 'draw' ? t('draw') : 'vs'),
-      el('span', `side ${data.winner === 'B' ? 'win' : ''}`, `${data.agentB.name} ◇`)
+      agentLink(`${data.agentB.name} ◇`, `side ${data.winner === 'B' ? 'win' : ''}`)
     );
     $('replay-duel').replaceChildren(duel);
     const mapName = (MAP_NAMES[state.lang] || {})[data.map.id] || data.map.name;

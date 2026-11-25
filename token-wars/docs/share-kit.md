@@ -158,6 +158,9 @@ https://github.com/bscbai/token-wars
       install (deps installed, port 3000 forwarded)
 - [x] Static recorded demo on GitHub Pages (`npm run demo:static` →
       `demo-site/` → `gh-pages`): https://bscbai.github.io/token-wars/
+- [x] v1.2.0 release: match replays, `/m/:matchId` and `/a/:name` share pages,
+      language deep links, static Pages demo, balance report
+      (https://github.com/bscbai/token-wars/releases/tag/v1.2.0)
 - [x] Default branch (`main`) mirrors the current product structure
       (`token-wars/` + bilingual UI + bot protocol)
 - [ ] README demo URL filled in both README.md and README.zh-CN.md
